@@ -1,4 +1,4 @@
--- Migration: Add Tirzepatide 15mg Complete Set as a sample product
+-- Migration: Add Tirzepatide Complete Set as a sample product
 -- This product will showcase the complete set inclusions feature
 
 -- Insert the new product with inclusions
@@ -18,8 +18,8 @@ INSERT INTO products (
   image_url,
   inclusions
 ) VALUES (
-  'Tirzepatide 15mg Complete Set',
-  'Premium complete set of Tirzepatide 15mg for research purposes. This glucose-dependent insulinotropic polypeptide (GIP) and glucagon-like peptide-1 (GLP-1) receptor agonist comes with everything you need to start your research. Our complete set includes the peptide vial plus all necessary supplies and comprehensive guidance.',
+  'Tirzepatide Complete Set',
+  'Premium complete set of Tirzepatide for research purposes. This glucose-dependent insulinotropic polypeptide (GIP) and glucagon-like peptide-1 (GLP-1) receptor agonist comes with everything you need to start your research. Our complete set includes the peptide vial plus all necessary supplies and comprehensive guidance.',
   'research',
   1850.00,
   99.5,
@@ -42,15 +42,15 @@ INSERT INTO products (
 
 -- Add size variations for the complete set
 INSERT INTO product_variations (product_id, name, quantity_mg, price, stock_quantity)
-SELECT id, '5mg Complete Set', 5.0, 850.00, 30 FROM products WHERE name = 'Tirzepatide 15mg Complete Set'
+SELECT id, '5mg Complete Set', 5.0, 850.00, 30 FROM products WHERE name = 'Tirzepatide Complete Set'
 UNION ALL
-SELECT id, '10mg Complete Set', 10.0, 1450.00, 25 FROM products WHERE name = 'Tirzepatide 15mg Complete Set'
+SELECT id, '10mg Complete Set', 10.0, 1450.00, 25 FROM products WHERE name = 'Tirzepatide Complete Set'
 UNION ALL
-SELECT id, '15mg Complete Set', 15.0, 1850.00, 25 FROM products WHERE name = 'Tirzepatide 15mg Complete Set'
+SELECT id, '15mg Complete Set', 15.0, 1850.00, 25 FROM products WHERE name = 'Tirzepatide Complete Set'
 UNION ALL
-SELECT id, '20mg Complete Set', 20.0, 2350.00, 20 FROM products WHERE name = 'Tirzepatide 15mg Complete Set'
+SELECT id, '20mg Complete Set', 20.0, 2350.00, 20 FROM products WHERE name = 'Tirzepatide Complete Set'
 UNION ALL
-SELECT id, '30mg Complete Set', 30.0, 3200.00, 15 FROM products WHERE name = 'Tirzepatide 15mg Complete Set';
+SELECT id, '30mg Complete Set', 30.0, 3200.00, 15 FROM products WHERE name = 'Tirzepatide Complete Set';
 
 -- Note: This is a sample product to demonstrate the complete set inclusions feature
 -- You can edit this product in the Admin Panel to customize the inclusions list

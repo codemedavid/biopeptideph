@@ -226,22 +226,6 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product, onClos
                   </p>
                 </div>
               )}
-
-              {/* Additional Info */}
-              <div className="space-y-2 sm:space-y-2.5 md:space-y-3 text-xs sm:text-sm text-gray-600">
-                <div className="flex items-start gap-1.5 sm:gap-2">
-                  <span className="text-green-500 font-bold mt-0.5">✓</span>
-                  <span>Free consultation support included</span>
-                </div>
-                <div className="flex items-start gap-1.5 sm:gap-2">
-                  <span className="text-green-500 font-bold mt-0.5">✓</span>
-                  <span>Temperature-controlled shipping available</span>
-                </div>
-                <div className="flex items-start gap-1.5 sm:gap-2">
-                  <span className="text-green-500 font-bold mt-0.5">✓</span>
-                  <span>Secure and discreet packaging</span>
-                </div>
-              </div>
             </div>
           </div>
         </div>
