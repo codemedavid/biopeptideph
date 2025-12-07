@@ -113,7 +113,7 @@ const Cart: React.FC<CartProps> = ({
                         </h3>
                         {item.variation && (
                           <p className="text-xs md:text-sm text-gray-700 font-medium">
-                            Size: {item.variation.name}
+                            Variation: {item.variation.name}
                           </p>
                         )}
                         <div className="flex items-center gap-2 mt-1">
