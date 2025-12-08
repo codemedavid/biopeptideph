@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Edit, Trash2, Save, X, ArrowLeft, Beaker, TrendingUp, Package, Users, Lock, FolderOpen, CreditCard, Sparkles, Heart, Layers, Shield, RefreshCw, Warehouse, ShoppingCart, HelpCircle } from 'lucide-react';
+import { Plus, Edit, Trash2, Save, X, ArrowLeft, Beaker, TrendingUp, Package, Users, Lock, FolderOpen, CreditCard, Sparkles, Heart, Layers, Shield, RefreshCw, Warehouse, ShoppingCart, HelpCircle, MapPin } from 'lucide-react';
 import type { Product } from '../types';
 import { useMenu } from '../hooks/useMenu';
 import { useCategories } from '../hooks/useCategories';
@@ -11,6 +11,7 @@ import COAManager from './COAManager';
 import PeptideInventoryManager from './PeptideInventoryManager';
 import OrdersManager from './OrdersManager';
 import FAQManager from './FAQManager';
+import ShippingManager from './ShippingManager';
 
 const AdminDashboard: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
@@ -20,7 +21,7 @@ const AdminDashboard: React.FC = () => {
   const [loginError, setLoginError] = useState('');
   const { products, loading, addProduct, updateProduct, deleteProduct, refreshProducts } = useMenu();
   const { categories } = useCategories();
-  const [currentView, setCurrentView] = useState<'dashboard' | 'products' | 'add' | 'edit' | 'categories' | 'payments' | 'coa' | 'inventory' | 'orders' | 'faq'>('dashboard');
+  const [currentView, setCurrentView] = useState<'dashboard' | 'products' | 'add' | 'edit' | 'categories' | 'payments' | 'coa' | 'inventory' | 'orders' | 'faq' | 'shipping'>('dashboard');
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [managingVariationsProductId, setManagingVariationsProductId] = useState<string | null>(null);
@@ -368,7 +369,7 @@ const AdminDashboard: React.FC = () => {
           <div className="text-center mb-4 md:mb-6">
             <div className="relative mx-auto w-12 h-12 md:w-16 md:h-16 bg-gradient-to-br from-black to-gray-900 rounded-lg md:rounded-xl flex items-center justify-center mb-3 md:mb-4 shadow-lg overflow-hidden border-2 border-gold-500/30">
               <img
-                src="/logo.jpg"
+                src="/assets/logo.jpg"
                 alt="peptalk.ph"
                 className="w-full h-full object-cover"
               />
@@ -1120,6 +1121,11 @@ const AdminDashboard: React.FC = () => {
     );
   }
 
+  // Shipping View
+  if (currentView === 'shipping') {
+    return <ShippingManager onBack={() => setCurrentView('dashboard')} />;
+  }
+
   // Dashboard View
   return (
     <>
@@ -1131,7 +1137,7 @@ const AdminDashboard: React.FC = () => {
               <div className="flex items-center space-x-2">
                 <div className="w-8 h-8 bg-gradient-to-br from-black to-gray-900 rounded-lg flex items-center justify-center shadow-lg overflow-hidden border-2 border-gold-500/30">
                   <img
-                    src="/logo.jpg"
+                    src="/assets/logo.jpg"
                     alt="peptalk.ph"
                     className="w-full h-full object-cover"
                   />
@@ -1309,6 +1315,15 @@ const AdminDashboard: React.FC = () => {
                     <HelpCircle className="h-3 w-3 md:h-4 md:w-4" />
                   </div>
                   <span className="text-xs font-medium text-gray-900">FAQ Management</span>
+                </button>
+                <button
+                  onClick={() => setCurrentView('shipping')}
+                  className="w-full flex items-center gap-2 p-1.5 md:p-2 text-left hover:bg-gradient-to-r hover:from-gold-50 hover:to-gray-50 rounded-md md:rounded-lg transition-all group"
+                >
+                  <div className="p-1 md:p-1.5 bg-gradient-to-br from-green-400 to-green-600 rounded-md text-white">
+                    <MapPin className="h-3 w-3 md:h-4 md:w-4" />
+                  </div>
+                  <span className="text-xs font-medium text-gray-900">Shipping Locations</span>
                 </button>
               </div>
             </div>

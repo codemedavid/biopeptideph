@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ArrowLeft, ShieldCheck, Package, CreditCard, Sparkles, Heart, Copy, Check, MessageCircle } from 'lucide-react';
 import type { CartItem } from '../types';
 import { usePaymentMethods } from '../hooks/usePaymentMethods';
+import { useShippingLocations } from '../hooks/useShippingLocations';
 import { supabase } from '../lib/supabase';
 
 interface CheckoutProps {
@@ -12,6 +13,7 @@ interface CheckoutProps {
 
 const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack }) => {
   const { paymentMethods } = usePaymentMethods();
+  const { locations: shippingLocations, getShippingFee } = useShippingLocations();
   const [step, setStep] = useState<'details' | 'payment' | 'confirmation'>('details');
 
   // Customer Details
@@ -47,23 +49,8 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack }) =>
     }
   }, [paymentMethods, selectedPaymentMethod]);
 
-  // Calculate shipping fee based on location
-  const calculateShippingFee = (): number => {
-    if (!shippingLocation) return 0;
-
-    switch (shippingLocation) {
-      case 'NCR':
-        return 75;
-      case 'LUZON':
-        return 100;
-      case 'VISAYAS_MINDANAO':
-        return 130;
-      default:
-        return 0;
-    }
-  };
-
-  const shippingFee = calculateShippingFee();
+  // Calculate shipping fee based on location (uses dynamic fees from database)
+  const shippingFee = shippingLocation ? getShippingFee(shippingLocation) : 0;
   const finalTotal = totalPrice + shippingFee;
 
   const isDetailsValid =
@@ -558,37 +545,20 @@ Please confirm this order. Thank you!
                 <p className="text-xs md:text-sm text-gray-600 mb-4 md:mb-6">
                   Shipping rates apply to small pouches (4.1 × 9.5 inches) with a capacity of up to 3 pens. For bulk orders exceeding this size, our team will contact you for the adjusted shipping fees.
                 </p>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  <button
-                    onClick={() => setShippingLocation('NCR')}
-                    className={`p-3 rounded-lg border-2 transition-all ${shippingLocation === 'NCR'
-                      ? 'border-gold-500 bg-gold-50'
-                      : 'border-gray-200 hover:border-gold-300'
-                      }`}
-                  >
-                    <p className="font-semibold text-gray-900 text-sm">NCR</p>
-                    <p className="text-xs text-gray-500">₱75</p>
-                  </button>
-                  <button
-                    onClick={() => setShippingLocation('LUZON')}
-                    className={`p-3 rounded-lg border-2 transition-all ${shippingLocation === 'LUZON'
-                      ? 'border-gold-500 bg-gold-50'
-                      : 'border-gray-200 hover:border-gold-300'
-                      }`}
-                  >
-                    <p className="font-semibold text-gray-900 text-sm">LUZON</p>
-                    <p className="text-xs text-gray-500">₱165</p>
-                  </button>
-                  <button
-                    onClick={() => setShippingLocation('VISAYAS_MINDANAO')}
-                    className={`p-3 rounded-lg border-2 transition-all ${shippingLocation === 'VISAYAS_MINDANAO'
-                      ? 'border-gold-500 bg-gold-50'
-                      : 'border-gray-200 hover:border-gold-300'
-                      }`}
-                  >
-                    <p className="font-semibold text-gray-900 text-sm">VISAYAS & MINDANAO</p>
-                    <p className="text-xs text-gray-500">₱190</p>
-                  </button>
+                <div className="grid grid-cols-3 gap-2">
+                  {shippingLocations.map((loc) => (
+                    <button
+                      key={loc.id}
+                      onClick={() => setShippingLocation(loc.id as 'NCR' | 'LUZON' | 'VISAYAS_MINDANAO')}
+                      className={`p-3 rounded-lg border-2 transition-all ${shippingLocation === loc.id
+                        ? 'border-gold-500 bg-gold-50'
+                        : 'border-gray-200 hover:border-gold-300'
+                        }`}
+                    >
+                      <p className="font-semibold text-gray-900 text-sm">{loc.id.replace('_', ' & ')}</p>
+                      <p className="text-xs text-gray-500">₱{loc.fee.toLocaleString()}</p>
+                    </button>
+                  ))}
                 </div>
               </div>
 
@@ -699,57 +669,26 @@ Please confirm this order. Thank you!
                 Shipping rates apply to small pouches (4.1 × 9.5 inches) with a capacity of up to 3 pens. For bulk orders exceeding this size, our team will contact you for the adjusted shipping fees.
               </p>
               <div className="grid grid-cols-1 gap-3">
-                <button
-                  onClick={() => setShippingLocation('NCR')}
-                  className={`p-4 rounded-lg border-2 transition-all flex items-center justify-between ${shippingLocation === 'NCR'
-                    ? 'border-gold-500 bg-gold-50'
-                    : 'border-gray-200 hover:border-gold-300'
-                    }`}
-                >
-                  <div className="text-left">
-                    <p className="font-semibold text-gray-900">NCR</p>
-                    <p className="text-sm text-gray-500">₱75</p>
-                  </div>
-                  {shippingLocation === 'NCR' && (
-                    <div className="w-6 h-6 bg-gold-500 rounded-full flex items-center justify-center">
-                      <span className="text-white text-xs">✓</span>
+                {shippingLocations.map((loc) => (
+                  <button
+                    key={loc.id}
+                    onClick={() => setShippingLocation(loc.id as 'NCR' | 'LUZON' | 'VISAYAS_MINDANAO')}
+                    className={`p-4 rounded-lg border-2 transition-all flex items-center justify-between ${shippingLocation === loc.id
+                      ? 'border-gold-500 bg-gold-50'
+                      : 'border-gray-200 hover:border-gold-300'
+                      }`}
+                  >
+                    <div className="text-left">
+                      <p className="font-semibold text-gray-900">{loc.id.replace('_', ' & ')}</p>
+                      <p className="text-sm text-gray-500">₱{loc.fee.toLocaleString()}</p>
                     </div>
-                  )}
-                </button>
-                <button
-                  onClick={() => setShippingLocation('LUZON')}
-                  className={`p-4 rounded-lg border-2 transition-all flex items-center justify-between ${shippingLocation === 'LUZON'
-                    ? 'border-gold-500 bg-gold-50'
-                    : 'border-gray-200 hover:border-gold-300'
-                    }`}
-                >
-                  <div className="text-left">
-                    <p className="font-semibold text-gray-900">LUZON</p>
-                    <p className="text-sm text-gray-500">₱165</p>
-                  </div>
-                  {shippingLocation === 'LUZON' && (
-                    <div className="w-6 h-6 bg-gold-500 rounded-full flex items-center justify-center">
-                      <span className="text-white text-xs">✓</span>
-                    </div>
-                  )}
-                </button>
-                <button
-                  onClick={() => setShippingLocation('VISAYAS_MINDANAO')}
-                  className={`p-4 rounded-lg border-2 transition-all flex items-center justify-between ${shippingLocation === 'VISAYAS_MINDANAO'
-                    ? 'border-gold-500 bg-gold-50'
-                    : 'border-gray-200 hover:border-gold-300'
-                    }`}
-                >
-                  <div className="text-left">
-                    <p className="font-semibold text-gray-900">VISAYAS & MINDANAO</p>
-                    <p className="text-sm text-gray-500">₱190</p>
-                  </div>
-                  {shippingLocation === 'VISAYAS_MINDANAO' && (
-                    <div className="w-6 h-6 bg-gold-500 rounded-full flex items-center justify-center">
-                      <span className="text-white text-xs">✓</span>
-                    </div>
-                  )}
-                </button>
+                    {shippingLocation === loc.id && (
+                      <div className="w-6 h-6 bg-gold-500 rounded-full flex items-center justify-center">
+                        <span className="text-white text-xs">✓</span>
+                      </div>
+                    )}
+                  </button>
+                ))}
               </div>
             </div>
 
