@@ -10,6 +10,51 @@ interface MenuItemCardProps {
   onProductClick?: (product: Product) => void;
 }
 
+// QuantityInput component
+const QuantityInput: React.FC<{
+  value: number;
+  max: number;
+  onChange: (val: number) => void;
+}> = ({ value, max, onChange }) => {
+  const [localValue, setLocalValue] = useState<string>(value.toString());
+
+  React.useEffect(() => {
+    setLocalValue(value.toString());
+  }, [value]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newVal = e.target.value;
+    setLocalValue(newVal);
+
+    if (newVal === '') return;
+    const parsed = parseInt(newVal);
+    if (!isNaN(parsed) && parsed > 0) {
+      onChange(parsed);
+    }
+  };
+
+  const handleBlur = () => {
+    let parsed = parseInt(localValue);
+    if (isNaN(parsed) || parsed < 1) parsed = 1;
+    if (max > 0 && parsed > max) parsed = max;
+    setLocalValue(parsed.toString());
+    onChange(parsed);
+  };
+
+  return (
+    <input
+      type="number"
+      min="1"
+      max={max > 0 ? max : 999}
+      value={localValue}
+      onChange={handleChange}
+      onBlur={handleBlur}
+      onClick={(e) => e.stopPropagation()}
+      className="w-8 sm:w-10 text-center text-xs sm:text-sm font-medium text-theme-text border-none focus:ring-0 p-0 appearance-none bg-transparent"
+    />
+  );
+};
+
 const MenuItemCard: React.FC<MenuItemCardProps> = ({
   product,
   onAddToCart,
@@ -172,9 +217,11 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
               >
                 <Minus className="w-3 h-3 sm:w-4 sm:h-4 text-gray-500" />
               </button>
-              <span className="w-6 sm:w-8 text-center text-xs sm:text-sm font-medium text-theme-text">
-                {quantity}
-              </span>
+              <QuantityInput
+                value={quantity}
+                max={availableStock}
+                onChange={setQuantity}
+              />
               <button
                 onClick={(e) => {
                   e.stopPropagation();

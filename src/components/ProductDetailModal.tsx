@@ -8,6 +8,60 @@ interface ProductDetailModalProps {
   onAddToCart: (product: Product, variation: ProductVariation | undefined, quantity: number) => void;
 }
 
+// QuantityInput component for handling numeric input with string state
+const QuantityInput: React.FC<{
+  value: number;
+  max: number;
+  onChange: (val: number) => void;
+  onBlur?: () => void;
+  className?: string;
+}> = ({ value, max, onChange, onBlur, className }) => {
+  const [localValue, setLocalValue] = useState<string>(value.toString());
+
+  // Sync local value when prop changes (e.g. +/- buttons)
+  React.useEffect(() => {
+    setLocalValue(value.toString());
+  }, [value]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newVal = e.target.value;
+    setLocalValue(newVal);
+
+    if (newVal === '') return;
+
+    const parsed = parseInt(newVal);
+    if (!isNaN(parsed) && parsed > 0) {
+      onChange(parsed);
+    }
+  };
+
+  const handleBlur = () => {
+    let parsed = parseInt(localValue);
+    if (isNaN(parsed) || parsed < 1) {
+      parsed = 1;
+    } else if (max > 0 && parsed > max) {
+      // Optional: alert or just clamp
+      parsed = max;
+    }
+
+    setLocalValue(parsed.toString());
+    onChange(parsed);
+    if (onBlur) onBlur();
+  };
+
+  return (
+    <input
+      type="number"
+      min="1"
+      max={max > 0 ? max : 999}
+      value={localValue}
+      onChange={handleChange}
+      onBlur={handleBlur}
+      className={className}
+    />
+  );
+};
+
 const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product, onClose, onAddToCart }) => {
   // Select first available variation, or first variation if all are out of stock
   const getFirstAvailableVariation = () => {
@@ -220,33 +274,25 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product, onClos
                     >
                       <Minus className="w-3.5 h-3.5 sm:w-4 sm:h-4 md:w-5 md:h-5 text-gold-600" />
                     </button>
-                    <input
-                      type="number"
-                      min="1"
-                      max={hasAnyStock && selectedVariation ? selectedVariation.stock_quantity : (product.stock_quantity || 999)}
+                    <QuantityInput
                       value={quantity}
-                      onChange={(e) => {
-                        const val = parseInt(e.target.value);
-                        if (!isNaN(val)) {
-                          // Allow input > max, will be clamped on blur or add to cart?
-                          // Standard UI: Clamping immediately can be annoying while typing (e.g. typing 10, first '1' might be valid, then '0' OK).
-                          // Just set it.
-                          setQuantity(val);
-                        } else if (e.target.value === '') {
-                          // Allow empty temporary
-                          // @ts-expect-error allows temporary empty state
-                          setQuantity('');
-                        }
-                      }}
-                      onBlur={(e) => {
-                        let val = parseInt(e.target.value);
-                        if (isNaN(val) || val < 1) val = 1;
-
+                      max={hasAnyStock && selectedVariation ? selectedVariation.stock_quantity : (product.stock_quantity || 999)}
+                      onChange={setQuantity}
+                      onBlur={() => {
+                        // Additional validation if needed, mostly handled by component
                         const maxStock = selectedVariation ? selectedVariation.stock_quantity : product.stock_quantity;
-                        if (maxStock > 0 && val > maxStock) {
-                          val = maxStock;
+                        if (maxStock > 0 && quantity > maxStock) {
+                          setQuantity(maxStock);
+                          // Optional alert? component clamps it silently or we can alert here
+                          // The component clamps on blur, but updates parent onChange. 
+                          // If component clamps, it calls onChange(max).
+                          // So we might get the alert behavior if we want.
+                          /* 
+                          if (quantity > maxStock) {
+                             alert(`Only ${maxStock} item(s) available.`);
+                          }
+                          */
                         }
-                        setQuantity(val);
                       }}
                       className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 w-[60px] sm:w-[70px] text-center border-none focus:ring-0 p-0 appearance-none bg-transparent"
                     />
