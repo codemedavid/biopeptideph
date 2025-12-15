@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Edit, Trash2, Save, X, ArrowLeft, TrendingUp, Package, Users, FolderOpen, CreditCard, Sparkles, Layers, Shield, RefreshCw, Warehouse, ShoppingCart, HelpCircle, MapPin } from 'lucide-react';
+import { Plus, Edit, Trash2, Save, X, ArrowLeft, Package, CreditCard, Sparkles, Layers, Shield, RefreshCw, Warehouse, ShoppingCart, HelpCircle, MapPin, Check } from 'lucide-react';
 import type { Product } from '../types';
 import { useMenu } from '../hooks/useMenu';
 import { useCategories } from '../hooks/useCategories';
@@ -12,6 +12,8 @@ import PeptideInventoryManager from './PeptideInventoryManager';
 import OrdersManager from './OrdersManager';
 import FAQManager from './FAQManager';
 import ShippingManager from './ShippingManager';
+import SiteSettingsManager from './SiteSettingsManager';
+
 
 const AdminDashboard: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
@@ -21,12 +23,13 @@ const AdminDashboard: React.FC = () => {
   const [loginError, setLoginError] = useState('');
   const { products, loading, addProduct, updateProduct, deleteProduct, refreshProducts } = useMenu();
   const { categories } = useCategories();
-  const [currentView, setCurrentView] = useState<'dashboard' | 'products' | 'add' | 'edit' | 'categories' | 'payments' | 'coa' | 'inventory' | 'orders' | 'faq' | 'shipping'>('dashboard');
+  const [currentView, setCurrentView] = useState<'dashboard' | 'products' | 'add' | 'edit' | 'categories' | 'payments' | 'coa' | 'inventory' | 'orders' | 'faq' | 'shipping' | 'settings'>('dashboard');
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [managingVariationsProductId, setManagingVariationsProductId] = useState<string | null>(null);
   const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set());
   const [isRefreshing, setIsRefreshing] = useState(false);
+
 
   const variationManagerProduct = managingVariationsProductId
     ? products.find((product) => product.id === managingVariationsProductId) || null
@@ -332,10 +335,7 @@ const AdminDashboard: React.FC = () => {
   const totalProducts = products.length;
   const featuredProducts = products.filter(p => p.featured).length;
   const availableProducts = products.filter(p => p.available).length;
-  const categoryCounts = categories.map(cat => ({
-    ...cat,
-    count: products.filter(p => p.category === cat.id).length
-  }));
+
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -422,47 +422,48 @@ const AdminDashboard: React.FC = () => {
   if (currentView === 'add' || currentView === 'edit') {
     return (
       <>
+
         {variationManagerModal}
-        <div className="min-h-screen bg-gradient-to-br from-white via-gray-50 to-white">
-          <div className="bg-white shadow-md border-b border-gold-300/30">
-            <div className="max-w-6xl mx-auto px-3 sm:px-4">
-              <div className="flex items-center justify-between h-12 md:h-14 gap-2">
-                <div className="flex items-center space-x-2">
+        <div className="min-h-screen bg-theme-bg">
+          <div className="bg-white shadow-sm border-b border-gray-200">
+            <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="flex items-center justify-between h-16">
+                <div className="flex items-center space-x-4">
                   <button
                     onClick={handleCancel}
-                    className="text-gray-700 hover:text-gold-600 transition-colors flex items-center gap-1 group"
+                    className="text-gray-600 hover:text-theme-accent transition-colors flex items-center gap-2 group"
                   >
                     <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" />
-                    <span className="text-xs md:text-sm">Back</span>
+                    <span className="text-sm font-medium">Back</span>
                   </button>
-                  <h1 className="text-sm md:text-base font-bold bg-gradient-to-r from-black to-gray-900 bg-clip-text text-transparent">
-                    {currentView === 'add' ? '✨ Add New' : '✏️ Edit Product'}
+                  <div className="h-6 w-px bg-gray-200"></div>
+                  <h1 className="text-lg font-bold text-theme-text">
+                    {currentView === 'add' ? 'Add New Product' : 'Edit Product'}
                   </h1>
                 </div>
-                <div className="flex space-x-1.5">
-                  <button onClick={handleCancel} className="px-2 py-1 border border-gray-300 hover:border-gray-400 rounded-md hover:bg-gray-50 transition-all flex items-center gap-1 text-xs">
-                    <X className="h-3 w-3" />
-                    <span className="hidden sm:inline">Cancel</span>
+                <div className="flex space-x-3">
+                  <button onClick={handleCancel} className="px-4 py-2 border border-gray-300 hover:border-gray-400 rounded-lg hover:bg-gray-50 transition-all text-sm font-medium text-gray-700">
+                    Cancel
                   </button>
                   <button
                     onClick={handleSaveProduct}
                     disabled={isProcessing}
-                    className="bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-600 hover:to-gold-700 text-black px-2 md:px-3 py-1 rounded-md transition-all flex items-center gap-1 shadow-sm hover:shadow disabled:opacity-50 text-xs"
+                    className="bg-theme-accent hover:bg-theme-accent/90 text-white px-6 py-2 rounded-lg font-medium transition-all flex items-center gap-2 shadow-sm disabled:opacity-50"
                   >
-                    <Save className="h-3 w-3" />
-                    {isProcessing ? 'Saving...' : 'Save'}
+                    <Save className="h-4 w-4" />
+                    {isProcessing ? 'Saving...' : 'Save Product'}
                   </button>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="max-w-5xl mx-auto px-3 sm:px-4 py-3 md:py-4">
-            <div className="bg-white rounded-lg md:rounded-xl shadow-lg p-3 md:p-4 lg:p-5 space-y-3 md:space-y-4 border border-gold-300/30">
+          <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div className="bg-white rounded-xl shadow-soft p-6 space-y-8 border border-gray-100">
               {/* Basic Information */}
               <div>
-                <h3 className="text-sm md:text-base font-bold text-gray-900 mb-2 md:mb-3 flex items-center gap-1.5">
-                  <span className="text-base md:text-lg">📝</span>
+                <h3 className="text-base font-bold text-theme-text mb-4 flex items-center gap-2">
+                  <div className="w-1 h-5 bg-theme-secondary rounded-full"></div>
                   Basic Information
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-3">
@@ -587,13 +588,13 @@ const AdminDashboard: React.FC = () => {
               </div>
 
               {/* Complete Set Inclusions */}
-              <div className="bg-gradient-to-r from-gold-50 to-gray-50 border border-gold-300/30 rounded-lg p-3 md:p-4">
-                <div className="flex items-center justify-between mb-2 md:mb-3">
-                  <h3 className="text-sm md:text-base font-bold text-gray-900 flex items-center gap-1.5">
-                    <span className="text-base md:text-lg">📦</span>
+              <div className="bg-gray-50 border border-gray-200 rounded-xl p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
+                    <Package className="w-4 h-4 text-theme-secondary" />
                     Complete Set Inclusions
                   </h3>
-                  <label className="flex items-center gap-1.5 cursor-pointer">
+                  <label className="flex items-center gap-2 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={formData.inclusions !== null && formData.inclusions !== undefined}
@@ -604,9 +605,9 @@ const AdminDashboard: React.FC = () => {
                           setFormData({ ...formData, inclusions: formData.inclusions || [] });
                         }
                       }}
-                      className="w-4 h-4 text-gold-600 rounded focus:ring-gold-500"
+                      className="w-4 h-4 text-theme-accent rounded focus:ring-theme-accent"
                     />
-                    <span className="text-xs font-semibold text-gray-700">This is a SET product</span>
+                    <span className="text-sm font-medium text-gray-700">This is a SET product</span>
                   </label>
                 </div>
                 {formData.inclusions !== null && formData.inclusions !== undefined ? (
@@ -625,17 +626,17 @@ const AdminDashboard: React.FC = () => {
                       rows={6}
                     />
                     <p className="text-xs text-gray-500 mt-2 flex items-start gap-1.5">
-                      <span className="text-gold-600 font-bold">💡</span>
+                      <span className="text-theme-secondary font-bold">💡</span>
                       <span>Enter each item on a new line. These will be displayed as a checklist on the product detail page. Check "This is a SET product" above to enable this feature.</span>
                     </p>
                   </div>
                 ) : (
                   <div className="text-center py-4">
-                    <p className="text-xs text-gray-500 mb-2">Enable "This is a SET product" to add inclusions</p>
+                    <p className="text-sm text-gray-500 mb-2">Enable "This is a SET product" to add inclusions</p>
                     <button
                       type="button"
                       onClick={() => setFormData({ ...formData, inclusions: [] })}
-                      className="text-xs text-gold-600 hover:text-gold-700 font-medium"
+                      className="text-sm text-theme-accent hover:text-theme-text font-medium"
                     >
                       Enable SET feature
                     </button>
@@ -667,7 +668,7 @@ const AdminDashboard: React.FC = () => {
                         type="checkbox"
                         checked={formData.featured || false}
                         onChange={(e) => setFormData({ ...formData, featured: e.target.checked })}
-                        className="w-4 h-4 text-gold-600 rounded focus:ring-gold-500"
+                        className="w-4 h-4 text-theme-secondary rounded focus:ring-theme-secondary"
                       />
                       <span className="text-xs font-semibold text-gray-700">⭐ Featured</span>
                     </label>
@@ -762,44 +763,44 @@ const AdminDashboard: React.FC = () => {
     return (
       <>
         {variationManagerModal}
-        <div className="min-h-screen bg-gradient-to-br from-white via-gray-50 to-white">
-          <div className="bg-white shadow-md border-b border-gold-300/30">
-            <div className="max-w-6xl mx-auto px-3 sm:px-4">
-              <div className="flex items-center justify-between h-12 md:h-14">
-                <div className="flex items-center space-x-2">
+        <div className="min-h-screen bg-theme-bg">
+          <div className="bg-white shadow-sm border-b border-gray-200">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="flex items-center justify-between h-16">
+                <div className="flex items-center space-x-4">
                   <button
                     onClick={() => setCurrentView('dashboard')}
-                    className="text-gray-700 hover:text-gold-600 transition-colors flex items-center gap-1 group"
+                    className="text-gray-600 hover:text-theme-accent transition-colors flex items-center gap-2 group"
                   >
                     <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" />
-                    <span className="text-xs md:text-sm">Dashboard</span>
+                    <span className="text-sm font-medium">Dashboard</span>
                   </button>
-                  <h1 className="text-sm md:text-base font-bold bg-gradient-to-r from-black to-gray-900 bg-clip-text text-transparent">Products</h1>
+                  <div className="h-6 w-px bg-gray-200"></div>
+                  <h1 className="text-lg font-bold text-theme-text">Products</h1>
                 </div>
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-2">
                   <button
                     onClick={handleRefresh}
                     disabled={isRefreshing}
-                    className="bg-gradient-to-r from-black to-gray-900 hover:from-gray-900 hover:to-black text-white px-2 py-1 rounded-md font-medium text-xs shadow-sm hover:shadow transition-all flex items-center gap-1 disabled:opacity-50 border border-gold-500/20"
+                    className="p-2 text-gray-500 hover:text-theme-accent hover:bg-gray-50 rounded-lg transition-all"
                     title="Refresh data"
                   >
-                    <RefreshCw className={`h-3 w-3 ${isRefreshing ? 'animate-spin' : ''}`} />
-                    <span className="hidden sm:inline">{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>
+                    <RefreshCw className={`h-5 w-5 ${isRefreshing ? 'animate-spin' : ''}`} />
                   </button>
                   {selectedProducts.size > 0 && (
                     <button
                       onClick={handleBulkDelete}
                       disabled={isProcessing}
-                      className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-2 md:px-3 py-1 rounded-md font-medium text-xs shadow-sm hover:shadow transition-all flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium text-sm shadow-sm transition-all flex items-center gap-2 disabled:opacity-50"
                     >
-                      <Trash2 className="h-3 w-3" />
+                      <Trash2 className="h-4 w-4" />
                       <span className="hidden sm:inline">Delete ({selectedProducts.size})</span>
                       <span className="sm:hidden">Delete</span>
                     </button>
                   )}
                   <button
                     onClick={handleAddProduct}
-                    className="bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-600 hover:to-gold-700 text-black px-2 md:px-3 py-1 rounded-md font-medium text-xs shadow-sm hover:shadow transition-all flex items-center gap-1"
+                    className="bg-theme-accent hover:bg-theme-accent/90 text-white px-2 md:px-3 py-1 rounded-md font-medium text-xs shadow-sm hover:shadow transition-all flex items-center gap-1"
                   >
                     <Plus className="h-3 w-3" />
                     <span className="hidden sm:inline">Add New</span>
@@ -813,7 +814,7 @@ const AdminDashboard: React.FC = () => {
           <div className="max-w-6xl mx-auto px-3 sm:px-4 py-3 md:py-4">
             {/* Selection Info Banner */}
             {selectedProducts.size > 0 && (
-              <div className="mb-3 bg-gold-50 border border-gold-300 rounded-lg p-2 md:p-3 flex items-center justify-between">
+              <div className="mb-3 bg-theme-accent/10 border border-theme-accent/20 rounded-lg p-2 md:p-3 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className="text-xs md:text-sm font-semibold text-gray-900">
                     {selectedProducts.size} product{selectedProducts.size !== 1 ? 's' : ''} selected
@@ -821,7 +822,7 @@ const AdminDashboard: React.FC = () => {
                 </div>
                 <button
                   onClick={() => setSelectedProducts(new Set())}
-                  className="text-xs text-gold-600 hover:text-gold-700 font-medium underline"
+                  className="text-xs text-theme-accent hover:text-theme-accent/80 font-medium underline"
                 >
                   Clear Selection
                 </button>
@@ -831,14 +832,14 @@ const AdminDashboard: React.FC = () => {
             {/* Mobile Card View */}
             <div className="md:hidden space-y-3">
               {products.map((product) => (
-                <div key={product.id} className="bg-white rounded-xl shadow-lg border border-gold-300/30 p-3">
+                <div key={product.id} className="bg-white rounded-xl shadow-lg border border-gray-200 p-3">
                   <div className="flex items-start justify-between gap-2 mb-2">
                     <div className="flex items-start gap-2 flex-1 min-w-0">
                       <input
                         type="checkbox"
                         checked={selectedProducts.has(product.id)}
                         onChange={() => toggleSelectProduct(product.id)}
-                        className="mt-0.5 w-4 h-4 text-gold-600 rounded focus:ring-gold-500 cursor-pointer shrink-0"
+                        className="mt-0.5 w-4 h-4 text-theme-accent rounded focus:ring-theme-accent cursor-pointer shrink-0"
                       />
                       <div className="flex-1 min-w-0">
                         <h3 className="text-sm font-bold text-gray-900 truncate">{product.name}</h3>
@@ -855,8 +856,8 @@ const AdminDashboard: React.FC = () => {
                         }}
                         disabled={isProcessing}
                         className={`p-1.5 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed ${product.variations && product.variations.length > 0
-                          ? 'bg-gold-500 text-black hover:bg-gold-600 shadow-md cursor-pointer'
-                          : 'text-gold-600 hover:bg-gold-100 cursor-pointer'
+                          ? 'bg-theme-secondary text-white hover:bg-theme-secondary/90 shadow-md cursor-pointer'
+                          : 'text-theme-secondary hover:bg-theme-secondary/10 cursor-pointer'
                           }`}
                         title="Manage Sizes - Click to edit prices!"
                       >
@@ -892,7 +893,7 @@ const AdminDashboard: React.FC = () => {
                       </div>
                       <div>
                         <div className="text-[10px] text-gray-500">Sizes</div>
-                        <div className="text-sm font-semibold text-gold-600">{product.variations?.length || 0}</div>
+                        <div className="text-sm font-semibold text-theme-secondary">{product.variations?.length || 0}</div>
                       </div>
                     </div>
                     <div className="flex items-center gap-1">
@@ -910,17 +911,17 @@ const AdminDashboard: React.FC = () => {
             </div>
 
             {/* Desktop Table View */}
-            <div className="hidden md:block bg-white rounded-lg md:rounded-xl shadow-lg overflow-hidden border border-gold-300/30">
+            <div className="hidden md:block bg-white rounded-lg md:rounded-xl shadow-lg overflow-hidden border border-gray-200">
               <div className="overflow-x-auto">
                 <table className="w-full">
-                  <thead className="bg-gradient-to-r from-gray-50 to-white border-b border-gold-300/30">
+                  <thead className="bg-gradient-to-r from-gray-50 to-white border-b border-gray-200">
                     <tr>
                       <th className="px-3 py-2 text-center w-10">
                         <input
                           type="checkbox"
                           checked={selectedProducts.size === products.length && products.length > 0}
                           onChange={toggleSelectAll}
-                          className="w-4 h-4 text-gold-600 rounded focus:ring-gold-500 cursor-pointer"
+                          className="w-4 h-4 text-theme-accent rounded focus:ring-theme-accent cursor-pointer"
                           title="Select All"
                         />
                       </th>
@@ -936,13 +937,13 @@ const AdminDashboard: React.FC = () => {
                   </thead>
                   <tbody className="divide-y divide-gray-100">
                     {products.map((product) => (
-                      <tr key={product.id} className="hover:bg-gold-50/50 transition-colors">
+                      <tr key={product.id} className="hover:bg-gray-50 transition-colors">
                         <td className="px-3 py-2 text-center">
                           <input
                             type="checkbox"
                             checked={selectedProducts.has(product.id)}
                             onChange={() => toggleSelectProduct(product.id)}
-                            className="w-4 h-4 text-gold-600 rounded focus:ring-gold-500 cursor-pointer"
+                            className="w-4 h-4 text-theme-accent rounded focus:ring-theme-accent cursor-pointer"
                           />
                         </td>
                         <td className="px-4 py-2">
@@ -955,7 +956,7 @@ const AdminDashboard: React.FC = () => {
                         <td className="px-4 py-2 text-xs font-bold text-gray-900">
                           ₱{product.base_price.toLocaleString('en-PH', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                           {product.variations && product.variations.length > 0 && (
-                            <div className="text-[9px] text-gold-600 font-medium mt-0.5">
+                            <div className="text-[9px] text-theme-secondary font-medium mt-0.5">
                               Not used (has sizes)
                             </div>
                           )}
@@ -963,11 +964,11 @@ const AdminDashboard: React.FC = () => {
                         <td className="px-4 py-2">
                           {product.variations && product.variations.length > 0 ? (
                             <div>
-                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-gold-100 text-gold-900">
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-theme-secondary/10 text-theme-secondary">
                                 {product.variations.length} {product.variations.length === 1 ? 'size' : 'sizes'}
                               </span>
                               <div className="text-[9px] text-gray-500 mt-0.5">
-                                Click <Layers className="w-2.5 h-2.5 inline text-gold-600" /> to edit
+                                Click <Layers className="w-2.5 h-2.5 inline text-theme-secondary" /> to edit
                               </div>
                             </div>
                           ) : (
@@ -985,7 +986,7 @@ const AdminDashboard: React.FC = () => {
                         <td className="px-4 py-2 hidden xl:table-cell">
                           <div className="flex flex-col gap-0.5">
                             {product.featured && (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-gold-100 text-gold-900">
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-theme-secondary/10 text-theme-secondary">
                                 ⭐ Featured
                               </span>
                             )}
@@ -1006,8 +1007,8 @@ const AdminDashboard: React.FC = () => {
                               }}
                               disabled={isProcessing}
                               className={`p-1.5 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed ${product.variations && product.variations.length > 0
-                                ? 'bg-gold-500 text-black hover:bg-gold-600 shadow-md hover:shadow-lg cursor-pointer'
-                                : 'text-gold-600 hover:bg-gold-100 cursor-pointer'
+                                ? 'bg-theme-secondary text-white hover:bg-theme-secondary/90 shadow-md hover:shadow-lg cursor-pointer'
+                                : 'text-theme-secondary hover:bg-theme-secondary/10 cursor-pointer'
                                 }`}
                               title="Manage Sizes - Click here to edit prices!"
                             >
@@ -1055,13 +1056,13 @@ const AdminDashboard: React.FC = () => {
   if (currentView === 'coa') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-white via-gray-50 to-white">
-        <div className="bg-white shadow-md border-b border-gold-300/30">
+        <div className="bg-white shadow-md border-b border-gray-200">
           <div className="max-w-6xl mx-auto px-3 sm:px-4">
             <div className="flex items-center justify-between h-12 md:h-14">
               <div className="flex items-center space-x-2">
                 <button
                   onClick={() => setCurrentView('dashboard')}
-                  className="text-gray-700 hover:text-gold-600 transition-colors flex items-center gap-1 group"
+                  className="text-gray-700 hover:text-theme-accent transition-colors flex items-center gap-1 group"
                 >
                   <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" />
                   <span className="text-xs md:text-sm">Dashboard</span>
@@ -1093,13 +1094,13 @@ const AdminDashboard: React.FC = () => {
   if (currentView === 'faq') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-white via-gray-50 to-white">
-        <div className="bg-white shadow-md border-b border-gold-300/30">
+        <div className="bg-white shadow-md border-b border-gray-200">
           <div className="max-w-6xl mx-auto px-3 sm:px-4">
             <div className="flex items-center justify-between h-12 md:h-14">
               <div className="flex items-center space-x-2">
                 <button
                   onClick={() => setCurrentView('dashboard')}
-                  className="text-gray-700 hover:text-gold-600 transition-colors flex items-center gap-1 group"
+                  className="text-gray-700 hover:text-theme-accent transition-colors flex items-center gap-1 group"
                 >
                   <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" />
                   <span className="text-xs md:text-sm">Dashboard</span>
@@ -1122,236 +1123,229 @@ const AdminDashboard: React.FC = () => {
     return <ShippingManager onBack={() => setCurrentView('dashboard')} />;
   }
 
+  // Site Settings View
+  // Site Settings View
+  if (currentView === 'settings') {
+    return <SiteSettingsManager onBack={() => setCurrentView('dashboard')} />;
+  }
+
   // Dashboard View
-  return (
-    <>
-      {variationManagerModal}
+  if (currentView === 'dashboard') {
+    return (
       <div className="min-h-screen bg-theme-bg">
+        {/* Admin Header */}
         <div className="bg-white shadow-sm border-b border-gray-200">
-          <div className="max-w-6xl mx-auto px-4">
-            <div className="flex items-center justify-between h-14">
-              <div className="flex items-center space-x-3">
-                <div className="w-9 h-9 rounded-full overflow-hidden border border-gray-200">
-                  <img
-                    src="/assets/logo.jpg"
-                    alt="peptalk.ph"
-                    className="w-full h-full object-cover"
-                  />
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between items-center h-16">
+              <div className="flex items-center gap-3">
+                <div className="bg-theme-accent/10 p-2 rounded-lg">
+                  <Shield className="w-6 h-6 text-theme-accent" />
                 </div>
                 <div>
-                  <h1 className="text-base font-bold text-theme-text">
-                    peptalk.ph
-                  </h1>
-                  <p className="text-xs text-gray-500">
-                    Admin Dashboard
-                  </p>
+                  <h1 className="text-xl font-bold text-theme-text">Admin Dashboard</h1>
+                  <p className="text-xs text-gray-500">Manage your store</p>
                 </div>
               </div>
-              <div className="flex items-center space-x-3">
-                <a
-                  href="/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-gray-600 hover:text-theme-accent transition-colors font-medium text-sm hidden sm:block"
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={() => window.open('/', '_blank')}
+                  className="flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-theme-accent transition-colors hidden md:flex"
                 >
-                  View Website
-                </a>
+                  <ArrowLeft className="w-4 h-4" />
+                  View Store
+                </button>
+                <div className="h-8 w-px bg-gray-200 hidden md:block"></div>
                 <button
                   onClick={handleLogout}
-                  className="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-lg transition-colors font-medium text-sm"
+                  className="flex items-center gap-2 text-sm font-medium text-red-600 hover:text-red-700 transition-colors"
                 >
-                  Logout
+                  <span className="hidden md:inline">Logout</span>
+                  <X className="w-4 h-4" />
                 </button>
               </div>
             </div>
           </div>
         </div>
 
-        <div className="max-w-6xl mx-auto px-4 py-4">
-          {/* Stats Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-            <button
-              onClick={() => setCurrentView('products')}
-              className="bg-white rounded-xl shadow-soft hover:shadow-md transition-all p-4 border border-gray-100 text-left cursor-pointer"
-            >
-              <div className="flex items-center">
-                <div className="p-2 bg-theme-accent/10 rounded-lg">
-                  <Package className="h-4 w-4 text-theme-accent" />
-                </div>
-                <div className="ml-3">
-                  <p className="text-xs font-medium text-gray-500">Total Products</p>
-                  <p className="text-xl font-bold text-theme-text">{totalProducts}</p>
-                </div>
-              </div>
-            </button>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
-            <button
-              onClick={() => setCurrentView('products')}
-              className="bg-white rounded-xl shadow-soft hover:shadow-md transition-all p-4 border border-gray-100 text-left cursor-pointer"
-            >
-              <div className="flex items-center">
-                <div className="p-2 bg-green-50 rounded-lg">
-                  <TrendingUp className="h-4 w-4 text-green-600" />
+          {/* Stats Overview */}
+          <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-6 md:mb-8">
+            <div className="bg-white rounded-xl shadow-soft p-4 md:p-6 border border-gray-100">
+              <div className="flex items-center justify-between mb-2 md:mb-4">
+                <div className="p-2 md:p-3 bg-theme-accent/10 rounded-lg">
+                  <Package className="w-4 h-4 md:w-6 md:h-6 text-theme-accent" />
                 </div>
-                <div className="ml-3">
-                  <p className="text-xs font-medium text-gray-500">Available</p>
-                  <p className="text-xl font-bold text-green-600">{availableProducts}</p>
-                </div>
+                <span className="text-[10px] md:text-xs font-medium text-gray-400">Total</span>
               </div>
-            </button>
+              <h3 className="text-lg md:text-2xl font-bold text-theme-text">{totalProducts}</h3>
+              <p className="text-xs md:text-sm text-gray-500 mt-0.5 md:mt-1 truncate">Active Items</p>
+            </div>
 
-            <button
-              onClick={() => setCurrentView('products')}
-              className="bg-white rounded-xl shadow-soft hover:shadow-md transition-all p-4 border border-gray-100 text-left cursor-pointer"
-            >
-              <div className="flex items-center">
-                <div className="p-2 bg-theme-secondary/10 rounded-lg">
-                  <Sparkles className="h-4 w-4 text-theme-secondary" />
+            <div className="bg-white rounded-xl shadow-soft p-4 md:p-6 border border-gray-100">
+              <div className="flex items-center justify-between mb-2 md:mb-4">
+                <div className="p-2 md:p-3 bg-theme-secondary/10 rounded-lg">
+                  <Sparkles className="w-4 h-4 md:w-6 md:h-6 text-theme-secondary" />
                 </div>
-                <div className="ml-3">
-                  <p className="text-xs font-medium text-gray-500">Featured</p>
-                  <p className="text-xl font-bold text-theme-secondary">{featuredProducts}</p>
-                </div>
+                <span className="text-[10px] md:text-xs font-medium text-gray-400">Featured</span>
               </div>
-            </button>
+              <h3 className="text-lg md:text-2xl font-bold text-theme-text">{featuredProducts}</h3>
+              <p className="text-xs md:text-sm text-gray-500 mt-0.5 md:mt-1 truncate">Highlighted</p>
+            </div>
 
-            <button
-              onClick={() => setCurrentView('categories')}
-              className="bg-white rounded-xl shadow-soft hover:shadow-md transition-all p-4 border border-gray-100 text-left cursor-pointer"
-            >
-              <div className="flex items-center">
-                <div className="p-2 bg-blue-50 rounded-lg">
-                  <Users className="h-4 w-4 text-blue-600" />
+            <div className="bg-white rounded-xl shadow-soft p-4 md:p-6 border border-gray-100">
+              <div className="flex items-center justify-between mb-2 md:mb-4">
+                <div className="p-2 md:p-3 bg-green-50 rounded-lg">
+                  <Check className="w-4 h-4 md:w-6 md:h-6 text-green-600" />
                 </div>
-                <div className="ml-3">
-                  <p className="text-xs font-medium text-gray-500">Categories</p>
-                  <p className="text-xl font-bold text-blue-600">{categories.length}</p>
-                </div>
+                <span className="text-[10px] md:text-xs font-medium text-gray-400">Stock</span>
               </div>
-            </button>
+              <h3 className="text-lg md:text-2xl font-bold text-theme-text">{availableProducts}</h3>
+              <p className="text-xs md:text-sm text-gray-500 mt-0.5 md:mt-1 truncate">Available</p>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-soft p-4 md:p-6 border border-gray-100">
+              <div className="flex items-center justify-between mb-2 md:mb-4">
+                <div className="p-2 md:p-3 bg-blue-50 rounded-lg">
+                  <Layers className="w-4 h-4 md:w-6 md:h-6 text-blue-600" />
+                </div>
+                <span className="text-[10px] md:text-xs font-medium text-gray-400">Types</span>
+              </div>
+              <h3 className="text-lg md:text-2xl font-bold text-theme-text">{categories.length}</h3>
+              <p className="text-xs md:text-sm text-gray-500 mt-0.5 md:mt-1 truncate">Categories</p>
+            </div>
           </div>
 
-          {/* Quick Actions */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="bg-white rounded-xl shadow-soft p-4 border border-gray-100">
-              <h3 className="text-base font-bold text-theme-text mb-3">
-                Quick Actions
-              </h3>
-              <div className="space-y-1">
-                <button
-                  onClick={handleAddProduct}
-                  className="w-full flex items-center gap-3 p-2 text-left hover:bg-gray-50 rounded-lg transition-all"
-                >
-                  <div className="p-1.5 bg-theme-accent/10 rounded-lg">
-                    <Plus className="h-4 w-4 text-theme-accent" />
-                  </div>
-                  <span className="text-sm font-medium text-gray-700">Add New Product</span>
-                </button>
-                <button
-                  onClick={() => setCurrentView('products')}
-                  className="w-full flex items-center gap-3 p-2 text-left hover:bg-gray-50 rounded-lg transition-all"
-                >
-                  <div className="p-1.5 bg-gray-100 rounded-lg">
-                    <Package className="h-4 w-4 text-gray-600" />
-                  </div>
-                  <span className="text-sm font-medium text-gray-700">Manage Products</span>
-                </button>
-                <button
-                  onClick={() => setCurrentView('categories')}
-                  className="w-full flex items-center gap-3 p-2 text-left hover:bg-gray-50 rounded-lg transition-all"
-                >
-                  <div className="p-1.5 bg-blue-50 rounded-lg">
-                    <FolderOpen className="h-4 w-4 text-blue-600" />
-                  </div>
-                  <span className="text-sm font-medium text-gray-700">Manage Categories</span>
-                </button>
-                <button
-                  onClick={() => setCurrentView('payments')}
-                  className="w-full flex items-center gap-3 p-2 text-left hover:bg-gray-50 rounded-lg transition-all"
-                >
-                  <div className="p-1.5 bg-purple-50 rounded-lg">
-                    <CreditCard className="h-4 w-4 text-purple-600" />
-                  </div>
-                  <span className="text-sm font-medium text-gray-700">Payment Methods</span>
-                </button>
-                <button
-                  onClick={() => setCurrentView('coa')}
-                  className="w-full flex items-center gap-3 p-2 text-left hover:bg-gray-50 rounded-lg transition-all"
-                >
-                  <div className="p-1.5 bg-theme-secondary/10 rounded-lg">
-                    <Shield className="h-4 w-4 text-theme-secondary" />
-                  </div>
-                  <span className="text-sm font-medium text-gray-700">Lab Reports (COA)</span>
-                </button>
-                <button
-                  onClick={() => setCurrentView('inventory')}
-                  className="w-full flex items-center gap-3 p-2 text-left hover:bg-gray-50 rounded-lg transition-all"
-                >
-                  <div className="p-1.5 bg-orange-50 rounded-lg">
-                    <Warehouse className="h-4 w-4 text-orange-600" />
-                  </div>
-                  <span className="text-sm font-medium text-gray-700">Peptide Inventory</span>
-                </button>
-                <button
-                  onClick={() => setCurrentView('orders')}
-                  className="w-full flex items-center gap-3 p-2 text-left hover:bg-gray-50 rounded-lg transition-all"
-                >
-                  <div className="p-1.5 bg-theme-accent/10 rounded-lg">
-                    <ShoppingCart className="h-4 w-4 text-theme-accent" />
-                  </div>
-                  <span className="text-sm font-medium text-gray-700">Orders Management</span>
-                </button>
-                <button
-                  onClick={() => setCurrentView('faq')}
-                  className="w-full flex items-center gap-3 p-2 text-left hover:bg-gray-50 rounded-lg transition-all"
-                >
-                  <div className="p-1.5 bg-yellow-50 rounded-lg">
-                    <HelpCircle className="h-4 w-4 text-yellow-600" />
-                  </div>
-                  <span className="text-sm font-medium text-gray-700">FAQ Management</span>
-                </button>
-                <button
-                  onClick={() => setCurrentView('shipping')}
-                  className="w-full flex items-center gap-3 p-2 text-left hover:bg-gray-50 rounded-lg transition-all"
-                >
-                  <div className="p-1.5 bg-green-50 rounded-lg">
-                    <MapPin className="h-4 w-4 text-green-600" />
-                  </div>
-                  <span className="text-sm font-medium text-gray-700">Shipping Locations</span>
-                </button>
-              </div>
-            </div>
+          <h2 className="text-lg font-bold text-theme-text mb-4 flex items-center gap-2">
+            <span className="w-1.5 h-6 bg-theme-accent rounded-full"></span>
+            Management Tools
+          </h2>
 
-            <div className="bg-white rounded-xl shadow-soft p-4 border border-gray-100">
-              <h3 className="text-base font-bold text-theme-text mb-3">
-                Categories Overview
-              </h3>
-              <div className="space-y-2">
-                {categoryCounts.map((category, index) => {
-                  const bgColors = [
-                    'bg-theme-accent',
-                    'bg-theme-secondary',
-                    'bg-blue-500',
-                    'bg-green-500',
-                    'bg-purple-500',
-                    'bg-orange-500'
-                  ];
-                  return (
-                    <div key={category.id} className="flex items-center justify-between py-2 px-3 hover:bg-gray-50 rounded-lg transition-all">
-                      <span className="text-sm font-medium text-gray-700">{category.name}</span>
-                      <span className={`text-xs font-bold text-white ${bgColors[index % bgColors.length]} px-2.5 py-1 rounded-full`}>
-                        {category.count}
-                      </span>
-                    </div>
-                  );
-                })}
+          <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4 mb-8 md:mb-12">
+
+            {/* Products Management Card */}
+            <button
+              onClick={() => setCurrentView('products')}
+              className="bg-white p-4 md:p-6 rounded-xl shadow-soft border border-gray-100 hover:shadow-medium transition-all group text-left relative overflow-hidden"
+            >
+              <div className="absolute top-0 right-0 w-16 h-16 md:w-24 md:h-24 bg-theme-accent/5 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
+              <div className="p-2 md:p-3 bg-theme-accent/10 rounded-lg w-fit mb-3 md:mb-4 group-hover:bg-theme-accent group-hover:text-white transition-colors">
+                <Package className="w-4 h-4 md:w-6 md:h-6 text-theme-accent group-hover:text-white" />
               </div>
-            </div>
+              <h3 className="text-sm md:text-lg font-bold text-theme-text mb-1 md:mb-2 group-hover:text-theme-accent transition-colors">Products</h3>
+              <p className="text-xs md:text-sm text-gray-500 line-clamp-2">Manage store inventory.</p>
+            </button>
+
+            {/* Categories Management Card */}
+            <button
+              onClick={() => setCurrentView('categories')}
+              className="bg-white p-4 md:p-6 rounded-xl shadow-soft border border-gray-100 hover:shadow-medium transition-all group text-left relative overflow-hidden"
+            >
+              <div className="absolute top-0 right-0 w-16 h-16 md:w-24 md:h-24 bg-theme-secondary/5 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
+              <div className="p-2 md:p-3 bg-theme-secondary/10 rounded-lg w-fit mb-3 md:mb-4 group-hover:bg-theme-secondary group-hover:text-white transition-colors">
+                <Layers className="w-4 h-4 md:w-6 md:h-6 text-theme-secondary group-hover:text-white" />
+              </div>
+              <h3 className="text-sm md:text-lg font-bold text-theme-text mb-1 md:mb-2 group-hover:text-theme-secondary transition-colors">Categories</h3>
+              <p className="text-xs md:text-sm text-gray-500 line-clamp-2">Organize products.</p>
+            </button>
+
+            {/* Inventory Management Card */}
+            <button
+              onClick={() => setCurrentView('inventory')}
+              className="bg-white p-4 md:p-6 rounded-xl shadow-soft border border-gray-100 hover:shadow-medium transition-all group text-left relative overflow-hidden"
+            >
+              <div className="absolute top-0 right-0 w-16 h-16 md:w-24 md:h-24 bg-blue-50 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
+              <div className="p-2 md:p-3 bg-blue-50 rounded-lg w-fit mb-3 md:mb-4 group-hover:bg-blue-500 group-hover:text-white transition-colors">
+                <Warehouse className="w-4 h-4 md:w-6 md:h-6 text-blue-600 group-hover:text-white" />
+              </div>
+              <h3 className="text-sm md:text-lg font-bold text-theme-text mb-1 md:mb-2 group-hover:text-blue-600 transition-colors">Inventory</h3>
+              <p className="text-xs md:text-sm text-gray-500 line-clamp-2">Track raw materials.</p>
+            </button>
+
+            {/* Orders Management Card */}
+            <button
+              onClick={() => setCurrentView('orders')}
+              className="bg-white p-4 md:p-6 rounded-xl shadow-soft border border-gray-100 hover:shadow-medium transition-all group text-left relative overflow-hidden"
+            >
+              <div className="absolute top-0 right-0 w-16 h-16 md:w-24 md:h-24 bg-green-50 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
+              <div className="p-2 md:p-3 bg-green-50 rounded-lg w-fit mb-3 md:mb-4 group-hover:bg-green-500 group-hover:text-white transition-colors">
+                <ShoppingCart className="w-4 h-4 md:w-6 md:h-6 text-green-600 group-hover:text-white" />
+              </div>
+              <h3 className="text-sm md:text-lg font-bold text-theme-text mb-1 md:mb-2 group-hover:text-green-600 transition-colors">Orders</h3>
+              <p className="text-xs md:text-sm text-gray-500 line-clamp-2">Manage orders.</p>
+            </button>
+
+            {/* Payment Methods Card */}
+            <button
+              onClick={() => setCurrentView('payments')}
+              className="bg-white p-4 md:p-6 rounded-xl shadow-soft border border-gray-100 hover:shadow-medium transition-all group text-left relative overflow-hidden"
+            >
+              <div className="absolute top-0 right-0 w-16 h-16 md:w-24 md:h-24 bg-purple-50 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
+              <div className="p-2 md:p-3 bg-purple-50 rounded-lg w-fit mb-3 md:mb-4 group-hover:bg-purple-500 group-hover:text-white transition-colors">
+                <CreditCard className="w-4 h-4 md:w-6 md:h-6 text-purple-600 group-hover:text-white" />
+              </div>
+              <h3 className="text-sm md:text-lg font-bold text-theme-text mb-1 md:mb-2 group-hover:text-purple-600 transition-colors">Payments</h3>
+              <p className="text-xs md:text-sm text-gray-500 line-clamp-2">Setup accounts.</p>
+            </button>
+
+            {/* Shipping Rates Card */}
+            <button
+              onClick={() => setCurrentView('shipping')}
+              className="bg-white p-4 md:p-6 rounded-xl shadow-soft border border-gray-100 hover:shadow-medium transition-all group text-left relative overflow-hidden"
+            >
+              <div className="absolute top-0 right-0 w-16 h-16 md:w-24 md:h-24 bg-orange-50 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
+              <div className="p-2 md:p-3 bg-orange-50 rounded-lg w-fit mb-3 md:mb-4 group-hover:bg-orange-500 group-hover:text-white transition-colors">
+                <MapPin className="w-4 h-4 md:w-6 md:h-6 text-orange-600 group-hover:text-white" />
+              </div>
+              <h3 className="text-sm md:text-lg font-bold text-theme-text mb-1 md:mb-2 group-hover:text-orange-600 transition-colors">Shipping</h3>
+              <p className="text-xs md:text-sm text-gray-500 line-clamp-2">Manage shipping.</p>
+            </button>
+
+            {/* FAQ Manager Card */}
+            <button
+              onClick={() => setCurrentView('faq')}
+              className="bg-white p-4 md:p-6 rounded-xl shadow-soft border border-gray-100 hover:shadow-medium transition-all group text-left relative overflow-hidden"
+            >
+              <div className="absolute top-0 right-0 w-16 h-16 md:w-24 md:h-24 bg-yellow-50 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
+              <div className="p-2 md:p-3 bg-yellow-50 rounded-lg w-fit mb-3 md:mb-4 group-hover:bg-yellow-500 group-hover:text-white transition-colors">
+                <HelpCircle className="w-4 h-4 md:w-6 md:h-6 text-yellow-600 group-hover:text-white" />
+              </div>
+              <h3 className="text-sm md:text-lg font-bold text-theme-text mb-1 md:mb-2 group-hover:text-yellow-600 transition-colors">FAQ</h3>
+              <p className="text-xs md:text-sm text-gray-500 line-clamp-2">Update FAQs.</p>
+            </button>
+
+            {/* COA Manager Card */}
+            <button
+              onClick={() => setCurrentView('coa')}
+              className="bg-white p-4 md:p-6 rounded-xl shadow-soft border border-gray-100 hover:shadow-medium transition-all group text-left relative overflow-hidden"
+            >
+              <div className="absolute top-0 right-0 w-16 h-16 md:w-24 md:h-24 bg-teal-50 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
+              <div className="p-2 md:p-3 bg-teal-50 rounded-lg w-fit mb-3 md:mb-4 group-hover:bg-teal-500 group-hover:text-white transition-colors">
+                <Shield className="w-4 h-4 md:w-6 md:h-6 text-teal-600 group-hover:text-white" />
+              </div>
+              <h3 className="text-sm md:text-lg font-bold text-theme-text mb-1 md:mb-2 group-hover:text-teal-600 transition-colors">COA</h3>
+              <p className="text-xs md:text-sm text-gray-500 line-clamp-2">Upload reports.</p>
+            </button>
+
+            {/* Site Settings Card */}
+            <button
+              onClick={() => setCurrentView('settings')}
+              className="bg-white p-4 md:p-6 rounded-xl shadow-soft border border-gray-100 hover:shadow-medium transition-all group text-left relative overflow-hidden"
+            >
+              <div className="absolute top-0 right-0 w-16 h-16 md:w-24 md:h-24 bg-gray-50 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
+              <div className="p-2 md:p-3 bg-gray-100 rounded-lg w-fit mb-3 md:mb-4 group-hover:bg-gray-800 group-hover:text-white transition-colors">
+                <Edit className="w-4 h-4 md:w-6 md:h-6 text-gray-600 group-hover:text-white" />
+              </div>
+              <h3 className="text-sm md:text-lg font-bold text-theme-text mb-1 md:mb-2 group-hover:text-gray-800 transition-colors">Settings</h3>
+              <p className="text-xs md:text-sm text-gray-500 line-clamp-2">Site config.</p>
+            </button>
+
           </div>
         </div>
       </div>
-    </>
-  );
+    );
+  }
+
 };
 
 export default AdminDashboard;

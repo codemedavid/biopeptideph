@@ -1,11 +1,14 @@
 import React from 'react';
 import { ArrowRight, ShieldCheck, Sparkles, FlaskConical } from 'lucide-react';
 
+import { useSiteSettings } from '../hooks/useSiteSettings';
+
 type HeroProps = {
   onShopAll?: () => void;
 };
 
 const Hero: React.FC<HeroProps> = ({ onShopAll }) => {
+  const { siteSettings } = useSiteSettings();
   return (
     <div className="relative overflow-hidden bg-theme-bg pt-12 pb-16 md:pt-20 md:pb-24 lg:pt-28 lg:pb-32">
       {/* Abstract Background Shape */}
@@ -22,25 +25,29 @@ const Hero: React.FC<HeroProps> = ({ onShopAll }) => {
               <span className="relative inline-flex rounded-full h-2 w-2 bg-theme-secondary"></span>
             </span>
             <span className="text-xs md:text-sm font-medium text-gray-600 tracking-wide">
-              Peptides & Essentials
+              {siteSettings?.home_hero_badge || 'Peptides & Essentials'}
             </span>
           </div>
 
           {/* Main Heading */}
           <h1 className="text-3xl md:text-4xl lg:text-6xl font-bold text-theme-text mb-4 md:mb-6 tracking-tight leading-tight">
-            Premium <span className="text-theme-accent">Peptides</span> & Essentials
+            {siteSettings?.home_hero_title_prefix}{' '}
+            <span className="text-theme-accent">{siteSettings?.home_hero_title_highlight}</span>{' '}
+            {siteSettings?.home_hero_title_suffix}
             <br className="hidden md:block" />
-            <span className="text-2xl md:text-3xl lg:text-4xl font-medium text-gray-600">— Trusted Quality for Your Journey.</span>
+            <span className="text-2xl md:text-3xl lg:text-4xl font-medium text-gray-600">
+              {siteSettings?.home_hero_subtext}
+            </span>
           </h1>
 
           {/* Tagline */}
           <p className="text-sm md:text-base text-theme-accent font-medium mb-4 md:mb-6">
-            Quality-tested products. Reliable performance. Trusted by our community.
+            {siteSettings?.home_hero_tagline}
           </p>
 
           {/* Subheading */}
           <p className="text-base md:text-lg text-gray-500 mb-8 md:mb-12 max-w-3xl mx-auto leading-relaxed">
-            Explore our carefully curated selection of high-quality peptides, peptide pens, cartridges, pen needles, and insulin syringes. Each product is personally tested and trusted for purity, safety, and performance — so you can pin with confidence.
+            {siteSettings?.home_hero_description}
           </p>
 
           {/* CTA Buttons */}

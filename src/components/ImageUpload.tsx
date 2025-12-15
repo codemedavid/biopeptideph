@@ -7,16 +7,18 @@ interface ImageUploadProps {
   onImageChange: (imageUrl: string | undefined) => void;
   className?: string;
   folder?: string;
+  skipBucketCheck?: boolean;
 }
 
-const ImageUpload: React.FC<ImageUploadProps> = ({ 
-  currentImage, 
-  onImageChange, 
+const ImageUpload: React.FC<ImageUploadProps> = ({
+  currentImage,
+  onImageChange,
   className = '',
-  folder = 'menu-images'
+  folder = 'menu-images',
+  skipBucketCheck = false
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { uploadImage, deleteImage, uploading, uploadProgress } = useImageUpload(folder);
+  const { uploadImage, deleteImage, uploading, uploadProgress } = useImageUpload(folder, skipBucketCheck);
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -89,7 +91,7 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-sky-600 mx-auto mb-2"></div>
               <p className="text-sm text-gray-600">Uploading... {uploadProgress}%</p>
               <div className="w-32 bg-gray-200 rounded-full h-2 mt-2">
-                <div 
+                <div
                   className="bg-sky-600 h-2 rounded-full transition-all duration-300"
                   style={{ width: `${uploadProgress}%` }}
                 ></div>

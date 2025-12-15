@@ -91,3 +91,26 @@ export interface OrderDetails {
   payment_method: string;
   notes?: string;
 }
+
+export interface SiteSettings {
+  site_name: string;
+  site_logo: string;
+  site_description: string;
+  currency: string;
+  currency_code: string;
+
+  // Courier Delay Notices
+  jnt_delay_active: boolean;
+  lalamove_delay_active: boolean;
+  jnt_delay_message: string;
+  lalamove_delay_message: string;
+
+  // Homepage Settings
+  home_hero_badge: string;
+  home_hero_title_prefix: string;
+  home_hero_title_highlight: string;
+  home_hero_title_suffix: string;
+  home_hero_subtext: string;
+  home_hero_tagline: string;
+  home_hero_description: string;
+}

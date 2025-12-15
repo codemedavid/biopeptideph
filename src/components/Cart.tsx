@@ -82,7 +82,7 @@ const Cart: React.FC<CartProps> = ({
       <div className="min-h-screen bg-white flex items-center justify-center px-4 py-12">
         <div className="text-center max-w-md">
           <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl p-12 border-2 border-blue-100">
-            <div className="bg-gradient-to-br from-black to-gray-900 w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6 shadow-xl border border-gold-500/30">
+            <div className="bg-gradient-to-br from-black to-gray-900 w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6 shadow-xl border border-gray-100">
               <ShoppingBag className="w-12 h-12 text-white" />
             </div>
             <h2 className="text-2xl font-bold text-gray-800 mb-3 flex items-center justify-center gap-2">
@@ -94,7 +94,7 @@ const Cart: React.FC<CartProps> = ({
             </p>
             <button
               onClick={onContinueShopping}
-              className="bg-gradient-to-r from-black to-gray-900 hover:from-gray-900 hover:to-black text-white px-8 py-4 rounded-lg font-semibold shadow-lg hover:shadow-gold-glow transform hover:scale-105 transition-all w-full flex items-center justify-center gap-2 border border-gold-500/20"
+              className="bg-theme-accent hover:bg-theme-accent/90 text-white px-8 py-4 rounded-lg font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all w-full flex items-center justify-center gap-2"
             >
               <ArrowLeft className="w-5 h-5" />
               Browse Products
@@ -116,7 +116,7 @@ const Cart: React.FC<CartProps> = ({
         <div className="mb-6 md:mb-8">
           <button
             onClick={onContinueShopping}
-            className="text-black hover:text-gold-600 font-medium mb-4 flex items-center gap-2 transition-colors group"
+            className="text-black hover:text-theme-accent font-medium mb-4 flex items-center gap-2 transition-colors group"
           >
             <ArrowLeft className="w-4 h-4 md:w-5 md:h-5 group-hover:-translate-x-1 transition-transform" />
             <span className="text-sm md:text-base">Continue Shopping</span>
@@ -124,7 +124,7 @@ const Cart: React.FC<CartProps> = ({
           <div className="flex justify-between items-center">
             <h1 className="text-2xl md:text-3xl font-bold text-gray-900 flex items-center gap-2">
               Shopping Cart
-              <Sparkles className="w-6 h-6 text-gold-600" />
+              <Sparkles className="w-6 h-6 text-theme-secondary" />
             </h1>
             <button
               onClick={clearCart}
@@ -142,7 +142,7 @@ const Cart: React.FC<CartProps> = ({
             {cartItems.map((item, index) => (
               <div
                 key={index}
-                className="bg-white backdrop-blur-sm rounded-lg shadow-lg hover:shadow-xl p-4 md:p-6 transition-all animate-fadeIn border border-gray-200 hover:border-gold-300"
+                className="bg-white backdrop-blur-sm rounded-lg shadow-lg hover:shadow-xl p-4 md:p-6 transition-all animate-fadeIn border border-gray-200 hover:border-theme-accent/50"
               >
                 <div className="flex gap-4 md:gap-6">
                   {/* Product Image */}
@@ -257,7 +257,7 @@ const Cart: React.FC<CartProps> = ({
             <div className="bg-white backdrop-blur-sm rounded-lg shadow-xl p-5 md:p-6 sticky top-24 border border-gray-200">
               <h2 className="text-lg md:text-xl font-bold text-gray-900 mb-4 md:mb-6 flex items-center gap-2">
                 Order Summary
-                <Sparkles className="w-5 h-5 text-gold-600" />
+                <Sparkles className="w-5 h-5 text-theme-secondary" />
               </h2>
 
               <div className="space-y-3 mb-6">
@@ -288,7 +288,7 @@ const Cart: React.FC<CartProps> = ({
 
               <button
                 onClick={onCheckout}
-                className="w-full bg-gradient-to-r from-black to-gray-900 hover:from-gray-900 hover:to-black text-white py-3 md:py-4 rounded-lg font-semibold text-sm md:text-base shadow-lg hover:shadow-gold-glow transform hover:scale-105 transition-all mb-3 flex items-center justify-center gap-2 border border-gold-500/20"
+                className="w-full bg-theme-accent hover:bg-theme-accent/90 text-white py-3 md:py-4 rounded-lg font-semibold text-sm md:text-base shadow-lg hover:shadow-xl transform hover:scale-105 transition-all mb-3 flex items-center justify-center gap-2"
               >
                 <CreditCard className="w-5 h-5" />
                 Proceed to Checkout
@@ -296,7 +296,7 @@ const Cart: React.FC<CartProps> = ({
 
               <button
                 onClick={onContinueShopping}
-                className="w-full bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 hover:border-gold-400 py-2.5 md:py-3 rounded-lg font-medium text-sm md:text-base transition-all flex items-center justify-center gap-2"
+                className="w-full bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 hover:border-theme-accent py-2.5 md:py-3 rounded-lg font-medium text-sm md:text-base transition-all flex items-center justify-center gap-2"
               >
                 <ArrowLeft className="w-4 h-4" />
                 Continue Shopping

@@ -63,7 +63,7 @@ const COAManager: React.FC = () => {
   const toggleCOAPage = async (enabled: boolean) => {
     try {
       // First, check if the setting exists
-      const { data: existing, error: checkError } = await supabase
+      const { error: checkError } = await supabase
         .from('site_settings')
         .select('id')
         .eq('id', 'coa_page_enabled')
@@ -243,7 +243,7 @@ const COAManager: React.FC = () => {
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-            <Shield className="w-7 h-7 text-gold-600" />
+            <Shield className="w-7 h-7 text-theme-secondary" />
             COA Lab Reports
           </h2>
           <p className="text-sm text-gray-600 mt-1">
@@ -252,7 +252,7 @@ const COAManager: React.FC = () => {
         </div>
         <div className="flex items-center gap-3">
           {/* COA Page Toggle */}
-          <div className="flex items-center gap-2 bg-white border border-gold-300/30 rounded-lg px-3 py-2 shadow-sm">
+          <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-2 shadow-sm">
             <span className="text-xs font-medium text-gray-700">Show COA Page:</span>
             <label className="relative inline-flex items-center cursor-pointer">
               <input
@@ -261,15 +261,15 @@ const COAManager: React.FC = () => {
                 onChange={(e) => toggleCOAPage(e.target.checked)}
                 className="sr-only peer"
               />
-              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-gold-500 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gold-600"></div>
+              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-theme-accent rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-theme-accent"></div>
             </label>
-            <span className={`text-xs font-semibold ${coaPageEnabled ? 'text-gold-600' : 'text-gray-400'}`}>
+            <span className={`text-xs font-semibold ${coaPageEnabled ? 'text-theme-accent' : 'text-gray-400'}`}>
               {coaPageEnabled ? 'ON' : 'OFF'}
             </span>
           </div>
           <button
             onClick={handleAdd}
-            className="flex items-center gap-2 bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-600 hover:to-gold-700 text-black px-4 py-2 rounded-lg font-medium transition-all shadow-md"
+            className="flex items-center gap-2 bg-theme-accent hover:bg-theme-accent/90 text-white px-4 py-2 rounded-lg font-medium transition-all shadow-sm"
           >
             <Plus className="w-5 h-5" />
             Add COA Report
@@ -279,9 +279,9 @@ const COAManager: React.FC = () => {
 
       {/* Add/Edit Form */}
       {(isAdding || editingId) && (
-        <div className="bg-gradient-to-br from-sky-50 to-blue-50 rounded-3xl p-6 border-2 border-sky-200 shadow-cute">
+        <div className="bg-gray-50 rounded-xl p-6 border border-gray-200 shadow-sm">
           <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-sky-500" />
+            <Sparkles className="w-5 h-5 text-theme-accent" />
             {editingId ? 'Edit COA Report' : 'Add New COA Report'}
           </h3>
 
@@ -296,7 +296,7 @@ const COAManager: React.FC = () => {
                   required
                   value={formData.product_name}
                   onChange={(e) => setFormData({ ...formData, product_name: e.target.value })}
-                  className="input-field"
+                  className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-theme-accent focus:border-transparent outline-none transition-all"
                   placeholder="e.g., Tirzepatide 15mg"
                 />
               </div>
@@ -309,7 +309,7 @@ const COAManager: React.FC = () => {
                   type="text"
                   value={formData.batch}
                   onChange={(e) => setFormData({ ...formData, batch: e.target.value })}
-                  className="input-field"
+                  className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-theme-accent focus:border-transparent outline-none transition-all"
                   placeholder="Unknown"
                 />
               </div>
@@ -323,7 +323,7 @@ const COAManager: React.FC = () => {
                   required
                   value={formData.test_date}
                   onChange={(e) => setFormData({ ...formData, test_date: e.target.value })}
-                  className="input-field"
+                  className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-theme-accent focus:border-transparent outline-none transition-all"
                 />
               </div>
 
@@ -337,7 +337,7 @@ const COAManager: React.FC = () => {
                   required
                   value={formData.purity_percentage}
                   onChange={(e) => setFormData({ ...formData, purity_percentage: parseFloat(e.target.value) })}
-                  className="input-field"
+                  className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-theme-accent focus:border-transparent outline-none transition-all"
                   placeholder="99.658"
                 />
               </div>
@@ -351,7 +351,7 @@ const COAManager: React.FC = () => {
                   required
                   value={formData.quantity}
                   onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
-                  className="input-field"
+                  className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-theme-accent focus:border-transparent outline-none transition-all"
                   placeholder="e.g., 16.80 mg"
                 />
               </div>
@@ -365,7 +365,7 @@ const COAManager: React.FC = () => {
                   required
                   value={formData.task_number}
                   onChange={(e) => setFormData({ ...formData, task_number: e.target.value })}
-                  className="input-field"
+                  className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-theme-accent focus:border-transparent outline-none transition-all"
                   placeholder="#68396"
                 />
               </div>
@@ -379,7 +379,7 @@ const COAManager: React.FC = () => {
                   required
                   value={formData.verification_key}
                   onChange={(e) => setFormData({ ...formData, verification_key: e.target.value })}
-                  className="input-field"
+                  className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-theme-accent focus:border-transparent outline-none transition-all"
                   placeholder="9AUYT3EZV9Y9"
                 />
               </div>
@@ -403,7 +403,7 @@ const COAManager: React.FC = () => {
                   type="text"
                   value={formData.manufacturer}
                   onChange={(e) => setFormData({ ...formData, manufacturer: e.target.value })}
-                  className="input-field"
+                  className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-theme-accent focus:border-transparent outline-none transition-all"
                 />
               </div>
 
@@ -415,7 +415,7 @@ const COAManager: React.FC = () => {
                   type="text"
                   value={formData.laboratory}
                   onChange={(e) => setFormData({ ...formData, laboratory: e.target.value })}
-                  className="input-field"
+                  className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-theme-accent focus:border-transparent outline-none transition-all"
                 />
               </div>
             </div>
@@ -426,7 +426,7 @@ const COAManager: React.FC = () => {
                 id="featured"
                 checked={formData.featured}
                 onChange={(e) => setFormData({ ...formData, featured: e.target.checked })}
-                className="w-4 h-4 text-sky-500 rounded focus:ring-sky-400"
+                className="w-4 h-4 text-theme-accent rounded focus:ring-theme-accent"
               />
               <label htmlFor="featured" className="text-sm font-medium text-gray-700">
                 Featured Report (show prominently)
@@ -436,7 +436,7 @@ const COAManager: React.FC = () => {
             <div className="flex gap-3 pt-2">
               <button
                 type="submit"
-                className="flex items-center gap-2 bg-gradient-to-r from-sky-500 to-sky-600 hover:from-sky-600 hover:to-sky-700 text-white px-6 py-3 rounded-2xl font-medium transition-all shadow-lg"
+                className="flex items-center gap-2 bg-theme-accent hover:bg-theme-accent/90 text-white px-6 py-2 rounded-lg font-medium transition-all shadow-sm"
               >
                 <Save className="w-5 h-5" />
                 {editingId ? 'Update Report' : 'Add Report'}
@@ -444,7 +444,7 @@ const COAManager: React.FC = () => {
               <button
                 type="button"
                 onClick={handleCancel}
-                className="flex items-center gap-2 bg-white text-gray-700 border-2 border-gray-300 hover:bg-gray-50 px-6 py-3 rounded-2xl font-medium transition-all"
+                className="flex items-center gap-2 bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 px-6 py-2 rounded-lg font-medium transition-all"
               >
                 <X className="w-5 h-5" />
                 Cancel
@@ -457,7 +457,7 @@ const COAManager: React.FC = () => {
       {/* COA Reports List */}
       <div className="space-y-4">
         {coaReports.length === 0 ? (
-          <div className="text-center py-12 bg-white rounded-3xl border-2 border-sky-100">
+          <div className="text-center py-12 bg-white rounded-xl border border-dashed border-gray-300">
             <Shield className="w-16 h-16 text-gray-300 mx-auto mb-4" />
             <p className="text-gray-500">No COA reports yet. Add your first lab report!</p>
           </div>
@@ -465,7 +465,7 @@ const COAManager: React.FC = () => {
           coaReports.map((report) => (
             <div
               key={report.id}
-              className="bg-white rounded-3xl p-6 border-2 border-sky-100 hover:border-sky-200 shadow-md hover:shadow-lg transition-all"
+              className="bg-white rounded-xl p-6 border border-gray-100 hover:border-theme-accent/30 shadow-sm hover:shadow-md transition-all"
             >
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1">
@@ -474,7 +474,7 @@ const COAManager: React.FC = () => {
                       {report.product_name}
                     </h3>
                     {report.featured && (
-                      <span className="bg-gradient-to-r from-sky-100 to-blue-100 text-sky-700 px-3 py-1 rounded-full text-xs font-bold border border-sky-300">
+                      <span className="bg-theme-secondary/10 text-theme-secondary px-3 py-1 rounded-full text-xs font-bold border border-theme-secondary/20">
                         ⭐ FEATURED
                       </span>
                     )}
@@ -487,7 +487,7 @@ const COAManager: React.FC = () => {
                     </div>
                     <div>
                       <span className="text-gray-500">Quantity:</span>
-                      <p className="font-bold text-sky-600">{report.quantity}</p>
+                      <p className="font-bold text-theme-accent">{report.quantity}</p>
                     </div>
                     <div>
                       <span className="text-gray-500">Task Number:</span>
@@ -504,7 +504,7 @@ const COAManager: React.FC = () => {
                       href={`https://www.janoshik.com/verify/?key=${report.verification_key}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center gap-1 text-sky-600 hover:text-sky-700 font-medium"
+                      className="flex items-center gap-1 text-theme-accent hover:text-theme-accent/80 font-medium"
                     >
                       <ExternalLink className="w-4 h-4" />
                       Verify on Janoshik
@@ -517,14 +517,14 @@ const COAManager: React.FC = () => {
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => handleEdit(report)}
-                    className="p-2 text-sky-600 hover:bg-sky-50 rounded-xl transition-all"
+                    className="p-2 text-gray-500 hover:text-theme-accent hover:bg-gray-50 rounded-lg transition-all"
                     title="Edit"
                   >
                     <Edit2 className="w-5 h-5" />
                   </button>
                   <button
                     onClick={() => handleDelete(report.id)}
-                    className="p-2 text-red-600 hover:bg-red-50 rounded-xl transition-all"
+                    className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
                     title="Delete"
                   >
                     <Trash2 className="w-5 h-5" />

@@ -1,14 +1,14 @@
 import { useState } from 'react';
 import { supabase } from '../lib/supabase';
 
-export const useImageUpload = (folder: string = 'menu-images') => {
+export const useImageUpload = (folder: string = 'menu-images', skipBucketCheck: boolean = false) => {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
 
   const uploadImage = async (file: File): Promise<string> => {
     let progressInterval: NodeJS.Timeout | null = null;
     let uploadTimeout: NodeJS.Timeout | null = null;
-    
+
     try {
       setUploading(true);
       setUploadProgress(0);
@@ -18,29 +18,29 @@ export const useImageUpload = (folder: string = 'menu-images') => {
       // Validate file type - accept ALL image formats
       // Gallery files on mobile often have empty MIME types, so we rely more on file extension
       const fileExtension = file.name.split('.').pop()?.toLowerCase();
-      
+
       // Accept all common image extensions
       const validExtensions = [
-        'jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'tiff', 'tif', 
+        'jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'tiff', 'tif',
         'svg', 'heic', 'heif', 'ico', 'avif', 'jfif'
       ];
-      
+
       // Check if file extension is valid (primary check for gallery files)
       const hasValidExtension = fileExtension && validExtensions.includes(fileExtension);
-      
+
       // Check MIME type - accept any image/* type or empty (for mobile gallery files)
       const hasValidMimeType = !file.type || file.type.startsWith('image/');
-      
+
       // Allow if either extension OR MIME type is valid (gallery files often have empty MIME type)
       if (!hasValidExtension && !hasValidMimeType) {
-        console.error('❌ Invalid file type in upload hook:', { 
-          type: file.type, 
-          extension: fileExtension, 
-          name: file.name 
+        console.error('❌ Invalid file type in upload hook:', {
+          type: file.type,
+          extension: fileExtension,
+          name: file.name
         });
         throw new Error(`Please upload a valid image file. Supported formats: JPG, PNG, WebP, GIF, BMP, TIFF, SVG, HEIC, and more. File type: ${file.type || 'unknown'}, Extension: ${fileExtension || 'none'}`);
       }
-      
+
       // If MIME type is empty but extension is valid, set a default content type for upload
       let contentType = file.type;
       if (!contentType && hasValidExtension) {
@@ -64,7 +64,7 @@ export const useImageUpload = (folder: string = 'menu-images') => {
         contentType = mimeTypeMap[fileExtension] || 'image/jpeg';
         console.log(`📝 Setting content type for gallery file: ${contentType} (was empty)`);
       }
-      
+
       // Additional validation: ensure file is not a placeholder
       if (file.size < 100) {
         throw new Error('The selected file appears to be invalid or empty. Please select a valid image.');
@@ -100,34 +100,38 @@ export const useImageUpload = (folder: string = 'menu-images') => {
 
       // Upload to Supabase Storage (using dynamic folder/bucket)
       console.log('📤 Uploading image to Supabase Storage:', { folder, fileName, fileSize: file.size });
-      
-      // First, check if bucket exists by trying to list it
-      const bucketCheckPromise = supabase.storage
-        .from(folder)
-        .list('', { limit: 1 });
-      
-      const bucketCheckResult = await Promise.race([
-        bucketCheckPromise,
-        timeoutPromise
-      ]);
-      
-      // Clear timeout if bucket check succeeded
-      if (uploadTimeout) {
-        clearTimeout(uploadTimeout);
-        uploadTimeout = null;
-      }
-      
-      if (bucketCheckResult.error) {
-        if (progressInterval) clearInterval(progressInterval);
-        console.error('❌ Bucket check failed:', bucketCheckResult.error);
-        
-        if (bucketCheckResult.error.message?.includes('not found') || bucketCheckResult.error.message?.includes('Bucket not found')) {
-          throw new Error('Storage bucket "menu-images" not found!\n\nPlease run CREATE_STORAGE_BUCKET.sql in Supabase SQL Editor to create it.');
-        }
-        throw new Error(`Bucket error: ${bucketCheckResult.error.message}`);
-      }
 
-      console.log('✅ Bucket exists, proceeding with upload...');
+      if (!skipBucketCheck) {
+        // First, check if bucket exists by trying to list it
+        const bucketCheckPromise = supabase.storage
+          .from(folder)
+          .list('', { limit: 1 });
+
+        const bucketCheckResult = await Promise.race([
+          bucketCheckPromise,
+          timeoutPromise
+        ]);
+
+        // Clear timeout if bucket check succeeded
+        if (uploadTimeout) {
+          clearTimeout(uploadTimeout);
+          uploadTimeout = null;
+        }
+
+        if (bucketCheckResult.error) {
+          if (progressInterval) clearInterval(progressInterval);
+          console.error('❌ Bucket check failed:', bucketCheckResult.error);
+
+          if (bucketCheckResult.error.message?.includes('not found') || bucketCheckResult.error.message?.includes('Bucket not found')) {
+            throw new Error(`Storage bucket "${folder}" not found!\n\nPlease run CREATE_STORAGE_BUCKET.sql in Supabase SQL Editor to create it.`);
+          }
+          throw new Error(`Bucket error: ${bucketCheckResult.error.message}`);
+        }
+
+        console.log('✅ Bucket exists, proceeding with upload...');
+      } else {
+        console.log('⏭️ Skipping bucket check (assuming public upload)...');
+      }
 
       // Create new timeout for upload
       const uploadTimeoutPromise = new Promise<never>((_, reject) => {
@@ -163,10 +167,10 @@ export const useImageUpload = (folder: string = 'menu-images') => {
         console.error('❌ Supabase Storage upload error:', uploadResult.error);
         console.error('❌ Error details:', {
           message: uploadResult.error.message,
-          statusCode: uploadResult.error.statusCode,
+          // statusCode: uploadResult.error.statusCode, // Removed: Property does not exist on type 'StorageError'
           error: uploadResult.error
         });
-        
+
         // Provide helpful error message
         if (uploadResult.error.message?.includes('Bucket not found') || uploadResult.error.message?.includes('not found')) {
           throw new Error('Storage bucket "menu-images" not found!\n\nPlease run CREATE_STORAGE_BUCKET.sql in Supabase SQL Editor.');

@@ -25,7 +25,22 @@ export const useSiteSettings = () => {
         site_logo: data.find(s => s.id === 'site_logo')?.value || '/logo.jpg',
         site_description: data.find(s => s.id === 'site_description')?.value || '',
         currency: data.find(s => s.id === 'currency')?.value || 'PHP',
-        currency_code: data.find(s => s.id === 'currency_code')?.value || 'PHP'
+        currency_code: data.find(s => s.id === 'currency_code')?.value || 'PHP',
+
+        // Courier Delay settings
+        jnt_delay_active: data.find(s => s.id === 'jnt_delay_active')?.value === 'true',
+        lalamove_delay_active: data.find(s => s.id === 'lalamove_delay_active')?.value === 'true',
+        jnt_delay_message: data.find(s => s.id === 'jnt_delay_message')?.value || 'J&T orders may take a while due to high volume.',
+        lalamove_delay_message: data.find(s => s.id === 'lalamove_delay_message')?.value || 'Lalamove pickup is scheduled. Please wait for confirmation.',
+
+        // Homepage Settings
+        home_hero_badge: data.find(s => s.id === 'home_hero_badge')?.value || 'Peptides & Essentials',
+        home_hero_title_prefix: data.find(s => s.id === 'home_hero_title_prefix')?.value || 'Premium',
+        home_hero_title_highlight: data.find(s => s.id === 'home_hero_title_highlight')?.value || 'Peptides',
+        home_hero_title_suffix: data.find(s => s.id === 'home_hero_title_suffix')?.value || '& Essentials',
+        home_hero_subtext: data.find(s => s.id === 'home_hero_subtext')?.value || '— Trusted Quality for Your Journey.',
+        home_hero_tagline: data.find(s => s.id === 'home_hero_tagline')?.value || 'Quality-tested products. Reliable performance. Trusted by our community.',
+        home_hero_description: data.find(s => s.id === 'home_hero_description')?.value || 'Explore our carefully curated selection of high-quality peptides, peptide pens, cartridges, pen needles, and insulin syringes. Each product is personally tested and trusted for purity, safety, and performance — so you can pin with confidence.'
       };
 
       setSiteSettings(settings);
