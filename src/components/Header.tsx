@@ -28,15 +28,15 @@ const Header: React.FC<HeaderProps> = ({ cartItemsCount, onCartClick, onMenuClic
               <div className="relative flex-shrink-0">
                 <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full overflow-hidden border-2 border-theme-blue/30 shadow-inner">
                   <img
-                    src="/assets/logo.png"
-                    alt="peptalk.ph"
+                    src="/logo.jpeg"
+                    alt="peptology.ph"
                     className="w-full h-full object-cover"
                   />
                 </div>
               </div>
               <div className="text-left min-w-0 flex-1">
                 <h1 className="text-lg sm:text-xl font-bold text-white leading-tight whitespace-nowrap overflow-hidden text-ellipsis tracking-tight">
-                  peptalk.ph
+                  peptology.ph
                 </h1>
                 <p className="text-xs text-theme-blue font-medium flex items-center gap-1">
                   <span className="whitespace-nowrap overflow-hidden text-ellipsis uppercase tracking-wider">
