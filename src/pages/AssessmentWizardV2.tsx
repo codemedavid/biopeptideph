@@ -708,7 +708,7 @@ export default function AssessmentWizardV2() {
             'Thyroid Cancer',
             'Pancreatitis',
             'Gallbladder problems',
-            'Gallstones (under gallbladder problems)',
+            'Gallstones',
             'Low blood sugar',
             'Kidney Problems',
             'Vision Changes (Diabetic Retinopathy)',
