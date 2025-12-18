@@ -40,7 +40,9 @@ interface FormData {
     // Step 9: Current Medications
     current_medications: string;
     previous_surgeries: boolean | null;
+    previous_surgeries_details?: string;
     drug_allergies: boolean | null;
+    drug_allergies_details?: string;
 
     // Step 10: Lifestyle & Experience
     experience_level: string;
@@ -85,7 +87,9 @@ export default function AssessmentWizardV2() {
         family_history_conditions: [],
         current_medications: '',
         previous_surgeries: null,
+        previous_surgeries_details: '',
         drug_allergies: null,
+        drug_allergies_details: '',
         experience_level: '',
         peptide_experience_first_time: null,
         current_prescription_glp1: null,
@@ -215,7 +219,9 @@ export default function AssessmentWizardV2() {
                 family_history_conditions: formData.family_history_conditions,
                 current_medications: formData.current_medications || null,
                 previous_surgeries: formData.previous_surgeries,
+                previous_surgeries_details: formData.previous_surgeries_details || null,
                 drug_allergies: formData.drug_allergies,
+                drug_allergies_details: formData.drug_allergies_details || null,
                 smoking_status: formData.smoking_status,
                 pregnancy_status: formData.pregnancy_status,
                 preferences: formData.preferences,
@@ -433,8 +439,8 @@ export default function AssessmentWizardV2() {
                             type="button"
                             onClick={() => toggleArrayItem('emotional_motivators', motivator.value)}
                             className={`w-full text-left px-6 py-4 rounded-lg border-2 transition-all ${formData.emotional_motivators.includes(motivator.value)
-                                    ? 'border-blue-600 bg-blue-50 text-blue-900'
-                                    : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+                                ? 'border-blue-600 bg-blue-50 text-blue-900'
+                                : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
                                 }`}
                         >
                             {motivator.label}
@@ -485,8 +491,8 @@ export default function AssessmentWizardV2() {
                                     type="button"
                                     onClick={() => toggleArrayItem('goals', goal.value)}
                                     className={`w-full text-left px-6 py-3 rounded-lg border-2 transition-all ${formData.goals.includes(goal.value)
-                                            ? 'border-blue-600 bg-blue-50 text-blue-900'
-                                            : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+                                        ? 'border-blue-600 bg-blue-50 text-blue-900'
+                                        : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
                                         }`}
                                 >
                                     {goal.label}
@@ -504,8 +510,8 @@ export default function AssessmentWizardV2() {
                                     type="button"
                                     onClick={() => toggleArrayItem('goals', goal.value)}
                                     className={`w-full text-left px-6 py-3 rounded-lg border-2 transition-all ${formData.goals.includes(goal.value)
-                                            ? 'border-blue-600 bg-blue-50 text-blue-900'
-                                            : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+                                        ? 'border-blue-600 bg-blue-50 text-blue-900'
+                                        : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
                                         }`}
                                 >
                                     {goal.label}
@@ -631,8 +637,8 @@ export default function AssessmentWizardV2() {
                                         })
                                     }
                                     className={`w-full text-left px-6 py-3 rounded-lg border-2 capitalize transition-all ${formData.sex_assigned === sex
-                                            ? 'border-blue-600 bg-blue-50 text-blue-900'
-                                            : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+                                        ? 'border-blue-600 bg-blue-50 text-blue-900'
+                                        : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
                                         }`}
                                 >
                                     {sex}
@@ -682,8 +688,8 @@ export default function AssessmentWizardV2() {
                             type="button"
                             onClick={() => toggleArrayItem('pregnancy_status', option.value)}
                             className={`w-full text-left px-6 py-4 rounded-lg border-2 transition-all ${formData.pregnancy_status.includes(option.value)
-                                    ? 'border-blue-600 bg-blue-50 text-blue-900'
-                                    : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+                                ? 'border-blue-600 bg-blue-50 text-blue-900'
+                                : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
                                 }`}
                         >
                             {option.label}
@@ -702,6 +708,7 @@ export default function AssessmentWizardV2() {
             'Thyroid Cancer',
             'Pancreatitis',
             'Gallbladder problems',
+            'Gallstones (under gallbladder problems)',
             'Low blood sugar',
             'Kidney Problems',
             'Vision Changes (Diabetic Retinopathy)',
@@ -733,8 +740,8 @@ export default function AssessmentWizardV2() {
                             type="button"
                             onClick={() => toggleArrayItem('medical_conditions', condition)}
                             className={`w-full text-left px-6 py-3 rounded-lg border-2 transition-all ${formData.medical_conditions.includes(condition)
-                                    ? 'border-blue-600 bg-blue-50 text-blue-900'
-                                    : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+                                ? 'border-blue-600 bg-blue-50 text-blue-900'
+                                : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
                                 }`}
                         >
                             {condition}
@@ -779,8 +786,8 @@ export default function AssessmentWizardV2() {
                             type="button"
                             onClick={() => toggleArrayItem('family_history_conditions', condition)}
                             className={`w-full text-left px-6 py-3 rounded-lg border-2 transition-all ${formData.family_history_conditions.includes(condition)
-                                    ? 'border-blue-600 bg-blue-50 text-blue-900'
-                                    : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+                                ? 'border-blue-600 bg-blue-50 text-blue-900'
+                                : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
                                 }`}
                         >
                             {condition}
@@ -827,56 +834,84 @@ export default function AssessmentWizardV2() {
                         <label className="block text-sm font-medium text-gray-700 mb-3">
                             Have you had any previous surgeries? *
                         </label>
-                        <div className="flex gap-4">
+                        <div className="flex gap-4 mb-3">
                             <button
                                 type="button"
                                 onClick={() => setFormData({ ...formData, previous_surgeries: true })}
                                 className={`flex-1 px-6 py-3 rounded-lg border-2 transition-all ${formData.previous_surgeries === true
-                                        ? 'border-blue-600 bg-blue-50 text-blue-900'
-                                        : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+                                    ? 'border-blue-600 bg-blue-50 text-blue-900'
+                                    : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
                                     }`}
                             >
                                 Yes
                             </button>
                             <button
                                 type="button"
-                                onClick={() => setFormData({ ...formData, previous_surgeries: false })}
+                                onClick={() => setFormData({ ...formData, previous_surgeries: false, previous_surgeries_details: '' })}
                                 className={`flex-1 px-6 py-3 rounded-lg border-2 transition-all ${formData.previous_surgeries === false
-                                        ? 'border-blue-600 bg-blue-50 text-blue-900'
-                                        : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+                                    ? 'border-blue-600 bg-blue-50 text-blue-900'
+                                    : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
                                     }`}
                             >
                                 No
                             </button>
                         </div>
+                        {formData.previous_surgeries && (
+                            <div className="animate-fadeIn">
+                                <label className="block text-sm text-gray-600 mb-1">
+                                    Please specify surgery and year (optional):
+                                </label>
+                                <textarea
+                                    value={formData.previous_surgeries_details || ''}
+                                    onChange={(e) => setFormData({ ...formData, previous_surgeries_details: e.target.value })}
+                                    placeholder="e.g. Appendectomy (2018), ACL Repair (2020)"
+                                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    rows={2}
+                                />
+                            </div>
+                        )}
                     </div>
 
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-3">
                             Do you have any food or drug allergies? *
                         </label>
-                        <div className="flex gap-4">
+                        <div className="flex gap-4 mb-3">
                             <button
                                 type="button"
                                 onClick={() => setFormData({ ...formData, drug_allergies: true })}
                                 className={`flex-1 px-6 py-3 rounded-lg border-2 transition-all ${formData.drug_allergies === true
-                                        ? 'border-blue-600 bg-blue-50 text-blue-900'
-                                        : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+                                    ? 'border-blue-600 bg-blue-50 text-blue-900'
+                                    : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
                                     }`}
                             >
                                 Yes
                             </button>
                             <button
                                 type="button"
-                                onClick={() => setFormData({ ...formData, drug_allergies: false })}
+                                onClick={() => setFormData({ ...formData, drug_allergies: false, drug_allergies_details: '' })}
                                 className={`flex-1 px-6 py-3 rounded-lg border-2 transition-all ${formData.drug_allergies === false
-                                        ? 'border-blue-600 bg-blue-50 text-blue-900'
-                                        : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+                                    ? 'border-blue-600 bg-blue-50 text-blue-900'
+                                    : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
                                     }`}
                             >
                                 No
                             </button>
                         </div>
+                        {formData.drug_allergies && (
+                            <div className="animate-fadeIn">
+                                <label className="block text-sm text-gray-600 mb-1">
+                                    Please list your allergies:
+                                </label>
+                                <textarea
+                                    value={formData.drug_allergies_details || ''}
+                                    onChange={(e) => setFormData({ ...formData, drug_allergies_details: e.target.value })}
+                                    placeholder="e.g. Penicillin, Peanuts, Shellfish"
+                                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    rows={2}
+                                />
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
@@ -915,8 +950,8 @@ export default function AssessmentWizardV2() {
                                         setFormData({ ...formData, experience_level: level.value })
                                     }
                                     className={`w-full text-left px-6 py-3 rounded-lg border-2 transition-all ${formData.experience_level === level.value
-                                            ? 'border-blue-600 bg-blue-50 text-blue-900'
-                                            : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+                                        ? 'border-blue-600 bg-blue-50 text-blue-900'
+                                        : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
                                         }`}
                                 >
                                     {level.label}
@@ -937,8 +972,8 @@ export default function AssessmentWizardV2() {
                                     setFormData({ ...formData, peptide_experience_first_time: true })
                                 }
                                 className={`flex-1 px-6 py-3 rounded-lg border-2 transition-all ${formData.peptide_experience_first_time === true
-                                        ? 'border-blue-600 bg-blue-50 text-blue-900'
-                                        : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+                                    ? 'border-blue-600 bg-blue-50 text-blue-900'
+                                    : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
                                     }`}
                             >
                                 Yes
@@ -949,8 +984,8 @@ export default function AssessmentWizardV2() {
                                     setFormData({ ...formData, peptide_experience_first_time: false })
                                 }
                                 className={`flex-1 px-6 py-3 rounded-lg border-2 transition-all ${formData.peptide_experience_first_time === false
-                                        ? 'border-blue-600 bg-blue-50 text-blue-900'
-                                        : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+                                    ? 'border-blue-600 bg-blue-50 text-blue-900'
+                                    : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
                                     }`}
                             >
                                 No
@@ -972,8 +1007,8 @@ export default function AssessmentWizardV2() {
                                     setFormData({ ...formData, current_prescription_glp1: true })
                                 }
                                 className={`flex-1 px-6 py-3 rounded-lg border-2 transition-all ${formData.current_prescription_glp1 === true
-                                        ? 'border-blue-600 bg-blue-50 text-blue-900'
-                                        : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+                                    ? 'border-blue-600 bg-blue-50 text-blue-900'
+                                    : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
                                     }`}
                             >
                                 Yes
@@ -984,8 +1019,8 @@ export default function AssessmentWizardV2() {
                                     setFormData({ ...formData, current_prescription_glp1: false })
                                 }
                                 className={`flex-1 px-6 py-3 rounded-lg border-2 transition-all ${formData.current_prescription_glp1 === false
-                                        ? 'border-blue-600 bg-blue-50 text-blue-900'
-                                        : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+                                    ? 'border-blue-600 bg-blue-50 text-blue-900'
+                                    : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
                                     }`}
                             >
                                 No
@@ -1012,8 +1047,8 @@ export default function AssessmentWizardV2() {
                                         })
                                     }
                                     className={`w-full text-left px-6 py-3 rounded-lg border-2 capitalize transition-all ${formData.smoking_status === status
-                                            ? 'border-blue-600 bg-blue-50 text-blue-900'
-                                            : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+                                        ? 'border-blue-600 bg-blue-50 text-blue-900'
+                                        : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
                                         }`}
                                 >
                                     {status.replace('_', '-')}
@@ -1067,8 +1102,8 @@ export default function AssessmentWizardV2() {
                                         })
                                     }
                                     className={`w-full text-left px-6 py-3 rounded-lg border-2 transition-all ${formData.preferences.budget === option.value
-                                            ? 'border-blue-600 bg-blue-50 text-blue-900'
-                                            : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+                                        ? 'border-blue-600 bg-blue-50 text-blue-900'
+                                        : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
                                         }`}
                                 >
                                     {option.label}
@@ -1093,8 +1128,8 @@ export default function AssessmentWizardV2() {
                                         })
                                     }
                                     className={`w-full text-left px-6 py-3 rounded-lg border-2 transition-all ${formData.preferences.frequency === option.value
-                                            ? 'border-blue-600 bg-blue-50 text-blue-900'
-                                            : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+                                        ? 'border-blue-600 bg-blue-50 text-blue-900'
+                                        : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
                                         }`}
                                 >
                                     {option.label}

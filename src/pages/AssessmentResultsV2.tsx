@@ -46,7 +46,7 @@ const AssessmentResultsV2 = () => {
                         { product: 'Retatrutide', reason: 'Triple agonist for maximum metabolic impact', priority: 'supporting' }
                     ],
                     weight_maintain: [
-                        { product: 'CJC-1295', reason: 'Metabolic support and body composition maintenance', priority: 'primary' }
+                        { product: 'CJC-1295 (No DAC) + Ipamorelin', reason: 'Metabolic support and body composition maintenance', priority: 'primary' }
                     ],
 
                     // Energy & Recovery
@@ -65,11 +65,11 @@ const AssessmentResultsV2 = () => {
 
                     // Body Composition
                     muscle_building: [
-                        { product: 'CJC-1295', reason: 'Stimulates growth hormone for muscle development', priority: 'primary' },
+                        { product: 'CJC-1295 (No DAC) + Ipamorelin', reason: 'Stimulates growth hormone for muscle development', priority: 'primary' },
                         { product: 'Ipamorelin', reason: 'Selective GH secretagogue with minimal side effects', priority: 'supporting' }
                     ],
                     body_recomposition: [
-                        { product: 'CJC-1295', reason: 'Enhances fat metabolism while preserving lean muscle', priority: 'primary' },
+                        { product: 'CJC-1295 (No DAC) + Ipamorelin', reason: 'Enhances fat metabolism while preserving lean muscle', priority: 'primary' },
                         { product: 'AOD-9604', reason: 'Targets fat loss without affecting muscle mass', priority: 'supporting' }
                     ],
 
@@ -85,11 +85,11 @@ const AssessmentResultsV2 = () => {
                         { product: 'Selank', reason: 'Anxiolytic and cognitive enhancer', priority: 'supporting' }
                     ],
 
-                    // Aesthetic
-                    anti_aging: [
+                    // Aesthetic (merged with anti_aging)
+                    /* aesthetic: [
                         { product: 'GHK-Cu', reason: 'Copper peptide for skin regeneration and collagen synthesis', priority: 'primary' },
                         { product: 'Glutathione', reason: 'Master antioxidant for skin brightening', priority: 'supporting' }
-                    ]
+                    ] */
                 };
 
                 // Collect recommendations for ALL user's goals
@@ -177,6 +177,11 @@ const AssessmentResultsV2 = () => {
                     <p className="text-gray-600">
                         Based on your goals and health profile, we've created a comprehensive peptide protocol tailored to your needs.
                     </p>
+                </div>
+
+                {/* Recommendations Header - Added spacing */}
+                <div className="mt-12 mb-6">
+                    <h2 className="text-xl font-bold text-gray-900 tracking-wide uppercase">RECOMMENDATIONS</h2>
                 </div>
 
                 {/* Primary Recommendation */}
