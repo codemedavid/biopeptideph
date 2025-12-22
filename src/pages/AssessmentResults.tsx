@@ -175,10 +175,16 @@ const AssessmentResults = () => {
                                                 </div>
 
                                                 <div className="pt-4 flex flex-col sm:flex-row gap-4">
-                                                    <button className="flex-1 bg-theme-blue text-white px-6 py-3 rounded-xl hover:bg-theme-navy transition-colors font-bold shadow-lg shadow-blue-900/10 flex items-center justify-center gap-2">
-                                                        Add to Cart
-                                                        <ArrowRight size={18} />
-                                                    </button>
+                                                    {rec.product.available && rec.product.stock_quantity > 0 ? (
+                                                        <button className="flex-1 bg-theme-blue text-white px-6 py-3 rounded-xl hover:bg-theme-navy transition-colors font-bold shadow-lg shadow-blue-900/10 flex items-center justify-center gap-2">
+                                                            Add to Cart
+                                                            <ArrowRight size={18} />
+                                                        </button>
+                                                    ) : (
+                                                        <button disabled className="flex-1 bg-gray-100 text-gray-400 px-6 py-3 rounded-xl font-bold flex items-center justify-center gap-2 cursor-not-allowed">
+                                                            Out of Stock
+                                                        </button>
+                                                    )}
                                                     <button className="flex-1 bg-white border-2 border-theme-blue text-theme-blue px-6 py-3 rounded-xl hover:bg-blue-50 transition-colors font-bold flex items-center justify-center gap-2">
                                                         View Details
                                                         <ArrowRight size={18} />

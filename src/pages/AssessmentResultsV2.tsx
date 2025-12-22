@@ -198,10 +198,16 @@ const AssessmentResultsV2 = () => {
                             <span className="text-3xl font-bold text-blue-600">
                                 ₱{primaryRec.product.base_price?.toLocaleString()}
                             </span>
-                            <button className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center gap-2">
-                                Add to Cart
-                                <ArrowRight className="w-4 h-4" />
-                            </button>
+                            {primaryRec.product.available && primaryRec.product.stock_quantity > 0 ? (
+                                <button className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center gap-2">
+                                    Add to Cart
+                                    <ArrowRight className="w-4 h-4" />
+                                </button>
+                            ) : (
+                                <button disabled className="px-6 py-3 bg-gray-300 text-gray-500 rounded-lg cursor-not-allowed flex items-center gap-2 font-bold">
+                                    Out of Stock
+                                </button>
+                            )}
                         </div>
                     </div>
                 )}
@@ -224,9 +230,15 @@ const AssessmentResultsV2 = () => {
                                                 ₱{rec.product.base_price?.toLocaleString()}
                                             </span>
                                         </div>
-                                        <button className="ml-4 px-4 py-2 border-2 border-blue-600 text-blue-600 rounded-lg hover:bg-blue-50 transition">
-                                            Add to Cart
-                                        </button>
+                                        {rec.product.available && rec.product.stock_quantity > 0 ? (
+                                            <button className="ml-4 px-4 py-2 border-2 border-blue-600 text-blue-600 rounded-lg hover:bg-blue-50 transition">
+                                                Add to Cart
+                                            </button>
+                                        ) : (
+                                            <button disabled className="ml-4 px-4 py-2 border-2 border-gray-300 text-gray-400 rounded-lg cursor-not-allowed font-medium">
+                                                Out of Stock
+                                            </button>
+                                        )}
                                     </div>
                                 </div>
                             ))}
