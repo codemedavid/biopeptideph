@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { useCart } from './hooks/useCart';
+import { PricingProvider } from './hooks/usePricingMode';
 import Header from './components/Header';
 import Hero from './components/Hero';
 import CTASection from './components/CTASection';
@@ -19,6 +20,7 @@ import AssessmentResults from './pages/AssessmentResults';
 import Terms from './pages/Terms';
 import Privacy from './pages/Privacy';
 import SmartGuide from './pages/SmartGuide';
+import type { PricingMode } from './types';
 
 function MainApp() {
   const cart = useCart();
@@ -36,6 +38,21 @@ function MainApp() {
     setSelectedCategory(categoryId);
   };
 
+  // Handle pricing mode change from Header
+  const handlePricingModeChange = (newMode: PricingMode, hasCartItems: boolean): boolean => {
+    if (hasCartItems) {
+      const confirmed = window.confirm(
+        'Changing currency will update prices in your cart. Continue?'
+      );
+      if (confirmed) {
+        cart.updateCartPricingMode(newMode);
+        return true;
+      }
+      return false;
+    }
+    return true;
+  };
+
   // Filter products based on selected category
   const filteredProducts = selectedCategory === 'all'
     ? menuItems
@@ -47,6 +64,7 @@ function MainApp() {
         cartItemsCount={cart.getTotalItems()}
         onCartClick={() => handleViewChange('cart')}
         onMenuClick={() => handleViewChange('menu')}
+        onPricingModeChange={handlePricingModeChange}
       />
 
       {currentView === 'menu' && (
@@ -111,18 +129,20 @@ function MainApp() {
 
 function App() {
   return (
-    <Router>
-      <Routes>
-        <Route path="/" element={<MainApp />} />
-        <Route path="/journey" element={<PeptideJourney />} />
-        <Route path="/assessment" element={<AssessmentWizardV2 />} />
-        <Route path="/assessment/results" element={<AssessmentResults />} />
-        <Route path="/guides" element={<SmartGuide />} />
-        <Route path="/terms" element={<Terms />} />
-        <Route path="/privacy" element={<Privacy />} />
-        <Route path="/admin" element={<AdminDashboard />} />
-      </Routes>
-    </Router>
+    <PricingProvider>
+      <Router>
+        <Routes>
+          <Route path="/" element={<MainApp />} />
+          <Route path="/journey" element={<PeptideJourney />} />
+          <Route path="/assessment" element={<AssessmentWizardV2 />} />
+          <Route path="/assessment/results" element={<AssessmentResults />} />
+          <Route path="/guides" element={<SmartGuide />} />
+          <Route path="/terms" element={<Terms />} />
+          <Route path="/privacy" element={<Privacy />} />
+          <Route path="/admin" element={<AdminDashboard />} />
+        </Routes>
+      </Router>
+    </PricingProvider>
   );
 }
 

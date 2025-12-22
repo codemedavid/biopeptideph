@@ -6,6 +6,7 @@ import ImageUpload from './ImageUpload';
 import { usePaymentMethods } from '../hooks/usePaymentMethods';
 import { useShippingLocations } from '../hooks/useShippingLocations';
 import { useSiteSettings } from '../hooks/useSiteSettings';
+import { usePricingMode } from '../hooks/usePricingMode';
 
 interface CheckoutProps {
   cartItems: CartItem[];
@@ -17,7 +18,13 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack }) =>
   const { paymentMethods } = usePaymentMethods();
   const { locations: shippingLocations, getShippingFee } = useShippingLocations();
   const { siteSettings } = useSiteSettings();
+  const { pricingMode } = usePricingMode();
   const [step, setStep] = useState<'details' | 'payment' | 'confirmation'>('details');
+
+  // Get currency info from cart items (they all have the same currency)
+  const cartCurrency = cartItems.length > 0 ? cartItems[0].currency : (pricingMode === 'national' ? 'PHP' : 'USD');
+  const cartPricingMode = cartItems.length > 0 ? cartItems[0].pricing_mode : pricingMode;
+  const currencySymbol = cartCurrency === 'PHP' ? '₱' : '$';
 
   // Customer Details
   const [fullName, setFullName] = useState('');
@@ -135,6 +142,8 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack }) =>
           notes: `Courier Preference: ${courier === 'jnt' ? 'J&T Express' : 'Lalamove'} \n${notes.trim() || ''} `.trim(),
           order_status: 'new',
           payment_status: 'pending',
+          pricing_mode: cartPricingMode,
+          currency: cartCurrency,
         }])
         .select()
         .single();

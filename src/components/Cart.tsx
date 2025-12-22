@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Trash2, ShoppingBag, ArrowLeft, CreditCard, Plus, Minus, Sparkles, Heart } from 'lucide-react';
 import type { CartItem } from '../types';
+import { usePricingMode } from '../hooks/usePricingMode';
 
 interface CartProps {
   cartItems: CartItem[];
@@ -77,6 +78,12 @@ const Cart: React.FC<CartProps> = ({
   onContinueShopping,
   onCheckout,
 }) => {
+  const { currencySymbol, pricingMode, isInternational } = usePricingMode();
+
+  // Determine currency from cart items (they all have same currency)
+  const cartCurrency = cartItems.length > 0 ? cartItems[0].currency : (pricingMode === 'national' ? 'PHP' : 'USD');
+  const cartSymbol = cartCurrency === 'PHP' ? '₱' : '$';
+
   if (cartItems.length === 0) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center px-4 py-12">
@@ -122,10 +129,19 @@ const Cart: React.FC<CartProps> = ({
             <span className="text-sm md:text-base">Continue Shopping</span>
           </button>
           <div className="flex justify-between items-center">
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 flex items-center gap-2">
-              Shopping Cart
-              <Sparkles className="w-6 h-6 text-theme-secondary" />
-            </h1>
+            <div className="flex items-center gap-3">
+              <h1 className="text-2xl md:text-3xl font-bold text-gray-900 flex items-center gap-2">
+                Shopping Cart
+                <Sparkles className="w-6 h-6 text-theme-secondary" />
+              </h1>
+              {/* Currency Badge */}
+              <span className={`text-xs font-bold px-2 py-1 rounded-full ${isInternational
+                  ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white'
+                  : 'bg-green-100 text-green-700'
+                }`}>
+                {isInternational ? '🌎 USD' : '🇵🇭 PHP'}
+              </span>
+            </div>
             <button
               onClick={clearCart}
               className="text-red-500 hover:text-red-600 font-medium flex items-center gap-1.5 md:gap-2 transition-colors text-sm md:text-base hover:scale-105 transform"
@@ -239,10 +255,10 @@ const Cart: React.FC<CartProps> = ({
 
                       <div className="text-right">
                         <div className="text-xl md:text-2xl font-bold text-black">
-                          ₱{(item.price * item.quantity).toLocaleString('en-PH', { minimumFractionDigits: 0 })}
+                          {cartSymbol}{(item.price * item.quantity).toLocaleString('en-PH', { minimumFractionDigits: 0 })}
                         </div>
                         <div className="text-[10px] md:text-xs text-gray-500">
-                          ₱{item.price.toLocaleString('en-PH', { minimumFractionDigits: 0 })} each
+                          {cartSymbol}{item.price.toLocaleString('en-PH', { minimumFractionDigits: 0 })} each
                         </div>
                       </div>
                     </div>
@@ -263,7 +279,7 @@ const Cart: React.FC<CartProps> = ({
               <div className="space-y-3 mb-6">
                 <div className="flex justify-between text-gray-700 text-sm md:text-base">
                   <span>Subtotal ({cartItems.reduce((sum, item) => sum + item.quantity, 0)} items)</span>
-                  <span className="font-semibold">₱{totalPrice.toLocaleString('en-PH', { minimumFractionDigits: 0 })}</span>
+                  <span className="font-semibold">{cartSymbol}{totalPrice.toLocaleString('en-PH', { minimumFractionDigits: 0 })}</span>
                 </div>
                 <div className="flex flex-col gap-1 text-gray-700 text-xs md:text-sm">
                   <div className="flex justify-between">
@@ -278,9 +294,12 @@ const Cart: React.FC<CartProps> = ({
                 <div className="border-t-2 border-dashed border-gray-200 pt-3 mt-4">
                   <div className="flex justify-between items-center">
                     <span className="text-base md:text-lg font-bold text-gray-900">Total</span>
-                    <span className="text-2xl md:text-3xl font-bold text-black">
-                      ₱{finalTotal.toLocaleString('en-PH', { minimumFractionDigits: 0 })}
-                    </span>
+                    <div className="text-right">
+                      <span className="text-2xl md:text-3xl font-bold text-black">
+                        {cartSymbol}{finalTotal.toLocaleString('en-PH', { minimumFractionDigits: 0 })}
+                      </span>
+                      <div className="text-xs text-gray-500">{cartCurrency}</div>
+                    </div>
                   </div>
                   <p className="text-xs text-gray-500 mt-1 text-right">+ Shipping fee (calculated on checkout)</p>
                 </div>

@@ -1,19 +1,75 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ShoppingCart, Menu, X, MessageCircle } from 'lucide-react';
+import { ShoppingCart, Menu, X, MessageCircle, Globe } from 'lucide-react';
+import { usePricingMode } from '../hooks/usePricingMode';
+import type { PricingMode } from '../types';
 
 interface HeaderProps {
   cartItemsCount: number;
   onCartClick: () => void;
   onMenuClick: () => void;
+  onPricingModeChange?: (mode: PricingMode, hasCartItems: boolean) => boolean; // Returns true if should proceed
 }
 
-const Header: React.FC<HeaderProps> = ({ cartItemsCount, onCartClick, onMenuClick }) => {
+const Header: React.FC<HeaderProps> = ({ cartItemsCount, onCartClick, onMenuClick, onPricingModeChange }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { pricingMode, setPricingMode, currencySymbol } = usePricingMode();
 
   // Contact Links
   const whatsappMessage = encodeURIComponent('Hi! I am interested in your products.');
   const whatsappUrl = `https://api.whatsapp.com/send?phone=639179243135&text=${whatsappMessage}`;
+
+  const handlePricingModeClick = (newMode: PricingMode) => {
+    if (newMode === pricingMode) return;
+
+    // If there are items in cart, ask for confirmation
+    if (cartItemsCount > 0) {
+      if (onPricingModeChange) {
+        const shouldProceed = onPricingModeChange(newMode, true);
+        if (shouldProceed) {
+          setPricingMode(newMode);
+        }
+      } else {
+        // Default confirmation
+        const confirmed = window.confirm(
+          'Changing currency will update prices in your cart. Continue?'
+        );
+        if (confirmed) {
+          setPricingMode(newMode);
+        }
+      }
+    } else {
+      setPricingMode(newMode);
+    }
+  };
+
+  // Currency Toggle Component
+  const CurrencyToggle = ({ className = '' }: { className?: string }) => (
+    <div className={`flex items-center gap-1 bg-white/10 rounded-full p-0.5 ${className}`}>
+      <button
+        onClick={() => handlePricingModeClick('national')}
+        className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold transition-all ${pricingMode === 'national'
+            ? 'bg-theme-blue text-white shadow-md'
+            : 'text-gray-300 hover:text-white hover:bg-white/10'
+          }`}
+        title="Philippine Peso (PHP)"
+      >
+        <span className="text-sm">🇵🇭</span>
+        <span>PHP</span>
+      </button>
+      <button
+        onClick={() => handlePricingModeClick('international')}
+        className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold transition-all ${pricingMode === 'international'
+            ? 'bg-theme-blue text-white shadow-md'
+            : 'text-gray-300 hover:text-white hover:bg-white/10'
+          }`}
+        title="US Dollar (USD)"
+      >
+        <span className="text-sm">🌎</span>
+        <span>USD</span>
+      </button>
+    </div>
+  );
 
   return (
     <>
@@ -23,7 +79,7 @@ const Header: React.FC<HeaderProps> = ({ cartItemsCount, onCartClick, onMenuClic
             {/* Logo and Brand */}
             <button
               onClick={() => { onMenuClick(); setMobileMenuOpen(false); }}
-              className="flex items-center space-x-3 hover:opacity-80 transition-all group min-w-0 flex-1 max-w-[calc(100%-130px)] sm:max-w-none sm:flex-initial"
+              className="flex items-center space-x-3 hover:opacity-80 transition-all group min-w-0 flex-1 max-w-[calc(100%-180px)] sm:max-w-none sm:flex-initial"
             >
               <div className="relative flex-shrink-0">
                 <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full overflow-hidden border-2 border-theme-blue/30 shadow-inner">
@@ -49,7 +105,7 @@ const Header: React.FC<HeaderProps> = ({ cartItemsCount, onCartClick, onMenuClic
             {/* Right Side Navigation */}
             <div className="flex items-center gap-2 md:gap-4 ml-auto">
               {/* Desktop Navigation */}
-              <nav className="hidden md:flex items-center gap-8">
+              <nav className="hidden md:flex items-center gap-6">
                 <Link to="/" className="text-sm font-medium text-gray-300 hover:text-white transition-colors">Home</Link>
                 <button
                   onClick={() => onMenuClick()}
@@ -62,7 +118,12 @@ const Header: React.FC<HeaderProps> = ({ cartItemsCount, onCartClick, onMenuClic
                 <Link to="/assessment" className="text-sm font-medium text-theme-blue bg-white/10 px-3 py-1.5 rounded-full hover:bg-white/20 transition-all border border-transparent hover:border-theme-blue/30 backdrop-blur-sm">
                   Start Assessment
                 </Link>
-                <div className="h-4 w-px bg-white/20 mx-2"></div>
+                <div className="h-4 w-px bg-white/20"></div>
+
+                {/* Currency Toggle - Desktop */}
+                <CurrencyToggle />
+
+                <div className="h-4 w-px bg-white/20"></div>
                 <a
                   href={whatsappUrl}
                   target="_blank"
@@ -73,6 +134,11 @@ const Header: React.FC<HeaderProps> = ({ cartItemsCount, onCartClick, onMenuClic
                   WhatsApp
                 </a>
               </nav>
+
+              {/* Currency Toggle - Mobile (before cart) */}
+              <div className="md:hidden">
+                <CurrencyToggle />
+              </div>
 
               {/* Cart Button */}
               <button

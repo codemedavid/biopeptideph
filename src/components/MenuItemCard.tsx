@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Plus, Minus, ShoppingCart, Package } from 'lucide-react';
 import type { Product, ProductVariation } from '../types';
+import { usePricingMode, getPrice, getVariationPrice, formatPrice } from '../hooks/usePricingMode';
 
 interface MenuItemCardProps {
   product: Product;
@@ -61,18 +62,25 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
   cartQuantity = 0,
   onProductClick,
 }) => {
+  const { pricingMode, currencySymbol, isInternational } = usePricingMode();
   const [selectedVariation, setSelectedVariation] = useState<ProductVariation | undefined>(
     product.variations && product.variations.length > 0 ? product.variations[0] : undefined
   );
   const [quantity, setQuantity] = useState(1);
 
+  // Get current price based on pricing mode
   const currentPrice = selectedVariation
-    ? selectedVariation.price
-    : (product.discount_active && product.discount_price)
-      ? product.discount_price
-      : product.base_price;
+    ? getVariationPrice(selectedVariation, pricingMode)
+    : getPrice(product, pricingMode);
 
-  const hasDiscount = !selectedVariation && product.discount_active && product.discount_price;
+  // Calculate discount based on pricing mode
+  const basePrice = selectedVariation
+    ? selectedVariation.price
+    : (pricingMode === 'national'
+      ? (product.national_price ?? product.base_price)
+      : (product.international_price ?? product.base_price));
+
+  const hasDiscount = !selectedVariation && product.discount_active && product.discount_price && pricingMode === 'national';
 
   const handleAddToCart = () => {
     onAddToCart(product, selectedVariation, quantity);
@@ -131,6 +139,11 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
           {hasDiscount && (
             <span className="bg-theme-red text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider shadow-sm">
               {Math.round((1 - currentPrice / product.base_price) * 100)}% OFF
+            </span>
+          )}
+          {isInternational && (
+            <span className="bg-gradient-to-r from-blue-500 to-purple-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider shadow-sm">
+              🌎 USD
             </span>
           )}
         </div>
@@ -195,11 +208,11 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
         <div className="flex flex-col gap-2 sm:gap-3 mt-1 sm:mt-2">
           <div className="flex items-baseline gap-2">
             <span className="text-lg sm:text-xl font-bold text-theme-navy">
-              ₱{currentPrice.toLocaleString('en-PH', { minimumFractionDigits: 0 })}
+              {currencySymbol}{currentPrice.toLocaleString('en-PH', { minimumFractionDigits: 0 })}
             </span>
             {hasDiscount && (
               <span className="text-xs sm:text-sm text-gray-400 line-through decoration-gray-300">
-                ₱{product.base_price.toLocaleString('en-PH', { minimumFractionDigits: 0 })}
+                {currencySymbol}{product.base_price.toLocaleString('en-PH', { minimumFractionDigits: 0 })}
               </span>
             )}
           </div>

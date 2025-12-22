@@ -195,6 +195,8 @@ const AdminDashboard: React.FC = () => {
           'description',
           'category',
           'base_price',
+          'national_price',
+          'international_price',
           'discount_price',
           'discount_active',
           'purity_percentage',
@@ -502,20 +504,66 @@ const AdminDashboard: React.FC = () => {
                     </select>
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-700 mb-1">Base Price (₱) *</label>
-                    <input
-                      type="number"
-                      step="1"
-                      value={formData.base_price || ''}
-                      onChange={(e) => setFormData({ ...formData, base_price: Number(e.target.value) })}
-                      className="input-field text-sm"
-                      placeholder="0"
-                    />
+                  {/* Pricing Section - National & International */}
+                  <div className="md:col-span-2 bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-3 md:p-4 border border-blue-200">
+                    <h4 className="text-xs md:text-sm font-bold text-gray-800 mb-2 md:mb-3 flex items-center gap-2">
+                      💰 Product Pricing (Multi-Currency)
+                    </h4>
+
+                    {/* Base Price - Full Width */}
+                    <div className="mb-3">
+                      <label className="block text-xs font-semibold text-gray-700 mb-1">Base Price (₱) *</label>
+                      <input
+                        type="number"
+                        step="1"
+                        value={formData.base_price || ''}
+                        onChange={(e) => setFormData({ ...formData, base_price: Number(e.target.value) })}
+                        className="input-field text-sm"
+                        placeholder="0"
+                      />
+                      <p className="text-[10px] text-gray-500 mt-0.5">Fallback price</p>
+                    </div>
+
+                    {/* National & International - Side by Side */}
+                    <div className="grid grid-cols-2 gap-2 md:gap-3">
+                      <div className="bg-green-50/50 rounded-lg p-2 border border-green-100">
+                        <label className="block text-[10px] md:text-xs font-semibold text-green-700 mb-1">
+                          🇵🇭 National (PHP) *
+                        </label>
+                        <div className="relative">
+                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-green-600 font-bold text-sm">₱</span>
+                          <input
+                            type="number"
+                            step="1"
+                            value={formData.national_price || ''}
+                            onChange={(e) => setFormData({ ...formData, national_price: Number(e.target.value) || null })}
+                            className="input-field text-sm pl-6 border-green-200 focus:border-green-500 focus:ring-green-500"
+                            placeholder="0"
+                          />
+                        </div>
+                      </div>
+                      <div className="bg-blue-50/50 rounded-lg p-2 border border-blue-100">
+                        <label className="block text-[10px] md:text-xs font-semibold text-blue-700 mb-1">
+                          🌎 International (USD) *
+                        </label>
+                        <div className="relative">
+                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-blue-600 font-bold text-sm">$</span>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={formData.international_price || ''}
+                            onChange={(e) => setFormData({ ...formData, international_price: Number(e.target.value) || null })}
+                            className="input-field text-sm pl-6 border-blue-200 focus:border-blue-500 focus:ring-blue-500"
+                            placeholder="0"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
                     {editingProduct && editingProduct.variations && editingProduct.variations.length > 0 && (
-                      <p className="text-xs text-orange-600 mt-2 flex items-start gap-1.5 bg-orange-50 p-2 rounded border border-orange-200">
-                        <span className="text-base">⚠️</span>
-                        <span>This product has <strong>{editingProduct.variations.length} size variation(s)</strong>. Customers will see those prices instead of this base price. Use the <strong>"Manage Sizes"</strong> button to update the prices shown on the website.</span>
+                      <p className="text-[10px] md:text-xs text-orange-600 mt-2 flex items-start gap-1 bg-orange-50 p-2 rounded border border-orange-200">
+                        <span>⚠️</span>
+                        <span>Has <strong>{editingProduct.variations.length} variation(s)</strong> - use "Manage Sizes" for those prices.</span>
                       </p>
                     )}
                   </div>

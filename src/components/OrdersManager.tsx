@@ -39,6 +39,8 @@ interface Order {
   updated_at: string;
   promo_code_id?: string;
   discount_amount?: number;
+  pricing_mode?: 'national' | 'international';
+  currency?: 'PHP' | 'USD';
 }
 
 interface OrdersManagerProps {
@@ -460,6 +462,15 @@ const OrderCard: React.FC<OrderCardProps> = ({ order, onView, getStatusColor, ge
               }`}>
               {order.payment_status === 'paid' ? '✓ Paid' : 'Pending'}
             </span>
+            {/* Pricing Mode Badge */}
+            {order.pricing_mode && (
+              <span className={`px-2 md:px-3 py-0.5 md:py-1 rounded-full text-[10px] md:text-xs font-semibold ${order.pricing_mode === 'international'
+                  ? 'bg-gradient-to-r from-blue-100 to-purple-100 text-blue-700 border border-blue-200'
+                  : 'bg-green-50 text-green-700 border border-green-200'
+                }`}>
+                {order.pricing_mode === 'international' ? '🌎 USD' : '🇵🇭 PHP'}
+              </span>
+            )}
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4 text-xs md:text-sm">

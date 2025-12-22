@@ -1,10 +1,16 @@
 // Peptide Product Types
+
+// Pricing Mode Type
+export type PricingMode = 'national' | 'international';
+
 export interface Product {
   id: string;
   name: string;
   description: string;
   category: string;
   base_price: number;
+  national_price: number | null;
+  international_price: number | null;
   discount_price: number | null;
   discount_start_date: string | null;
   discount_end_date: string | null;
@@ -41,6 +47,8 @@ export interface ProductVariation {
   name: string;
   quantity_mg: number;
   price: number;
+  national_price: number | null;
+  international_price: number | null;
   stock_quantity: number;
   created_at: string;
 }
@@ -83,6 +91,8 @@ export interface CartItem {
   variation?: ProductVariation;
   quantity: number;
   price: number;
+  pricing_mode: PricingMode;
+  currency: 'PHP' | 'USD';
 }
 
 // Order Types
