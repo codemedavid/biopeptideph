@@ -49,8 +49,8 @@ const Header: React.FC<HeaderProps> = ({ cartItemsCount, onCartClick, onMenuClic
       <button
         onClick={() => handlePricingModeClick('national')}
         className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold transition-all ${pricingMode === 'national'
-            ? 'bg-theme-blue text-white shadow-md'
-            : 'text-gray-300 hover:text-white hover:bg-white/10'
+          ? 'bg-theme-blue text-white shadow-md'
+          : 'text-gray-300 hover:text-white hover:bg-white/10'
           }`}
         title="Philippine Peso (PHP)"
       >
@@ -60,8 +60,8 @@ const Header: React.FC<HeaderProps> = ({ cartItemsCount, onCartClick, onMenuClic
       <button
         onClick={() => handlePricingModeClick('international')}
         className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold transition-all ${pricingMode === 'international'
-            ? 'bg-theme-blue text-white shadow-md'
-            : 'text-gray-300 hover:text-white hover:bg-white/10'
+          ? 'bg-theme-blue text-white shadow-md'
+          : 'text-gray-300 hover:text-white hover:bg-white/10'
           }`}
         title="US Dollar (USD)"
       >
@@ -74,38 +74,26 @@ const Header: React.FC<HeaderProps> = ({ cartItemsCount, onCartClick, onMenuClic
   return (
     <>
       <header className="bg-theme-navy sticky top-0 z-50 border-b border-theme-blue/20 shadow-lg backdrop-blur-sm bg-theme-navy/95">
-        <div className="container mx-auto px-4 md:px-6 py-3 md:py-4">
-          <div className="flex items-center justify-between gap-4">
-            {/* Logo and Brand */}
+        <div className="container mx-auto px-3 md:px-6 py-2 md:py-3">
+          <div className="flex items-center justify-between gap-2">
+            {/* Logo - Rectangular to show full logo */}
             <button
               onClick={() => { onMenuClick(); setMobileMenuOpen(false); }}
-              className="flex items-center space-x-3 hover:opacity-80 transition-all group min-w-0 flex-1 max-w-[calc(100%-180px)] sm:max-w-none sm:flex-initial"
+              className="flex items-center hover:opacity-90 transition-all flex-shrink-0"
             >
-              <div className="relative flex-shrink-0">
-                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full overflow-hidden border-2 border-theme-blue/30 shadow-inner">
-                  <img
-                    src="/logo.jpeg"
-                    alt="peptology.ph"
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-              </div>
-              <div className="text-left min-w-0 flex-1">
-                <h1 className="text-lg sm:text-xl font-bold text-white leading-tight whitespace-nowrap overflow-hidden text-ellipsis tracking-tight">
-                  peptology.ph
-                </h1>
-                <p className="text-xs text-theme-blue font-medium flex items-center gap-1">
-                  <span className="whitespace-nowrap overflow-hidden text-ellipsis uppercase tracking-wider">
-                    Peptides & Essentials
-                  </span>
-                </p>
+              <div className="h-10 sm:h-12 md:h-14">
+                <img
+                  src="/logo.png"
+                  alt="PEPTOLOGY.PH"
+                  className="h-full w-auto object-contain"
+                />
               </div>
             </button>
 
-            {/* Right Side Navigation */}
-            <div className="flex items-center gap-2 md:gap-4 ml-auto">
+            {/* Right Side - Currency Toggle, Cart, Menu */}
+            <div className="flex items-center gap-1.5 sm:gap-2 md:gap-4">
               {/* Desktop Navigation */}
-              <nav className="hidden md:flex items-center gap-6">
+              <nav className="hidden lg:flex items-center gap-5">
                 <Link to="/" className="text-sm font-medium text-gray-300 hover:text-white transition-colors">Home</Link>
                 <button
                   onClick={() => onMenuClick()}
@@ -119,11 +107,6 @@ const Header: React.FC<HeaderProps> = ({ cartItemsCount, onCartClick, onMenuClic
                   Start Assessment
                 </Link>
                 <div className="h-4 w-px bg-white/20"></div>
-
-                {/* Currency Toggle - Desktop */}
-                <CurrencyToggle />
-
-                <div className="h-4 w-px bg-white/20"></div>
                 <a
                   href={whatsappUrl}
                   target="_blank"
@@ -135,19 +118,17 @@ const Header: React.FC<HeaderProps> = ({ cartItemsCount, onCartClick, onMenuClic
                 </a>
               </nav>
 
-              {/* Currency Toggle - Mobile (before cart) */}
-              <div className="md:hidden">
-                <CurrencyToggle />
-              </div>
+              {/* Currency Toggle - Always visible, compact on mobile */}
+              <CurrencyToggle className="flex-shrink-0" />
 
               {/* Cart Button */}
               <button
                 onClick={onCartClick}
-                className="relative p-2 text-white hover:text-theme-blue transition-colors"
+                className="relative p-1.5 sm:p-2 text-white hover:text-theme-blue transition-colors flex-shrink-0"
               >
-                <ShoppingCart className="w-6 h-6" />
+                <ShoppingCart className="w-5 h-5 sm:w-6 sm:h-6" />
                 {cartItemsCount > 0 && (
-                  <span className="absolute top-0 right-0 bg-theme-blue text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center border border-theme-navy">
+                  <span className="absolute -top-0.5 -right-0.5 bg-theme-blue text-white text-[9px] sm:text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center border border-theme-navy">
                     {cartItemsCount}
                   </span>
                 )}
@@ -156,13 +137,13 @@ const Header: React.FC<HeaderProps> = ({ cartItemsCount, onCartClick, onMenuClic
               {/* Mobile Menu Button */}
               <button
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="md:hidden p-2 text-white hover:text-theme-blue transition-colors"
+                className="lg:hidden p-1.5 sm:p-2 text-white hover:text-theme-blue transition-colors flex-shrink-0"
                 aria-label="Toggle menu"
               >
                 {mobileMenuOpen ? (
-                  <X className="w-6 h-6" />
+                  <X className="w-5 h-5 sm:w-6 sm:h-6" />
                 ) : (
-                  <Menu className="w-6 h-6" />
+                  <Menu className="w-5 h-5 sm:w-6 sm:h-6" />
                 )}
               </button>
             </div>
@@ -172,9 +153,9 @@ const Header: React.FC<HeaderProps> = ({ cartItemsCount, onCartClick, onMenuClic
 
       {/* Mobile Navigation Menu */}
       {mobileMenuOpen && (
-        <div className="md:hidden fixed inset-0 z-40 bg-black/50 backdrop-blur-sm" onClick={() => setMobileMenuOpen(false)}>
+        <div className="lg:hidden fixed inset-0 z-40 bg-black/50 backdrop-blur-sm" onClick={() => setMobileMenuOpen(false)}>
           <div
-            className="absolute top-[65px] right-0 left-0 bg-theme-navy shadow-xl animate-slideIn border-b border-theme-blue/20"
+            className="absolute top-[56px] sm:top-[60px] right-0 left-0 bg-theme-navy shadow-xl animate-slideIn border-b border-theme-blue/20"
             onClick={(e) => e.stopPropagation()}
           >
             <nav className="px-4 py-6">
