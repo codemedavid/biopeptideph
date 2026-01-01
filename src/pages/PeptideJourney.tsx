@@ -222,8 +222,8 @@ const PeptideJourney = () => {
             {/* 5. Philosophy & Values (Three Cards) */}
             <section className="py-24 bg-theme-navy text-white relative overflow-hidden">
                 <div className="container mx-auto px-4 relative z-10 text-center">
-                    <h2 className="text-3xl md:text-4xl font-bold mb-16">{get('values', 'title', 'Why Peptology Exists')}</h2>
-                    <p className="max-w-2xl mx-auto mb-12 text-gray-300">{get('values', 'content', 'This journey is why Peptology exists.')}</p>
+                    <h2 className="text-3xl md:text-4xl font-bold mb-16">{get('values', 'title', 'Why Biopeptides Exists')}</h2>
+                    <p className="max-w-2xl mx-auto mb-12 text-gray-300">{get('values', 'content', 'This journey is why Biopeptides exists.')}</p>
 
                     <div className="grid md:grid-cols-3 gap-8">
                         {/* Dynamic cards from metadata */}

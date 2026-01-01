@@ -364,7 +364,7 @@ export default function AssessmentWizardV2() {
                         1
                     </div>
                     <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                        Thank you for choosing Peptology!
+                        Thank you for choosing Biopeptides!
                     </h2>
                     <p className="text-gray-600">
                         Let's start by reviewing our terms and consent

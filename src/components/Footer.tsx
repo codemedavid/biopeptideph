@@ -19,13 +19,13 @@ const Footer: React.FC = () => {
             <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-theme-blue/20">
               <img
                 src="/logo.png"
-                alt="peptology.ph"
+                alt="biopeptides.ph"
                 className="w-full h-full object-cover"
               />
             </div>
             <div className="text-left">
               <div className="font-bold text-white text-xl tracking-tight">
-                peptology.ph
+                biopeptides.ph
               </div>
               <div className="text-sm text-theme-blue font-medium tracking-wide uppercase">Peptides & Essentials</div>
 
@@ -56,7 +56,7 @@ const Footer: React.FC = () => {
           <p className="text-xs text-gray-500 flex items-center justify-center gap-1">
             Made with
             <Heart className="w-3 h-3 text-theme-red fill-theme-red" />
-            © {currentYear} peptology.ph. All rights reserved.
+            © {currentYear} biopeptides.ph. All rights reserved.
           </p>
         </div>
       </div>

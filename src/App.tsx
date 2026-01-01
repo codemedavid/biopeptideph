@@ -20,6 +20,7 @@ import AssessmentResults from './pages/AssessmentResults';
 import Terms from './pages/Terms';
 import Privacy from './pages/Privacy';
 import SmartGuide from './pages/SmartGuide';
+import PeptideCheatSheet from './pages/PeptideCheatSheet';
 import type { PricingMode } from './types';
 
 function MainApp() {
@@ -137,6 +138,7 @@ function App() {
           <Route path="/assessment" element={<AssessmentWizardV2 />} />
           <Route path="/assessment/results" element={<AssessmentResults />} />
           <Route path="/guides" element={<SmartGuide />} />
+          <Route path="/cheatsheet" element={<PeptideCheatSheet />} />
           <Route path="/terms" element={<Terms />} />
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/admin" element={<AdminDashboard />} />

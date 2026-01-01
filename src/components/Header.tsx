@@ -84,7 +84,7 @@ const Header: React.FC<HeaderProps> = ({ cartItemsCount, onCartClick, onMenuClic
               <div className="h-10 sm:h-12 md:h-14">
                 <img
                   src="/logo.png"
-                  alt="PEPTOLOGY.PH"
+                  alt="BIOPEPTIDES.PH"
                   className="h-full w-auto object-contain"
                 />
               </div>

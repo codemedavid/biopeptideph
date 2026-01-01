@@ -35,7 +35,7 @@ export default function Privacy() {
                             <h2 className="text-xl font-semibold text-gray-900 mb-3">3. Assessment Data Privacy</h2>
                             <p className="text-gray-700 leading-relaxed">
                                 Information provided during the peptide assessment is strictly confidential and will not be shared with
-                                anyone outside of the Peptology.ph team. Your health information is protected and used solely to generate
+                                anyone outside of the biopeptides.ph team. Your health information is protected and used solely to generate
                                 personalized recommendations.
                             </p>
                         </section>
@@ -84,7 +84,7 @@ export default function Privacy() {
                         <section>
                             <h2 className="text-xl font-semibold text-gray-900 mb-3">9. Contact Us</h2>
                             <p className="text-gray-700 leading-relaxed">
-                                If you have any questions about this Privacy Policy, please contact us at privacy@peptology.ph
+                                If you have any questions about this Privacy Policy, please contact us at privacy@biopeptides.ph
                             </p>
                         </section>
                     </div>

@@ -7,7 +7,7 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Peptology Branding
+        // Biopeptides Branding
         // Clinical Futurism Palette
         theme: {
           navy: '#0B1F33',      // Deep Navy / Midnight Blue - Main background, headers, footer

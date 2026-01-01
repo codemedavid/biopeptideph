@@ -11,7 +11,7 @@ export default function Terms() {
                         <section>
                             <h2 className="text-xl font-semibold text-gray-900 mb-3">1. Acceptance of Terms</h2>
                             <p className="text-gray-700 leading-relaxed">
-                                By accessing and using Peptology.ph, you accept and agree to be bound by the terms and provision of this agreement.
+                                By accessing and using biopeptides.ph, you accept and agree to be bound by the terms and provision of this agreement.
                             </p>
                         </section>
 
@@ -19,7 +19,7 @@ export default function Terms() {
                             <h2 className="text-xl font-semibold text-gray-900 mb-3">2. Research Purposes Only</h2>
                             <p className="text-gray-700 leading-relaxed">
                                 All peptides sold on this website are for research purposes only. They are not intended for human consumption,
-                                medical use, or any therapeutic application. By purchasing from Peptology.ph, you acknowledge that you are a
+                                medical use, or any therapeutic application. By purchasing from biopeptides.ph, you acknowledge that you are a
                                 qualified researcher or institution.
                             </p>
                         </section>
@@ -44,7 +44,7 @@ export default function Terms() {
                         <section>
                             <h2 className="text-xl font-semibold text-gray-900 mb-3">5. Limitation of Liability</h2>
                             <p className="text-gray-700 leading-relaxed">
-                                Peptology.ph shall not be liable for any indirect, incidental, special, consequential, or punitive damages
+                                biopeptides.ph shall not be liable for any indirect, incidental, special, consequential, or punitive damages
                                 resulting from your use of or inability to use the service.
                             </p>
                         </section>
@@ -59,7 +59,7 @@ export default function Terms() {
                         <section>
                             <h2 className="text-xl font-semibold text-gray-900 mb-3">7. Contact Information</h2>
                             <p className="text-gray-700 leading-relaxed">
-                                If you have any questions about these Terms and Conditions, please contact us at support@peptology.ph
+                                If you have any questions about these Terms and Conditions, please contact us at support@biopeptides.ph
                             </p>
                         </section>
                     </div>
