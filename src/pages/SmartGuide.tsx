@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useSmartGuides } from '../hooks/useSmartGuides';
-import { FileText, Image, File, ChevronDown, Download, Search, Sparkles } from 'lucide-react';
+import { SmartGuideFile } from '../types';
+import { FileText, Image, File, ChevronDown, Eye, Search, Sparkles, X } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { useCart } from '../hooks/useCart';
@@ -9,6 +10,7 @@ const SmartGuide: React.FC = () => {
     const { guides, loading } = useSmartGuides();
     const [expandedGuideId, setExpandedGuideId] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
+    const [viewingFile, setViewingFile] = useState<SmartGuideFile | null>(null);
     const cart = useCart();
 
     const toggleExpand = (id: string) => {
@@ -116,12 +118,10 @@ const SmartGuide: React.FC = () => {
 
                                             {guide.files && guide.files.length > 0 ? (
                                                 guide.files.map((file) => (
-                                                    <a
+                                                    <div
                                                         key={file.id}
-                                                        href={file.file_url}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        className="flex items-center justify-between p-4 mx-4 bg-white border border-gray-100 rounded-xl hover:border-theme-accent hover:shadow-sm transition-all group"
+                                                        onClick={() => setViewingFile(file)}
+                                                        className="flex items-center justify-between p-4 mx-4 bg-white border border-gray-100 rounded-xl hover:border-theme-accent hover:shadow-sm transition-all group cursor-pointer"
                                                     >
                                                         <div className="flex items-center gap-3">
                                                             <div className="p-2 bg-gray-50 rounded-lg group-hover:bg-theme-accent/5 transition-colors">
@@ -132,9 +132,9 @@ const SmartGuide: React.FC = () => {
                                                             </span>
                                                         </div>
                                                         <div className="bg-gray-50 p-2 rounded-full group-hover:bg-theme-accent group-hover:text-white transition-colors">
-                                                            <Download className="w-4 h-4" />
+                                                            <Eye className="w-4 h-4" />
                                                         </div>
-                                                    </a>
+                                                    </div>
                                                 ))
                                             ) : (
                                                 <p className="text-center text-gray-400 py-4 italic">No files uploaded for this topic yet.</p>
@@ -157,6 +157,44 @@ const SmartGuide: React.FC = () => {
             </main>
 
             <Footer />
+
+            {/* File Viewer Modal */}
+            {viewingFile && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 md:p-8">
+                    <div className="relative w-full max-w-5xl h-full max-h-[90vh] bg-white rounded-2xl overflow-hidden flex flex-col shadow-2xl">
+                        {/* Modal Header */}
+                        <div className="flex items-center justify-between p-4 border-b border-gray-100 bg-white z-10">
+                            <h3 className="font-bold text-gray-900 truncate pr-4">
+                                {viewingFile.display_name}
+                            </h3>
+                            <button
+                                onClick={() => setViewingFile(null)}
+                                className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-500 hover:text-gray-900"
+                            >
+                                <X className="w-6 h-6" />
+                            </button>
+                        </div>
+
+                        {/* Modal Content */}
+                        <div className="flex-grow bg-gray-100 overflow-auto flex items-center justify-center p-4 relative">
+                            {viewingFile.file_type === 'pdf' ? (
+                                <iframe
+                                    src={`${viewingFile.file_url}#toolbar=0&navpanes=0&scrollbar=0`}
+                                    className="w-full h-full rounded-lg shadow-sm bg-white"
+                                    title={viewingFile.display_name}
+                                />
+                            ) : (
+                                <img
+                                    src={viewingFile.file_url}
+                                    alt={viewingFile.display_name}
+                                    className="max-w-full max-h-full object-contain rounded-lg shadow-sm select-none"
+                                    onContextMenu={(e) => e.preventDefault()}
+                                />
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
