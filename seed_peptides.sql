@@ -67,6 +67,7 @@ DECLARE
 
 BEGIN
     -- CLEANUP (Safe delete)
+    DELETE FROM recommendation_rules;
     DELETE FROM product_variations;
     DELETE FROM products;
     DELETE FROM categories;
@@ -93,7 +94,7 @@ BEGIN
         true, 
         true, 
         100,
-        'https://pub-88099e2a05cb4c8ea54d3ca3495f2648.r2.dev/tirzepatide-vial.png'
+        NULL
     ) RETURNING id INTO id_tirzepatide;
 
     -- Semaglutide
@@ -109,7 +110,7 @@ BEGIN
         true, 
         true, 
         100,
-        'https://pub-88099e2a05cb4c8ea54d3ca3495f2648.r2.dev/semaglutide-vial.png'
+        NULL
     ) RETURNING id INTO id_semaglutide;
 
     -- BPC-157
@@ -125,7 +126,7 @@ BEGIN
         true, 
         true, 
         150,
-        'https://pub-88099e2a05cb4c8ea54d3ca3495f2648.r2.dev/bpc157-vial.png'
+        NULL
     ) RETURNING id INTO id_bpc157;
 
     -- TB-500
