@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
-import { Save, Loader, AlertCircle, Check, ImageIcon, ArrowLeft } from 'lucide-react';
+import { Save, Loader, AlertCircle, Check, ArrowLeft } from 'lucide-react';
+import ImageUpload from '../ImageUpload';
 
 interface JourneySection {
     id: string;
@@ -166,26 +167,23 @@ const JourneyManager: React.FC<JourneyManagerProps> = ({ onBack }) => {
                             {/* Image URL */}
                             {section.image_url !== undefined && (
                                 <div>
-                                    <label className="block text-xs font-semibold text-gray-700 mb-1">Image URL</label>
-                                    <div className="flex gap-4 items-start">
-                                        <div className="flex-1">
-                                            <div className="relative">
-                                                <ImageIcon className="absolute left-3 top-3 text-gray-400 w-4 h-4" />
-                                                <input
-                                                    type="text"
-                                                    value={section.image_url || ''}
-                                                    onChange={e => handleChange(section.id, 'image_url', e.target.value)}
-                                                    className="w-full pl-10 p-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-theme-accent/20 focus:border-theme-accent outline-none text-sm"
-                                                    placeholder="/assets/image.png"
-                                                />
-                                            </div>
-                                        </div>
-                                        {section.image_url && (
-                                            <div className="w-20 h-20 rounded-lg overflow-hidden bg-gray-100 border border-gray-200 shadow-sm flex-shrink-0">
-                                                <img src={section.image_url} alt="Preview" className="w-full h-full object-cover" />
-                                            </div>
-                                        )}
-                                    </div>
+                                    <label className="block text-xs font-semibold text-gray-700 mb-1">Image</label>
+                                    <ImageUpload
+                                        currentImage={section.image_url}
+                                        onImageChange={(newUrl) => handleChange(section.id, 'image_url', newUrl || '')}
+                                        folder="menu-images"
+                                    />
+                                    {/* Fallback manual input for flexibility */}
+                                    <details className="mt-2">
+                                        <summary className="text-xs text-gray-500 cursor-pointer hover:text-theme-accent">Manual URL (Advanced)</summary>
+                                        <input
+                                            type="text"
+                                            value={section.image_url || ''}
+                                            onChange={e => handleChange(section.id, 'image_url', e.target.value)}
+                                            className="w-full mt-2 p-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-theme-accent/20 focus:border-theme-accent outline-none text-sm"
+                                            placeholder="https://..."
+                                        />
+                                    </details>
                                 </div>
                             )}
                         </div>
