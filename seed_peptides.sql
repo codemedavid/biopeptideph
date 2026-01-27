@@ -1,4 +1,5 @@
 -- Seeding Script for Peptide Store (Clinical Futurism Theme)
+-- Updated with 40+ products, 3x pricing, and refined categories
 -- Run this in the Supabase SQL Editor
 
 -- 1. SCHEMA SETUP (Ensure tables exist)
@@ -32,6 +33,7 @@ CREATE TABLE IF NOT EXISTS products (
   featured BOOLEAN DEFAULT false,
   image_url TEXT,
   safety_sheet_url TEXT,
+  inclusions TEXT[], 
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -46,24 +48,27 @@ CREATE TABLE IF NOT EXISTS product_variations (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Ensure inclusions column exists
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'products' AND column_name = 'inclusions') THEN
+        ALTER TABLE products ADD COLUMN inclusions TEXT[];
+    END IF;
+END $$;
+
+
 -- 2. SEED DATA
 DO $$
 DECLARE
     -- Category IDs
-    cat_weight TEXT := 'weight-management';
-    cat_repair TEXT := 'recovery-repair';
-    cat_growth TEXT := 'growth-performance';
-    cat_essentials TEXT := 'essentials-supplies';
+    cat_all TEXT := 'all';
+    cat_weight TEXT := 'weight-loss';
+    cat_repair TEXT := 'recovery';
+    cat_cosmetic TEXT := 'beauty';
+    cat_wellness TEXT := 'anti-aging';
     
-    -- Product IDs
-    id_tirzepatide UUID;
-    id_semaglutide UUID;
-    id_bpc157 UUID;
-    id_tb500 UUID;
-    id_bacwater UUID;
-    id_syringes UUID;
-    id_cjc1295 UUID;
-    id_ipamorelin UUID;
+    -- Inclusions
+    v_inclusions text[] := ARRAY['Syringe for Reconstitution', '6pcs Insulin Syringes', '10pcs Alcohol Pads', 'Transparent vial case'];
 
 BEGIN
     -- CLEANUP (Safe delete)
@@ -73,150 +78,67 @@ BEGIN
     DELETE FROM categories;
 
     -- INSERT CATEGORIES
+    -- Added 'all' category as requested
     INSERT INTO categories (id, name, icon, sort_order, active) VALUES
-    (cat_weight, 'Weight Management', 'Scale', 1, true),
-    (cat_repair, 'Recovery & Repair', 'Heart', 2, true),
-    (cat_growth, 'Growth & Performance', 'Zap', 3, true),
-    (cat_essentials, 'Essentials & Supplies', 'Package', 4, true);
+    (cat_all, 'All', 'Grid', 0, true),
+    (cat_weight, 'Weight Loss', 'Scale', 1, true),
+    (cat_repair, 'Recovery', 'Activity', 2, true),
+    (cat_cosmetic, 'Beauty', 'Sparkles', 3, true),
+    (cat_wellness, 'Anti-Aging', 'Leaf', 4, true);
 
     -- INSERT PRODUCTS
     
-    -- Tirzepatide
-    INSERT INTO products (name, description, category, base_price, purity_percentage, molecular_weight, storage_conditions, featured, available, stock_quantity, image_url)
-    VALUES (
-        'Tirzepatide', 
-        'A dual GIP and GLP-1 receptor agonist. Known for its distinct ability to support metabolic health and weight management by mimicking natural hormones.', 
-        cat_weight, 
-        2800.00, 
-        99.00, 
-        '4813.45 g/mol', 
-        'Store at -20°C', 
-        true, 
-        true, 
-        100,
-        NULL
-    ) RETURNING id INTO id_tirzepatide;
+    -- === WEIGHT MANAGEMENT === (GLP-1s, Fat Loss)
+    INSERT INTO products (name, description, category, base_price, inclusions, available, stock_quantity, featured) VALUES
+    ('Semaglutide 5mg', 'Semaglutide 5mg - Premium weight management research peptide.', cat_weight, 5697.00, v_inclusions, true, 100, true),
+    ('Semaglutide 10mg', 'Semaglutide 10mg - Premium weight management research peptide.', cat_weight, 7500.00, v_inclusions, true, 100, false),
+    ('Tirzepatide 15mg', 'Tirzepatide 15mg - Advanced dual-agonist research peptide.', cat_weight, 6000.00, v_inclusions, true, 100, true),
+    ('Tirzepatide 30mg', 'Tirzepatide 30mg - Advanced dual-agonist research peptide.', cat_weight, 10500.00, v_inclusions, true, 100, true),
+    ('Retatrutide 10mg', 'Retatrutide 10mg - Next-generation triple-agonist research peptide.', cat_weight, 7500.00, v_inclusions, true, 100, false),
+    ('Retatrutide 20mg', 'Retatrutide 20mg - Next-generation triple-agonist research peptide.', cat_weight, 10500.00, v_inclusions, true, 100, false),
+    ('Cagrilintide 5mg', 'Cagrilintide 5mg - Amylin analog research peptide.', cat_weight, 8400.00, v_inclusions, true, 100, false),
+    ('Cagrilintide 10mg', 'Cagrilintide 10mg - Amylin analog research peptide.', cat_weight, 9900.00, v_inclusions, true, 100, false),
+    ('AOD-9604 5mg', 'AOD-9604 5mg - Lipolytic fragment research peptide.', cat_weight, 7500.00, v_inclusions, true, 100, false),
+    ('Tesamorelin 5mg', 'Tesamorelin 5mg - GHRH analog research peptide.', cat_weight, 7500.00, v_inclusions, true, 100, false),
+    ('5 Amino - 1mq 5mg', '5 Amino-1MQ 5mg - NNMT inhibitor research compound.', cat_weight, 6000.00, v_inclusions, true, 100, false),
+    ('5 Amino - 1mq 10mg', '5 Amino-1MQ 10mg - NNMT inhibitor research compound.', cat_weight, 7500.00, v_inclusions, true, 100, false);
 
-    -- Semaglutide
-    INSERT INTO products (name, description, category, base_price, purity_percentage, molecular_weight, storage_conditions, featured, available, stock_quantity, image_url)
-    VALUES (
-        'Semaglutide', 
-        'A GLP-1 receptor agonist commonly researched for its effects on insulin secretion and appetite regulation.', 
-        cat_weight, 
-        2200.00, 
-        99.00, 
-        '4113.58 g/mol', 
-        'Store at -20°C', 
-        true, 
-        true, 
-        100,
-        NULL
-    ) RETURNING id INTO id_semaglutide;
+    -- === RECOVERY & REPAIR === (BPC, TB500)
+    INSERT INTO products (name, description, category, base_price, inclusions, available, stock_quantity) VALUES
+    ('BPC-157 5mg + TB500 5mg', 'BPC-157 + TB500 Blend - Synergistic recovery research blend.', cat_repair, 7500.00, v_inclusions, true, 100),
+    ('BPC-157 10mg', 'BPC-157 10mg - Body Protection Compound research peptide.', cat_repair, 6000.00, v_inclusions, true, 100),
+    ('TB500 5mg', 'TB500 5mg - Thymosin Beta-4 research peptide.', cat_repair, 6000.00, v_inclusions, true, 100),
+    ('KPV 10mg', 'KPV 10mg - Anti-inflammatory research peptide.', cat_repair, 6000.00, v_inclusions, true, 100);
 
-    -- BPC-157
-    INSERT INTO products (name, description, category, base_price, purity_percentage, molecular_weight, storage_conditions, featured, available, stock_quantity, image_url)
-    VALUES (
-        'BPC-157', 
-        'Body Protection Compound-157 is a pentadecapeptide composed of 15 amino acids, researched for its cytoprotective and reparative properties in tissues.', 
-        cat_repair, 
-        1500.00, 
-        99.50, 
-        '1419.5 g/mol', 
-        'Store at -20°C', 
-        true, 
-        true, 
-        150,
-        NULL
-    ) RETURNING id INTO id_bpc157;
+    -- === COSMETIC & SKINCARE ===
+    INSERT INTO products (name, description, category, base_price, inclusions, available, stock_quantity) VALUES
+    ('GHK-CU 100mg', 'GHK-Cu 100mg - Copper peptide for cosmetic research.', cat_cosmetic, 5400.00, v_inclusions, true, 100),
+    ('AHK-Cu 100mg', 'AHK-Cu 100mg - Advanced copper peptide for hair/skin research.', cat_cosmetic, 7500.00, v_inclusions, true, 100),
+    ('Snap 8 10mg', 'Snap 8 10mg - Octapeptide anti-wrinkle research solution.', cat_cosmetic, 4500.00, v_inclusions, true, 100),
+    ('Lemon Bottle 10ml', 'Lemon Bottle 10ml - Premium lipolytic solution.', cat_cosmetic, 4500.00, v_inclusions, true, 100),
+    ('Lipo - C with B12 10ml', 'Lipo-C with B12 10ml - Lipotropic injection solution.', cat_cosmetic, 3600.00, v_inclusions, true, 100),
+    ('FAT BLASTER LIPO-C', 'FAT BLASTER LIPO-C - Advanced formula lipolytic solution.', cat_cosmetic, 9900.00, v_inclusions, true, 100);
 
-    -- TB-500
-    INSERT INTO products (name, description, category, base_price, purity_percentage, molecular_weight, storage_conditions, featured, available, stock_quantity)
-    VALUES (
-        'TB-500', 
-        'Synthetic fraction of the protein thymosin beta-4, present in virtually all human and animal cells. Studied for its role in healing and cell migration.', 
-        cat_repair, 
-        1600.00, 
-        99.00, 
-        '4963.5 g/mol', 
-        'Store at -20°C', 
-        false, 
-        true, 
-        120
-    ) RETURNING id INTO id_tb500;
-
-    -- CJC-1295
-    INSERT INTO products (name, description, category, base_price, purity_percentage, molecular_weight, storage_conditions, featured, available, stock_quantity)
-    VALUES (
-        'CJC-1295 (No DAC)', 
-        'Tetrasubstituted 30-amino acid peptide hormone, primarily functioning as a growth hormone releasing hormone (GHRH) analog.', 
-        cat_growth, 
-        1400.00, 
-        99.00, 
-        '3367.97 g/mol', 
-        'Store at -20°C', 
-        false, 
-        true, 
-        80
-    ) RETURNING id INTO id_cjc1295;
-
-     -- Ipamorelin
-    INSERT INTO products (name, description, category, base_price, purity_percentage, molecular_weight, storage_conditions, featured, available, stock_quantity)
-    VALUES (
-        'Ipamorelin', 
-        'A pentapeptide and a ghrelin mimetic. It mimics the growth hormone releasing effects of ghrelin without the hunger side effects.', 
-        cat_growth, 
-        1400.00, 
-        99.00, 
-        '711.85 g/mol', 
-        'Store at -20°C', 
-        false, 
-        true, 
-        90
-    ) RETURNING id INTO id_ipamorelin;
-
-
-    -- Essentials
-    INSERT INTO products (name, description, category, base_price, purity_percentage, molecular_weight, storage_conditions, featured, available, stock_quantity)
-    VALUES (
-        'Bacteriostatic Water', 
-        'Sterile water containing 0.9% benzyl alcohol, used for dissolving or diluting medications or peptides.', 
-        cat_essentials, 
-        350.00, 
-        100.00, 
-        '18.015 g/mol', 
-        'Room Temperature', 
-        false, 
-        true, 
-        500
-    ) RETURNING id INTO id_bacwater;
-
-    INSERT INTO products (name, description, category, base_price, purity_percentage, molecular_weight, storage_conditions, featured, available, stock_quantity)
-    VALUES (
-        'Insulin Syringes (10-pack)', 
-        'High-quality, sterile insulin syringes for precise research applications. 1ml, 29G.', 
-        cat_essentials, 
-        150.00, 
-        100.00, 
-        NULL, 
-        'Room Temperature', 
-        false, 
-        true, 
-        1000
-    ) RETURNING id INTO id_syringes;
-
-
-    -- INSERT VARIATIONS
-    INSERT INTO product_variations (product_id, name, quantity_mg, price, stock_quantity) VALUES
-    (id_tirzepatide, '5mg Vial', 5.0, 2800.00, 100),
-    (id_tirzepatide, '10mg Vial', 10.0, 4500.00, 50),
-    (id_tirzepatide, '15mg Vial', 15.0, 5800.00, 30);
-
-    INSERT INTO product_variations (product_id, name, quantity_mg, price, stock_quantity) VALUES
-    (id_semaglutide, '2mg Vial', 2.0, 2200.00, 100),
-    (id_semaglutide, '5mg Vial', 5.0, 3800.00, 50);
-
-    INSERT INTO product_variations (product_id, name, quantity_mg, price, stock_quantity) VALUES
-    (id_bpc157, '5mg Vial', 5.0, 1500.00, 150),
-    (id_bpc157, '10mg Vial', 10.0, 2500.00, 50);
+    -- === WELLNESS & ANTI-AGING ===
+    INSERT INTO products (name, description, category, base_price, inclusions, available, stock_quantity) VALUES
+    ('Epithalon 50mg', 'Epithalon 50mg - Telomere activation research peptide.', cat_wellness, 9900.00, v_inclusions, true, 100),
+    ('Glutathione 1500mg', 'Glutathione 1500mg - Master antioxidant research compound.', cat_wellness, 6900.00, v_inclusions, true, 100),
+    ('NAD+ 100mg', 'NAD+ 100mg - Cellular energy coenzyme.', cat_wellness, 5400.00, v_inclusions, true, 100),
+    ('NAD+ 500mg', 'NAD+ 500mg - Cellular energy coenzyme.', cat_wellness, 8400.00, v_inclusions, true, 100),
+    ('Mots-C 10mg', 'Mots-C 10mg - Mitochondrial derived peptide.', cat_wellness, 7500.00, v_inclusions, true, 100),
+    ('Mots-C 40mg', 'Mots-C 40mg - Mitochondrial derived peptide.', cat_wellness, 9000.00, v_inclusions, true, 100),
+    ('SS-31 10mg', 'SS-31 10mg - Mitochondrial targeted antioxidant.', cat_wellness, 8400.00, v_inclusions, true, 100),
+    ('SS-31 50mg', 'SS-31 50mg - Mitochondrial targeted antioxidant.', cat_wellness, 11400.00, v_inclusions, true, 100),
+    ('Thymosin Alpha 5mg', 'Thymosin Alpha 1 5mg - Immune modulating research peptide.', cat_wellness, 8400.00, v_inclusions, true, 100),
+    ('DSIP 5mg', 'DSIP 5mg - Sleep regulation research peptide.', cat_wellness, 6000.00, v_inclusions, true, 100),
+    ('Selank 5mg', 'Selank 5mg - Nootropic anxiolytic peptide.', cat_wellness, 5400.00, v_inclusions, true, 100),
+    ('Selank 10mg', 'Selank 10mg - Nootropic anxiolytic peptide.', cat_wellness, 6900.00, v_inclusions, true, 100),
+    ('Semax 10mg', 'Semax 10mg - Cognitive enhancement peptide.', cat_wellness, 6900.00, v_inclusions, true, 100),
+    ('PT-141 10mg', 'PT-141 10mg - Melanocortin agonist research peptide.', cat_wellness, 6000.00, v_inclusions, true, 100),
+    ('Kisspeptin 10mg', 'Kisspeptin 10mg - Reproductive hormone regulator.', cat_wellness, 9000.00, v_inclusions, true, 100),
+    ('CJC-1295 w/o dac + Ipamorelin 10mg', 'CJC-1295 + Ipamorelin Blend - GHRH/GHRP blend.', cat_wellness, 7500.00, v_inclusions, true, 100),
+    ('Ipamorelin 10mg', 'Ipamorelin 10mg - Selective GH secretion secretagogue.', cat_wellness, 6000.00, v_inclusions, true, 100),
+    ('GLOW 70mg', 'GLOW 70mg - Advanced radiance complex.', cat_wellness, 8400.00, v_inclusions, true, 100),
+    ('KLOW 80mg', 'KLOW 80mg - Advanced vitality complex.', cat_wellness, 7500.00, v_inclusions, true, 100);
 
 END $$;

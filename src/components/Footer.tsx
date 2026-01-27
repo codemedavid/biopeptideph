@@ -25,9 +25,9 @@ const Footer: React.FC = () => {
             </div>
             <div className="text-left">
               <div className="font-bold text-white text-xl tracking-tight">
-                biopeptides.ph
+                BIOPEPTIDESPH
               </div>
-              <div className="text-sm text-theme-blue font-medium tracking-wide uppercase">Peptides & Essentials</div>
+              <div className="text-sm text-theme-blue font-medium tracking-wide uppercase">The Science of Renewal</div>
 
               <div className="mt-4 flex gap-6 text-sm">
                 <Link to="/" className="text-gray-400 hover:text-white transition-colors">Home</Link>
@@ -56,7 +56,7 @@ const Footer: React.FC = () => {
           <p className="text-xs text-gray-500 flex items-center justify-center gap-1">
             Made with
             <Heart className="w-3 h-3 text-theme-red fill-theme-red" />
-            © {currentYear} biopeptides.ph. All rights reserved.
+            © {currentYear} BIOPEPTIDESPH. All rights reserved.
           </p>
         </div>
       </div>
