@@ -83,7 +83,7 @@ const Header: React.FC<HeaderProps> = ({ cartItemsCount, onCartClick, onMenuClic
             >
               <div className="h-10 sm:h-12 md:h-14">
                 <img
-                  src="/logo.png"
+                  src="/logo-new.jpg"
                   alt="BIOPEPTIDESPH"
                   className="h-full w-auto object-contain"
                 />
