@@ -79,7 +79,7 @@ const Header: React.FC<HeaderProps> = ({ cartItemsCount, onCartClick, onMenuClic
             {/* Logo - Rectangular to show full logo */}
             <button
               onClick={() => { onMenuClick(); setMobileMenuOpen(false); }}
-              className="flex items-center hover:opacity-90 transition-all flex-shrink-0"
+              className="flex items-center gap-3 hover:opacity-90 transition-all flex-shrink-0 text-left"
             >
               <div className="h-10 sm:h-12 md:h-14">
                 <img
@@ -87,6 +87,10 @@ const Header: React.FC<HeaderProps> = ({ cartItemsCount, onCartClick, onMenuClic
                   alt="BIOPEPTIDESPH"
                   className="h-full w-auto object-contain"
                 />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-white font-bold text-lg leading-tight tracking-wide">BIOPEPTIDESPH</span>
+                <span className="text-theme-blue text-[10px] sm:text-xs font-medium tracking-wider uppercase">The Science of Renewal</span>
               </div>
             </button>
 
