@@ -209,6 +209,7 @@ const AdminDashboard: React.FC = () => {
           'featured',
           'image_url',
           'safety_sheet_url',
+          'inclusions',
         ];
 
         const dbPayload: Partial<Product> = {};
