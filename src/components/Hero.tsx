@@ -21,7 +21,7 @@ const Hero: React.FC<HeroProps> = ({ onShopAll }) => {
   const description = siteSettings?.home_hero_description || 'Experience the future of wellness with our research-grade peptides. Meticulously tested for purity, designed for longevity, and trusted by experts for superior results.';
 
   return (
-    <div className="relative overflow-hidden bg-theme-navy text-white pt-12 pb-16 md:pt-32 md:pb-40 lg:pt-40 lg:pb-48">
+    <div className="relative overflow-hidden bg-theme-navy text-white pt-10 pb-10 md:pt-20 md:pb-20 lg:pt-24 lg:pb-24">
       {/* Abstract Background Shapes (DNA/Molecular effect) */}
       <div className="absolute top-0 right-0 -mr-40 -mt-40 w-[300px] md:w-[600px] h-[300px] md:h-[600px] rounded-full bg-gradient-to-br from-theme-blue/20 to-theme-lightblue/5 blur-3xl opacity-40 pointer-events-none animate-pulse-slow" />
       <div className="absolute bottom-0 left-0 -ml-40 -mb-40 w-[250px] md:w-[500px] h-[250px] md:h-[500px] rounded-full bg-gradient-to-tr from-theme-blue/10 to-theme-navy blur-3xl opacity-40 pointer-events-none" />
@@ -51,17 +51,17 @@ const Hero: React.FC<HeroProps> = ({ onShopAll }) => {
           </h1>
 
           {/* Subtext */}
-          <p className="text-base sm:text-xl md:text-2xl text-theme-lightblue/90 font-light mb-6 md:mb-12 max-w-3xl mx-auto tracking-wide px-4">
+          <p className="text-base sm:text-xl md:text-2xl text-theme-lightblue/90 font-light mb-4 md:mb-8 max-w-3xl mx-auto tracking-wide px-4">
             {subtext}
           </p>
 
           {/* Description */}
-          <p className="text-sm md:text-lg text-gray-400 mb-8 md:mb-16 max-w-2xl mx-auto leading-relaxed antialiased font-light hidden sm:block">
+          <p className="text-sm md:text-lg text-gray-400 mb-6 md:mb-10 max-w-2xl mx-auto leading-relaxed antialiased font-light hidden sm:block">
             {description}
           </p>
 
           {/* CTA Buttons */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-6 mb-20 md:mb-24">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-6 mb-10 md:mb-12">
             <button
               className="btn-primary bg-theme-blue hover:bg-theme-blue/90 text-white border-none px-10 py-4 rounded-full text-base font-semibold shadow-lg shadow-theme-blue/20 hover:shadow-theme-blue/40 transition-all duration-300 hover:-translate-y-1 flex items-center gap-2"
               onClick={onShopAll}

@@ -84,12 +84,12 @@ const Header: React.FC<HeaderProps> = ({ cartItemsCount, onCartClick, onMenuClic
               <div className="h-10 sm:h-12 md:h-14">
                 <img
                   src="/logo-new.jpg"
-                  alt="BIOPEPTIDESPH"
+                  alt="TOPNOTCH"
                   className="h-full w-auto object-contain"
                 />
               </div>
               <div className="flex flex-col">
-                <span className="text-white font-bold text-lg leading-tight tracking-wide">BIOPEPTIDESPH</span>
+                <span className="text-white font-bold text-lg leading-tight tracking-wide">TOPNOTCH</span>
                 <span className="text-theme-blue text-[10px] sm:text-xs font-medium tracking-wider uppercase">The Science of Renewal</span>
               </div>
             </button>

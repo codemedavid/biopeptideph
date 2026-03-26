@@ -179,7 +179,7 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack }) =>
       });
 
       const orderDetails = `
-✨PeptalkPH - NEW ORDER
+✨TOPNOTCH - NEW ORDER
 
 📅 ORDER DATE & TIME
 ${dateTimeStamp}
