@@ -95,7 +95,7 @@ const Header: React.FC<HeaderProps> = ({ cartItemsCount, onCartClick, onMenuClic
             </button>
 
             {/* Right Side - Currency Toggle, Cart, Menu */}
-            <div className="flex items-center gap-1.5 sm:gap-2 md:gap-4">
+            <div className="flex items-center gap-1 sm:gap-2 md:gap-4">
               {/* Desktop Navigation */}
               <nav className="hidden lg:flex items-center gap-5">
                 <Link to="/" className="text-sm font-medium text-gray-300 hover:text-white transition-colors">Home</Link>
@@ -122,8 +122,8 @@ const Header: React.FC<HeaderProps> = ({ cartItemsCount, onCartClick, onMenuClic
                 </a>
               </nav>
 
-              {/* Currency Toggle - Always visible, compact on mobile */}
-              <CurrencyToggle className="flex-shrink-0" />
+              {/* Currency Toggle - Hidden on very small screens, shown in mobile menu instead */}
+              <CurrencyToggle className="hidden sm:flex flex-shrink-0" />
 
               {/* Cart Button */}
               <button
@@ -188,6 +188,11 @@ const Header: React.FC<HeaderProps> = ({ cartItemsCount, onCartClick, onMenuClic
                   Smart Guides
                 </Link>
                 <div className="pt-4 border-t border-gray-800 flex flex-col gap-3">
+                  {/* Currency Toggle for small screens */}
+                  <div className="sm:hidden pl-4 pb-2">
+                    <p className="text-xs text-gray-400 mb-2 font-medium uppercase tracking-wider">Currency</p>
+                    <CurrencyToggle />
+                  </div>
                   <a
                     href={whatsappUrl}
                     target="_blank"
