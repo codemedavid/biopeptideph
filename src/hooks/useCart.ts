@@ -61,6 +61,21 @@ export function useCart() {
       : getPrice(product, pricingMode);
 
     setCartItems(currentItems => {
+      // Prevent mixing currencies in the cart
+      if (currentItems.length > 0) {
+        const cartCurrency = currentItems[0].currency;
+        if (cartCurrency !== currency) {
+          const currencyLabel = cartCurrency === 'PHP' ? 'Peso (₱)' : 'Dollar ($)';
+          const newCurrencyLabel = currency === 'PHP' ? 'Peso (₱)' : 'Dollar ($)';
+          alert(
+            `Your cart currently contains ${currencyLabel} items. ` +
+            `You cannot add ${newCurrencyLabel} items to the same cart. ` +
+            `Please clear your cart first or switch your pricing mode.`
+          );
+          return currentItems;
+        }
+      }
+
       const existingItemIndex = currentItems.findIndex(
         item => item.product.id === product.id &&
           (variation ? item.variation?.id === variation.id : !item.variation) &&
