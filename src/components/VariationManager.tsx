@@ -18,6 +18,8 @@ const VariationManager: React.FC<VariationManagerProps> = ({ product, onClose })
     name: '',
     quantity_mg: 5.0,
     price: product.base_price,
+    national_price: product.national_price ?? product.base_price,
+    international_price: product.international_price ?? 0,
     stock_quantity: 0
   });
 
@@ -25,6 +27,8 @@ const VariationManager: React.FC<VariationManagerProps> = ({ product, onClose })
     name: '',
     quantity_mg: 5.0,
     price: product.base_price,
+    national_price: product.national_price ?? product.base_price,
+    international_price: product.international_price ?? 0,
     stock_quantity: 0
   });
 
@@ -43,6 +47,8 @@ const VariationManager: React.FC<VariationManagerProps> = ({ product, onClose })
         name: newVariation.name,
         quantity_mg: newVariation.quantity_mg,
         price: newVariation.price,
+        national_price: newVariation.national_price,
+        international_price: newVariation.international_price,
         stock_quantity: newVariation.stock_quantity
       });
 
@@ -51,6 +57,8 @@ const VariationManager: React.FC<VariationManagerProps> = ({ product, onClose })
           name: '',
           quantity_mg: 5.0,
           price: product.base_price,
+          national_price: product.national_price ?? product.base_price,
+          international_price: product.international_price ?? 0,
           stock_quantity: 0
         });
         setIsAdding(false);
@@ -71,6 +79,8 @@ const VariationManager: React.FC<VariationManagerProps> = ({ product, onClose })
       name: variation.name,
       quantity_mg: variation.quantity_mg,
       price: variation.price,
+      national_price: variation.national_price ?? variation.price,
+      international_price: variation.international_price ?? 0,
       stock_quantity: variation.stock_quantity
     });
     setIsAdding(false);
@@ -195,13 +205,29 @@ const VariationManager: React.FC<VariationManagerProps> = ({ product, onClose })
 
                           <div>
                             <label className="block text-sm font-semibold text-gray-700 mb-2">
-                              Price (₱) *
+                              Price PHP (₱) *
                             </label>
                             <input
                               type="number"
                               step="0.01"
-                              value={editingVariation.price}
-                              onChange={(e) => setEditingVariation({ ...editingVariation, price: parseFloat(e.target.value) || 0 })}
+                              value={editingVariation.national_price}
+                              onChange={(e) => {
+                                const val = parseFloat(e.target.value) || 0;
+                                setEditingVariation({ ...editingVariation, national_price: val, price: val });
+                              }}
+                              className="input-field"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-semibold text-gray-700 mb-2">
+                              Price USD ($) *
+                            </label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={editingVariation.international_price}
+                              onChange={(e) => setEditingVariation({ ...editingVariation, international_price: parseFloat(e.target.value) || 0 })}
                               className="input-field"
                             />
                           </div>
@@ -240,7 +266,7 @@ const VariationManager: React.FC<VariationManagerProps> = ({ product, onClose })
                     ) : (
                       // View Mode
                       <div className="bg-gradient-to-r from-teal-50 to-emerald-50 border-2 border-teal-200 rounded-xl p-4 flex items-center justify-between">
-                        <div className="flex-1 grid grid-cols-4 gap-4">
+                        <div className="flex-1 grid grid-cols-5 gap-4">
                           <div>
                             <div className="text-xs text-gray-500 mb-1">Size Name</div>
                             <div className="font-bold text-gray-900">{variation.name}</div>
@@ -250,8 +276,12 @@ const VariationManager: React.FC<VariationManagerProps> = ({ product, onClose })
                             <div className="font-semibold text-gray-700">{variation.quantity_mg}mg</div>
                           </div>
                           <div>
-                            <div className="text-xs text-gray-500 mb-1">Price</div>
-                            <div className="font-semibold text-teal-600">₱{variation.price.toLocaleString()}</div>
+                            <div className="text-xs text-gray-500 mb-1">Price (PHP)</div>
+                            <div className="font-semibold text-teal-600">₱{(variation.national_price ?? variation.price).toLocaleString()}</div>
+                          </div>
+                          <div>
+                            <div className="text-xs text-gray-500 mb-1">Price (USD)</div>
+                            <div className="font-semibold text-blue-600">${(variation.international_price ?? 0).toLocaleString()}</div>
                           </div>
                           <div>
                             <div className="text-xs text-gray-500 mb-1">Stock</div>
@@ -330,13 +360,29 @@ const VariationManager: React.FC<VariationManagerProps> = ({ product, onClose })
 
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Price (₱) *
+                      Price PHP (₱) *
                     </label>
                     <input
                       type="number"
                       step="0.01"
-                      value={newVariation.price}
-                      onChange={(e) => setNewVariation({ ...newVariation, price: parseFloat(e.target.value) || 0 })}
+                      value={newVariation.national_price}
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value) || 0;
+                        setNewVariation({ ...newVariation, national_price: val, price: val });
+                      }}
+                      className="input-field"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Price USD ($) *
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={newVariation.international_price}
+                      onChange={(e) => setNewVariation({ ...newVariation, international_price: parseFloat(e.target.value) || 0 })}
                       className="input-field"
                     />
                   </div>
