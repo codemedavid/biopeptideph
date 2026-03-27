@@ -3,10 +3,12 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { Info, ArrowRight, Shield, ArrowLeft } from 'lucide-react';
 import type { AssessmentResponse, RecommendationRule, Product } from '../types';
+import { usePricingMode, getPrice } from '../hooks/usePricingMode';
 
 const AssessmentResults = () => {
     const location = useLocation();
     const navigate = useNavigate();
+    const { pricingMode, currencySymbol } = usePricingMode();
     const [loading, setLoading] = useState(true);
     const [assessment, setAssessment] = useState<AssessmentResponse | null>(null);
     const [recommendation, setRecommendation] = useState<{
@@ -170,7 +172,7 @@ const AssessmentResults = () => {
                                                     </div>
                                                     <div className="p-4 bg-gray-50 rounded-xl">
                                                         <p className="text-xs text-gray-500 uppercase font-bold mb-1">Price</p>
-                                                        <p className="font-medium text-gray-900">₱{rec.product.base_price?.toLocaleString()}</p>
+                                                        <p className="font-medium text-gray-900">{currencySymbol}{getPrice(rec.product, pricingMode).toLocaleString()}</p>
                                                     </div>
                                                 </div>
 

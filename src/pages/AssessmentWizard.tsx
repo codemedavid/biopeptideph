@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowRight, ArrowLeft, Check, AlertCircle, ShieldCheck } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { usePricingMode } from '../hooks/usePricingMode';
 
 interface AssessmentState {
     full_name: string;
@@ -43,6 +44,7 @@ const INITIAL_STATE: AssessmentState = {
 
 const AssessmentWizard = () => {
     const navigate = useNavigate();
+    const { currencySymbol, isInternational } = usePricingMode();
     const [step, setStep] = useState(1);
     const [formData, setFormData] = useState<AssessmentState>(INITIAL_STATE);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -349,9 +351,9 @@ const AssessmentWizard = () => {
                                         className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-theme-blue/20 focus:border-theme-blue outline-none"
                                     >
                                         <option value="">Select a range...</option>
-                                        <option value="low">Under ₱5,000</option>
-                                        <option value="medium">₱5,000 - ₱10,000</option>
-                                        <option value="high">₱10,000+</option>
+                                        <option value="low">{isInternational ? 'Under $100' : 'Under ₱5,000'}</option>
+                                        <option value="medium">{isInternational ? '$100 - $200' : '₱5,000 - ₱10,000'}</option>
+                                        <option value="high">{isInternational ? '$200+' : '₱10,000+'}</option>
                                     </select>
                                 </div>
 

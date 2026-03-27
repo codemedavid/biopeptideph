@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { Info, ArrowRight, Shield, CheckCircle } from 'lucide-react';
 import type { AssessmentResponse, Product } from '../types';
+import { usePricingMode, getPrice } from '../hooks/usePricingMode';
 
 interface Recommendation {
     product: Product;
@@ -13,6 +14,7 @@ interface Recommendation {
 const AssessmentResultsV2 = () => {
     const location = useLocation();
     const navigate = useNavigate();
+    const { pricingMode, currencySymbol } = usePricingMode();
     const [loading, setLoading] = useState(true);
     const [assessment, setAssessment] = useState<AssessmentResponse | null>(null);
     const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
@@ -196,7 +198,7 @@ const AssessmentResultsV2 = () => {
                         <p className="text-gray-600 mb-4">{primaryRec.reason}</p>
                         <div className="flex items-center justify-between">
                             <span className="text-3xl font-bold text-blue-600">
-                                ₱{primaryRec.product.base_price?.toLocaleString()}
+                                {currencySymbol}{getPrice(primaryRec.product, pricingMode).toLocaleString()}
                             </span>
                             {primaryRec.product.available && primaryRec.product.stock_quantity > 0 ? (
                                 <button className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center gap-2">
@@ -227,7 +229,7 @@ const AssessmentResultsV2 = () => {
                                             <h4 className="text-lg font-semibold text-gray-900 mb-2">{rec.product.name}</h4>
                                             <p className="text-gray-600 text-sm mb-3">{rec.reason}</p>
                                             <span className="text-xl font-bold text-gray-900">
-                                                ₱{rec.product.base_price?.toLocaleString()}
+                                                {currencySymbol}{getPrice(rec.product, pricingMode).toLocaleString()}
                                             </span>
                                         </div>
                                         {rec.product.available && rec.product.stock_quantity > 0 ? (
