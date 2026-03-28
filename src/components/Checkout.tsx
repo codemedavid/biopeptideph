@@ -68,7 +68,10 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack }) =>
     return location ? location.fee : 0;
   }, [shippingLocation]);
 
-  const finalTotal = totalPrice + shippingFee;
+  const adminFee = cartCurrency === 'USD'
+    ? (siteSettings?.admin_fee_usd ?? 3)
+    : (siteSettings?.admin_fee_php ?? 150);
+  const finalTotal = totalPrice + shippingFee + adminFee;
 
   const isDetailsValid =
     fullName.trim() !== '' &&
@@ -213,6 +216,7 @@ ${cartItems.map(item => {
 💰 PRICING
 Product Total: ${currencySymbol}${totalPrice.toLocaleString('en-PH', { minimumFractionDigits: 0 })}
 Shipping Fee: ${currencySymbol}${shippingFee.toLocaleString('en-PH', { minimumFractionDigits: 0 })} (${shippingLocation.replace('_', ' & ')})
+Admin Fee: ${currencySymbol}${adminFee.toLocaleString('en-PH', { minimumFractionDigits: 0 })}
 Grand Total: ${currencySymbol}${finalTotal.toLocaleString('en-PH', { minimumFractionDigits: 0 })}
 
 💳 PAYMENT METHOD
@@ -710,13 +714,16 @@ Please confirm this order. Thank you!
                     <span className="font-medium">{currencySymbol}{totalPrice.toLocaleString('en-PH', { minimumFractionDigits: 0 })}</span>
                   </div>
                   <div className="flex justify-between text-gray-600 text-xs">
+                    <span>Shipping</span>
                     <span className="font-medium text-theme-secondary">
                       {shippingLocation ? `${currencySymbol}${shippingFee.toLocaleString('en-PH', { minimumFractionDigits: 0 })}` : 'Select location'}
                     </span>
                   </div>
-
-
-
+                  <div className="flex justify-between text-gray-600 text-xs">
+                    <span>Admin Fee</span>
+                    <span className="font-medium">{currencySymbol}{adminFee.toLocaleString('en-PH', { minimumFractionDigits: 0 })}</span>
+                  </div>
+                  <p className="text-[10px] text-gray-400 italic">*Admin fee of {currencySymbol}{adminFee} is applied per order for processing.</p>
 
                   <div className="border-t-2 border-gray-200 pt-3">
                     <div className="flex justify-between items-center">
@@ -967,6 +974,11 @@ Please confirm this order. Thank you!
                   {shippingLocation ? `${currencySymbol}${shippingFee.toLocaleString('en-PH', { minimumFractionDigits: 0 })} (${shippingLocation.replace('_', ' & ')})` : 'Select location'}
                 </span>
               </div>
+              <div className="flex justify-between text-gray-600 text-xs">
+                <span>Admin Fee</span>
+                <span className="font-medium">{currencySymbol}{adminFee.toLocaleString('en-PH', { minimumFractionDigits: 0 })}</span>
+              </div>
+              <p className="text-[10px] text-gray-400 italic">*Admin fee of {currencySymbol}{adminFee} is applied per order for processing.</p>
               <div className="border-t-2 border-gray-200 pt-3">
                 <div className="flex justify-between items-center">
                   <span className="font-bold text-gray-900">Total</span>

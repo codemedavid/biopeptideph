@@ -118,6 +118,13 @@ export interface SiteSettings {
   jnt_delay_message: string;
   lalamove_delay_message: string;
 
+  // Currency Exchange
+  usd_php_rate: number;
+
+  // Admin Fee
+  admin_fee_php: number;
+  admin_fee_usd: number;
+
   // Homepage Settings
   home_hero_badge: string;
   home_hero_title_prefix: string;

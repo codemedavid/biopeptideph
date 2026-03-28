@@ -26,6 +26,9 @@ export const useSiteSettings = () => {
         site_description: data.find(s => s.id === 'site_description')?.value || '',
         currency: data.find(s => s.id === 'currency')?.value || 'PHP',
         currency_code: data.find(s => s.id === 'currency_code')?.value || 'PHP',
+        usd_php_rate: parseFloat(data.find(s => s.id === 'usd_php_rate')?.value || '56'),
+        admin_fee_php: parseFloat(data.find(s => s.id === 'admin_fee_php')?.value || '150'),
+        admin_fee_usd: parseFloat(data.find(s => s.id === 'admin_fee_usd')?.value || '3'),
 
         // Courier Delay settings
         jnt_delay_active: data.find(s => s.id === 'jnt_delay_active')?.value === 'true',
@@ -72,6 +75,24 @@ export const useSiteSettings = () => {
     }
   };
 
+  const upsertSiteSetting = async (id: string, value: string, description?: string) => {
+    try {
+      setError(null);
+
+      const { error } = await supabase
+        .from('site_settings')
+        .upsert({ id, value, type: 'string', description: description || null }, { onConflict: 'id' });
+
+      if (error) throw error;
+
+      await fetchSiteSettings();
+    } catch (err) {
+      console.error('Error upserting site setting:', err);
+      setError(err instanceof Error ? err.message : 'Failed to upsert site setting');
+      throw err;
+    }
+  };
+
   const updateSiteSettings = async (updates: Partial<SiteSettings>) => {
     try {
       setError(null);
@@ -109,6 +130,7 @@ export const useSiteSettings = () => {
     loading,
     error,
     updateSiteSetting,
+    upsertSiteSetting,
     updateSiteSettings,
     refetch: fetchSiteSettings
   };

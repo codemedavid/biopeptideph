@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
-import { Plus, Edit, Trash2, Save, X, ArrowLeft, Package, CreditCard, Sparkles, Layers, Shield, RefreshCw, Warehouse, ShoppingCart, MapPin, Check, ClipboardList, FileText } from 'lucide-react';
+import { Plus, Edit, Trash2, Save, X, ArrowLeft, Package, CreditCard, Sparkles, Layers, Shield, RefreshCw, Warehouse, ShoppingCart, MapPin, Check, ClipboardList, FileText, DollarSign } from 'lucide-react';
 import type { Product } from '../types';
 import { useMenu } from '../hooks/useMenu';
 import { useCategories } from '../hooks/useCategories';
+import { useSiteSettings } from '../hooks/useSiteSettings';
+import { supabase } from '../lib/supabase';
 import ImageUpload from './ImageUpload';
 import CategoryManager from './CategoryManager';
 import PaymentMethodManager from './PaymentMethodManager';
@@ -23,12 +25,19 @@ const AdminDashboard: React.FC = () => {
   const [loginError, setLoginError] = useState('');
   const { products, loading, addProduct, updateProduct, deleteProduct, refreshProducts } = useMenu();
   const { categories } = useCategories();
+  const { siteSettings, upsertSiteSetting } = useSiteSettings();
   const [currentView, setCurrentView] = useState<'dashboard' | 'products' | 'add' | 'edit' | 'categories' | 'payments' | 'inventory' | 'orders' | 'shipping' | 'journey' | 'assessment' | 'guides'>('dashboard');
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [managingVariationsProductId, setManagingVariationsProductId] = useState<string | null>(null);
   const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set());
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [showExchangePanel, setShowExchangePanel] = useState(false);
+  const [exchangeRate, setExchangeRate] = useState<string>('');
+  const [isApplyingRate, setIsApplyingRate] = useState(false);
+  const [adminFeePhp, setAdminFeePhp] = useState<string>('');
+  const [adminFeeUsd, setAdminFeeUsd] = useState<string>('');
+  const [isSavingFees, setIsSavingFees] = useState(false);
 
 
   const variationManagerProduct = managingVariationsProductId
@@ -362,6 +371,97 @@ const AdminDashboard: React.FC = () => {
     setIsRefreshing(true);
     await refreshProducts();
     setTimeout(() => setIsRefreshing(false), 500);
+  };
+
+  const handleApplyExchangeRate = async () => {
+    const rate = parseFloat(exchangeRate);
+    if (!rate || rate <= 0) {
+      alert('Please enter a valid exchange rate');
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `This will set all USD prices automatically:\n\n` +
+      `Exchange Rate: ₱${rate} = $1\n\n` +
+      `Example: A product priced at ₱${rate.toLocaleString()} PHP will become $1.00 USD\n\n` +
+      `This will update ALL products and their size variations. Continue?`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setIsApplyingRate(true);
+
+      // Save the exchange rate to site settings
+      await upsertSiteSetting('usd_php_rate', rate.toString(), 'USD to PHP exchange rate');
+
+      // Update all products: international_price = round(national_price / rate)
+      let productUpdates = 0;
+      let variationUpdates = 0;
+
+      for (const product of products) {
+        const phpPrice = product.national_price ?? product.base_price;
+        const usdPrice = Math.round((phpPrice / rate) * 100) / 100;
+
+        const { error: prodErr } = await supabase
+          .from('products')
+          .update({ international_price: usdPrice })
+          .eq('id', product.id);
+
+        if (!prodErr) productUpdates++;
+
+        // Update all variations for this product
+        if (product.variations && product.variations.length > 0) {
+          for (const variation of product.variations) {
+            const varPhpPrice = variation.national_price ?? variation.price;
+            const varUsdPrice = Math.round((varPhpPrice / rate) * 100) / 100;
+
+            const { error: varErr } = await supabase
+              .from('product_variations')
+              .update({ international_price: varUsdPrice })
+              .eq('id', variation.id);
+
+            if (!varErr) variationUpdates++;
+          }
+        }
+      }
+
+      await refreshProducts();
+
+      alert(
+        `Exchange rate applied successfully!\n\n` +
+        `Rate: ₱${rate} = $1 USD\n` +
+        `Products updated: ${productUpdates}\n` +
+        `Variations updated: ${variationUpdates}`
+      );
+    } catch (error) {
+      console.error('Error applying exchange rate:', error);
+      alert('Failed to apply exchange rate. Please try again.');
+    } finally {
+      setIsApplyingRate(false);
+    }
+  };
+
+  const handleSaveAdminFees = async () => {
+    const phpVal = adminFeePhp !== '' ? parseFloat(adminFeePhp) : (siteSettings?.admin_fee_php ?? 150);
+    const usdVal = adminFeeUsd !== '' ? parseFloat(adminFeeUsd) : (siteSettings?.admin_fee_usd ?? 3);
+
+    if (isNaN(phpVal) || phpVal < 0 || isNaN(usdVal) || usdVal < 0) {
+      alert('Please enter valid fee amounts (0 or more).');
+      return;
+    }
+
+    try {
+      setIsSavingFees(true);
+      await upsertSiteSetting('admin_fee_php', phpVal.toString(), 'Admin fee per order (PHP)');
+      await upsertSiteSetting('admin_fee_usd', usdVal.toString(), 'Admin fee per order (USD)');
+      alert(`Admin fees updated!\n\nPHP: ₱${phpVal}\nUSD: $${usdVal}`);
+    } catch (error) {
+      console.error('Error saving admin fees:', error);
+      alert('Failed to save admin fees. Please try again.');
+    } finally {
+      setIsSavingFees(false);
+    }
   };
 
   // Login Screen
@@ -861,6 +961,94 @@ const AdminDashboard: React.FC = () => {
           </div>
 
           <div className="max-w-6xl mx-auto px-3 sm:px-4 py-3 md:py-4">
+            {/* Exchange Rate Tool */}
+            <div className="mb-3">
+              <button
+                onClick={() => {
+                  setShowExchangePanel(!showExchangePanel);
+                  if (!showExchangePanel && siteSettings?.usd_php_rate) {
+                    setExchangeRate(siteSettings.usd_php_rate.toString());
+                  }
+                }}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition-all ${showExchangePanel
+                  ? 'bg-blue-600 text-white shadow-md'
+                  : 'bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100'
+                }`}
+              >
+                <DollarSign className="w-3.5 h-3.5" />
+                USD Exchange Rate
+              </button>
+
+              {showExchangePanel && (
+                <div className="mt-2 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4 animate-fadeIn">
+                  <div className="flex items-start gap-3 mb-3">
+                    <div className="p-2 bg-blue-100 rounded-lg">
+                      <DollarSign className="w-5 h-5 text-blue-600" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-bold text-gray-900">Auto-Calculate USD Prices</h3>
+                      <p className="text-xs text-gray-600 mt-0.5">
+                        Set the PHP to USD exchange rate and all product USD prices will be calculated automatically.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-end gap-3">
+                    <div className="flex-1">
+                      <label className="block text-xs font-semibold text-gray-700 mb-1">
+                        Exchange Rate (₱ per $1 USD)
+                      </label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm font-medium">₱</span>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="1"
+                          value={exchangeRate}
+                          onChange={(e) => setExchangeRate(e.target.value)}
+                          placeholder={siteSettings?.usd_php_rate?.toString() || '56'}
+                          className="w-full pl-7 pr-3 py-2.5 border border-blue-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs">= $1</span>
+                      </div>
+                      {siteSettings?.usd_php_rate && (
+                        <p className="text-[10px] text-gray-500 mt-1">
+                          Current saved rate: ₱{siteSettings.usd_php_rate} = $1 USD
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Preview */}
+                    {exchangeRate && parseFloat(exchangeRate) > 0 && (
+                      <div className="bg-white rounded-lg p-2.5 border border-blue-100 text-xs min-w-[140px]">
+                        <p className="text-gray-500 font-medium mb-1">Preview:</p>
+                        <p className="text-gray-700">₱1,000 = <span className="font-bold text-blue-600">${(1000 / parseFloat(exchangeRate)).toFixed(2)}</span></p>
+                        <p className="text-gray-700">₱5,000 = <span className="font-bold text-blue-600">${(5000 / parseFloat(exchangeRate)).toFixed(2)}</span></p>
+                      </div>
+                    )}
+
+                    <button
+                      onClick={handleApplyExchangeRate}
+                      disabled={isApplyingRate || !exchangeRate}
+                      className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 whitespace-nowrap shadow-sm"
+                    >
+                      {isApplyingRate ? (
+                        <>
+                          <RefreshCw className="w-4 h-4 animate-spin" />
+                          Applying...
+                        </>
+                      ) : (
+                        <>
+                          <Check className="w-4 h-4" />
+                          Apply to All Products
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* Selection Info Banner */}
             {selectedProducts.size > 0 && (
               <div className="mb-3 bg-theme-accent/10 border border-theme-accent/20 rounded-lg p-2 md:p-3 flex items-center justify-between">
@@ -1372,6 +1560,87 @@ const AdminDashboard: React.FC = () => {
             </div>
 
           </div>
+
+          {/* Admin Fee Settings */}
+          <h2 className="text-lg font-bold text-theme-text mb-4 flex items-center gap-2">
+            <span className="w-1.5 h-6 bg-blue-500 rounded-full"></span>
+            Fee Settings
+          </h2>
+
+          <div className="bg-white rounded-xl shadow-soft border border-gray-100 p-4 md:p-6 mb-8">
+            <div className="flex items-start gap-3 mb-4">
+              <div className="p-2 bg-blue-50 rounded-lg">
+                <DollarSign className="w-5 h-5 text-blue-600" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-gray-900">Admin Fee Per Order</h3>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  This fee is added to every customer order at checkout. Set separate amounts for PHP and USD.
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+              <div className="bg-green-50/50 rounded-lg p-3 border border-green-200">
+                <label className="block text-xs font-semibold text-green-700 mb-1.5">
+                  🇵🇭 PHP Fee
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-green-600 font-bold text-sm">₱</span>
+                  <input
+                    type="number"
+                    step="1"
+                    min="0"
+                    value={adminFeePhp}
+                    onChange={(e) => setAdminFeePhp(e.target.value)}
+                    onFocus={() => { if (adminFeePhp === '') setAdminFeePhp((siteSettings?.admin_fee_php ?? 150).toString()); }}
+                    className="w-full pl-7 pr-3 py-2 border border-green-200 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white"
+                    placeholder={(siteSettings?.admin_fee_php ?? 150).toString()}
+                  />
+                </div>
+                <p className="text-[10px] text-green-600 mt-1">Current: ₱{siteSettings?.admin_fee_php ?? 150}</p>
+              </div>
+
+              <div className="bg-blue-50/50 rounded-lg p-3 border border-blue-200">
+                <label className="block text-xs font-semibold text-blue-700 mb-1.5">
+                  🌎 USD Fee
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-600 font-bold text-sm">$</span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={adminFeeUsd}
+                    onChange={(e) => setAdminFeeUsd(e.target.value)}
+                    onFocus={() => { if (adminFeeUsd === '') setAdminFeeUsd((siteSettings?.admin_fee_usd ?? 3).toString()); }}
+                    className="w-full pl-7 pr-3 py-2 border border-blue-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                    placeholder={(siteSettings?.admin_fee_usd ?? 3).toString()}
+                  />
+                </div>
+                <p className="text-[10px] text-blue-600 mt-1">Current: ${siteSettings?.admin_fee_usd ?? 3}</p>
+              </div>
+            </div>
+
+            <button
+              onClick={handleSaveAdminFees}
+              disabled={isSavingFees}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg text-sm font-semibold transition-all disabled:opacity-50 flex items-center gap-2"
+            >
+              {isSavingFees ? (
+                <>
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Save className="w-4 h-4" />
+                  Save Admin Fees
+                </>
+              )}
+            </button>
+          </div>
+
         </div>
       </div>
     );
