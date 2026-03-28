@@ -281,12 +281,10 @@ const Cart: React.FC<CartProps> = ({
                   <span>Subtotal ({cartItems.reduce((sum, item) => sum + item.quantity, 0)} items)</span>
                   <span className="font-semibold">{cartSymbol}{totalPrice.toLocaleString('en-PH', { minimumFractionDigits: 0 })}</span>
                 </div>
-                {cartCurrency === 'PHP' && (
                 <div className="flex justify-between text-gray-700 text-xs md:text-sm">
                   <span>Shipping</span>
                   <span className="text-gray-700 font-medium">Calculated at checkout</span>
                 </div>
-                )}
 
                 <div className="border-t-2 border-dashed border-gray-200 pt-3 mt-4">
                   <div className="flex justify-between items-center">

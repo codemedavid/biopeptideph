@@ -94,7 +94,7 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack }) =>
     city.trim() !== '' &&
     state.trim() !== '' &&
     zipCode.trim() !== '' &&
-    (cartCurrency === 'USD' || shippingLocation !== '');
+    shippingLocation !== '';
 
   const handleProceedToPayment = () => {
     if (isDetailsValid) {
@@ -109,7 +109,7 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack }) =>
       return;
     }
 
-    if (cartCurrency === 'PHP' && !shippingLocation) {
+    if (!shippingLocation) {
       alert('Please select your shipping location.');
       return;
     }
@@ -226,7 +226,8 @@ ${cartItems.map(item => {
       }).join('\n\n')}
 
 💰 PRICING
-Product Total: ${currencySymbol}${totalPrice.toLocaleString('en-PH', { minimumFractionDigits: 0 })}${cartCurrency === 'PHP' ? `\nShipping Fee: ${currencySymbol}${shippingFee.toLocaleString('en-PH', { minimumFractionDigits: 0 })} (${shippingLocation.replace('_', ' & ')})` : ''}
+Product Total: ${currencySymbol}${totalPrice.toLocaleString('en-PH', { minimumFractionDigits: 0 })}
+Shipping Fee: ${currencySymbol}${shippingFee.toLocaleString('en-PH', { minimumFractionDigits: 0 })} (${shippingLocation.replace('_', ' & ')})
 Admin Fee: ${currencySymbol}${adminFee.toLocaleString('en-PH', { minimumFractionDigits: 0 })}
 Grand Total: ${currencySymbol}${finalTotal.toLocaleString('en-PH', { minimumFractionDigits: 0 })}
 
@@ -579,8 +580,7 @@ Please confirm this order. Thank you!
                 </div>
               </div>
 
-              {/* Shipping Location Selection - only for PHP orders */}
-              {cartCurrency === 'PHP' && (
+              {/* Shipping Location Selection */}
               <div className="bg-white rounded-2xl shadow-lg p-5 md:p-6 border border-gray-200">
                 <h2 className="text-lg md:text-xl font-bold text-theme-text mb-2 md:mb-3 flex items-center gap-2">
                   <div className="bg-theme-secondary/10 p-2 rounded-xl">
@@ -672,7 +672,6 @@ Please confirm this order. Thank you!
                   </div>
                 )}
               </div>
-              )}
 
               <button
                 onClick={handleProceedToPayment}
@@ -723,14 +722,12 @@ Please confirm this order. Thank you!
                     <span>Subtotal</span>
                     <span className="font-medium">{currencySymbol}{totalPrice.toLocaleString('en-PH', { minimumFractionDigits: 0 })}</span>
                   </div>
-                  {cartCurrency === 'PHP' && (
                   <div className="flex justify-between text-gray-600 text-xs">
                     <span>Shipping</span>
                     <span className="font-medium text-theme-secondary">
                       {shippingLocation ? `${currencySymbol}${shippingFee.toLocaleString('en-PH', { minimumFractionDigits: 0 })}` : 'Select location'}
                     </span>
                   </div>
-                  )}
                   <div className="flex justify-between text-gray-600 text-xs">
                     <span>Admin Fee</span>
                     <span className="font-medium">{currencySymbol}{adminFee.toLocaleString('en-PH', { minimumFractionDigits: 0 })}</span>
@@ -744,7 +741,7 @@ Please confirm this order. Thank you!
                         {currencySymbol}{finalTotal.toLocaleString('en-PH', { minimumFractionDigits: 0 })}
                       </span>
                     </div>
-                    {cartCurrency === 'PHP' && !shippingLocation && (
+                    {!shippingLocation && (
                       <p className="text-xs text-red-500 mt-1 text-right">Please select shipping location</p>
                     )}
                   </div>
@@ -779,8 +776,7 @@ Please confirm this order. Thank you!
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 lg:gap-8">
           {/* Payment Form */}
           <div className="lg:col-span-2 space-y-4 md:space-y-6">
-            {/* Shipping Location Selection - only for PHP orders */}
-            {cartCurrency === 'PHP' && (
+            {/* Shipping Location Selection */}
             <div className="bg-white rounded-2xl shadow-lg p-5 md:p-6 border border-gray-200">
               <h2 className="text-lg md:text-xl font-bold text-theme-text mb-2 md:mb-3 flex items-center gap-2">
                 <Package className="w-5 h-5 md:w-6 md:h-6 text-theme-secondary" />
@@ -809,7 +805,6 @@ Please confirm this order. Thank you!
                 ))}
               </div>
             </div>
-            )}
 
             {/* Payment Method Selection */}
             <div className="bg-white rounded-2xl shadow-lg p-5 md:p-6 border border-gray-200">
@@ -942,8 +937,8 @@ Please confirm this order. Thank you!
 
           <button
             onClick={handlePlaceOrder}
-            disabled={!contactMethod || (cartCurrency === 'PHP' && !shippingLocation)}
-            className={`w-full py-3 md:py-4 rounded-2xl font-bold text-base md:text-lg shadow-lg transition-all flex items-center justify-center gap-2 ${contactMethod && (cartCurrency === 'USD' || shippingLocation)
+            disabled={!contactMethod || !shippingLocation}
+            className={`w-full py-3 md:py-4 rounded-2xl font-bold text-base md:text-lg shadow-lg transition-all flex items-center justify-center gap-2 ${contactMethod && shippingLocation
               ? 'bg-theme-accent hover:bg-theme-accent/90 text-white hover:shadow-xl transform hover:scale-[1.02]'
               : 'bg-gray-300 text-gray-500 cursor-not-allowed'
               }`}
@@ -979,14 +974,12 @@ Please confirm this order. Thank you!
                 <span>Subtotal</span>
                 <span className="font-medium">{currencySymbol}{totalPrice.toLocaleString('en-PH', { minimumFractionDigits: 0 })}</span>
               </div>
-              {cartCurrency === 'PHP' && (
               <div className="flex justify-between text-gray-600 text-xs">
                 <span>Shipping</span>
                 <span className="font-medium text-theme-secondary">
                   {shippingLocation ? `${currencySymbol}${shippingFee.toLocaleString('en-PH', { minimumFractionDigits: 0 })} (${shippingLocation.replace('_', ' & ')})` : 'Select location'}
                 </span>
               </div>
-              )}
               <div className="flex justify-between text-gray-600 text-xs">
                 <span>Admin Fee</span>
                 <span className="font-medium">{currencySymbol}{adminFee.toLocaleString('en-PH', { minimumFractionDigits: 0 })}</span>
