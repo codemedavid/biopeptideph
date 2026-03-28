@@ -173,9 +173,9 @@ export const useImageUpload = (folder: string = 'menu-images', skipBucketCheck: 
 
         // Provide helpful error message
         if (uploadResult.error.message?.includes('Bucket not found') || uploadResult.error.message?.includes('not found')) {
-          throw new Error('Storage bucket "menu-images" not found!\n\nPlease run CREATE_STORAGE_BUCKET.sql in Supabase SQL Editor.');
+          throw new Error(`Storage bucket "${folder}" not found!\n\nPlease run CREATE_STORAGE_BUCKET.sql in Supabase SQL Editor.`);
         } else if (uploadResult.error.message?.includes('new row violates row-level security') || uploadResult.error.message?.includes('row-level security')) {
-          throw new Error('Storage policy error!\n\nPlease run CREATE_STORAGE_BUCKET.sql to set up policies.');
+          throw new Error(`Storage policy error for "${folder}"!\n\nPlease run CREATE_STORAGE_BUCKET.sql to set up policies.`);
         } else {
           throw new Error(`Upload failed: ${uploadResult.error.message || 'Unknown error'}`);
         }

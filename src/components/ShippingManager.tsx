@@ -10,14 +10,16 @@ const ShippingManager: React.FC<ShippingManagerProps> = ({ onBack }) => {
     const { locations, loading, error, updateLocation, addLocation, deleteLocation } = useShippingLocationsAdmin();
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editFee, setEditFee] = useState<number>(0);
+    const [editFeeUsd, setEditFeeUsd] = useState<number>(0);
     const [editName, setEditName] = useState<string>('');
     const [isAdding, setIsAdding] = useState(false);
-    const [newLocation, setNewLocation] = useState({ id: '', name: '', fee: 0, is_active: true });
+    const [newLocation, setNewLocation] = useState({ id: '', name: '', fee: 0, fee_usd: 0, is_active: true });
     const [saveError, setSaveError] = useState<string | null>(null);
 
     const handleEdit = (location: ShippingLocation) => {
         setEditingId(location.id);
         setEditFee(location.fee);
+        setEditFeeUsd(location.fee_usd ?? 0);
         setEditName(location.name);
         setSaveError(null);
     };
@@ -25,7 +27,7 @@ const ShippingManager: React.FC<ShippingManagerProps> = ({ onBack }) => {
     const handleSave = async (id: string) => {
         try {
             setSaveError(null);
-            await updateLocation(id, { fee: editFee, name: editName });
+            await updateLocation(id, { fee: editFee, fee_usd: editFeeUsd, name: editName });
             setEditingId(null);
         } catch (err) {
             setSaveError(err instanceof Error ? err.message : 'Failed to save');
@@ -46,7 +48,7 @@ const ShippingManager: React.FC<ShippingManagerProps> = ({ onBack }) => {
             setSaveError(null);
             await addLocation(newLocation);
             setIsAdding(false);
-            setNewLocation({ id: '', name: '', fee: 0, is_active: true });
+            setNewLocation({ id: '', name: '', fee: 0, fee_usd: 0, is_active: true });
         } catch (err) {
             setSaveError(err instanceof Error ? err.message : 'Failed to add location');
         }
@@ -133,7 +135,7 @@ const ShippingManager: React.FC<ShippingManagerProps> = ({ onBack }) => {
                 {isAdding && (
                     <div className="mb-4 bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
                         <h3 className="font-semibold text-gray-900 mb-3">Add New Shipping Location</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                             <div>
                                 <label className="block text-xs font-medium text-gray-700 mb-1">ID (e.g., CEBU)</label>
                                 <input
@@ -155,14 +157,31 @@ const ShippingManager: React.FC<ShippingManagerProps> = ({ onBack }) => {
                                 />
                             </div>
                             <div>
-                                <label className="block text-xs font-medium text-gray-700 mb-1">Fee (₱)</label>
-                                <input
-                                    type="number"
-                                    value={newLocation.fee}
-                                    onChange={(e) => setNewLocation({ ...newLocation, fee: Number(e.target.value) })}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                                    min={0}
-                                />
+                                <label className="block text-xs font-medium text-green-700 mb-1">🇵🇭 Fee (PHP)</label>
+                                <div className="relative">
+                                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-green-600 font-bold text-sm">₱</span>
+                                    <input
+                                        type="number"
+                                        value={newLocation.fee}
+                                        onChange={(e) => setNewLocation({ ...newLocation, fee: Number(e.target.value) })}
+                                        className="w-full pl-7 pr-3 py-2 border border-green-200 rounded-lg text-sm bg-green-50/50"
+                                        min={0}
+                                    />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-medium text-blue-700 mb-1">🌎 Fee (USD)</label>
+                                <div className="relative">
+                                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-blue-600 font-bold text-sm">$</span>
+                                    <input
+                                        type="number"
+                                        step="0.01"
+                                        value={newLocation.fee_usd}
+                                        onChange={(e) => setNewLocation({ ...newLocation, fee_usd: Number(e.target.value) })}
+                                        className="w-full pl-7 pr-3 py-2 border border-blue-200 rounded-lg text-sm bg-blue-50/50"
+                                        min={0}
+                                    />
+                                </div>
                             </div>
                         </div>
                         <div className="flex gap-2 mt-3">
@@ -191,8 +210,8 @@ const ShippingManager: React.FC<ShippingManagerProps> = ({ onBack }) => {
                                 }`}
                         >
                             {editingId === location.id ? (
-                                <div className="flex flex-col md:flex-row gap-3">
-                                    <div className="flex-1">
+                                <div className="flex flex-col gap-3">
+                                    <div>
                                         <label className="block text-xs font-medium text-gray-700 mb-1">Name</label>
                                         <input
                                             type="text"
@@ -201,15 +220,34 @@ const ShippingManager: React.FC<ShippingManagerProps> = ({ onBack }) => {
                                             className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
                                         />
                                     </div>
-                                    <div className="w-32">
-                                        <label className="block text-xs font-medium text-gray-700 mb-1">Fee (₱)</label>
-                                        <input
-                                            type="number"
-                                            value={editFee}
-                                            onChange={(e) => setEditFee(Number(e.target.value))}
-                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                                            min={0}
-                                        />
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <label className="block text-xs font-medium text-green-700 mb-1">🇵🇭 PHP</label>
+                                            <div className="relative">
+                                                <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-green-600 font-bold text-sm">₱</span>
+                                                <input
+                                                    type="number"
+                                                    value={editFee}
+                                                    onChange={(e) => setEditFee(Number(e.target.value))}
+                                                    className="w-full pl-7 pr-3 py-2 border border-green-200 rounded-lg text-sm bg-green-50/50"
+                                                    min={0}
+                                                />
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-medium text-blue-700 mb-1">🌎 USD</label>
+                                            <div className="relative">
+                                                <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-blue-600 font-bold text-sm">$</span>
+                                                <input
+                                                    type="number"
+                                                    step="0.01"
+                                                    value={editFeeUsd}
+                                                    onChange={(e) => setEditFeeUsd(Number(e.target.value))}
+                                                    className="w-full pl-7 pr-3 py-2 border border-blue-200 rounded-lg text-sm bg-blue-50/50"
+                                                    min={0}
+                                                />
+                                            </div>
+                                        </div>
                                     </div>
                                     <div className="flex items-end gap-2">
                                         <button
@@ -244,9 +282,11 @@ const ShippingManager: React.FC<ShippingManagerProps> = ({ onBack }) => {
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-3">
-                                        <span className="text-lg font-bold text-theme-accent">
-                                            ₱{location.fee.toLocaleString()}
-                                        </span>
+                                        <div className="text-right">
+                                            <span className="text-sm font-bold text-green-700">₱{location.fee.toLocaleString()}</span>
+                                            <span className="text-gray-300 mx-1.5">|</span>
+                                            <span className="text-sm font-bold text-blue-600">${(location.fee_usd ?? 0).toLocaleString()}</span>
+                                        </div>
                                         <div className="flex items-center gap-1">
                                             <button
                                                 onClick={() => handleToggleActive(location)}

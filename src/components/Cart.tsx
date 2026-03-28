@@ -281,15 +281,12 @@ const Cart: React.FC<CartProps> = ({
                   <span>Subtotal ({cartItems.reduce((sum, item) => sum + item.quantity, 0)} items)</span>
                   <span className="font-semibold">{cartSymbol}{totalPrice.toLocaleString('en-PH', { minimumFractionDigits: 0 })}</span>
                 </div>
-                <div className="flex flex-col gap-1 text-gray-700 text-xs md:text-sm">
-                  <div className="flex justify-between">
-                    <span>Shipping</span>
-                    <span className="text-gray-700 font-medium">Choose your location at checkout.</span>
-                  </div>
-                  <p className="text-gray-500">
-                    Shipping rates apply to small pouches (4.1 × 9.5 inches) with a capacity of up to 3 pens. For bulk orders exceeding this size, our team will contact you for the adjusted shipping fees.
-                  </p>
+                {cartCurrency === 'PHP' && (
+                <div className="flex justify-between text-gray-700 text-xs md:text-sm">
+                  <span>Shipping</span>
+                  <span className="text-gray-700 font-medium">Calculated at checkout</span>
                 </div>
+                )}
 
                 <div className="border-t-2 border-dashed border-gray-200 pt-3 mt-4">
                   <div className="flex justify-between items-center">
