@@ -240,7 +240,7 @@ ${paymentProof}
 (Please also attach the screenshot image)
 
 📱 CONTACT METHOD
-WhatsApp: https://api.whatsapp.com/send?phone=639273823885
+WhatsApp: https://api.whatsapp.com/send?phone=639278840808
 
 📋 ORDER ID: ${orderData.id}
 
@@ -252,7 +252,7 @@ Please confirm this order. Thank you!
 
       // Open contact method based on selection
       const contactUrl = contactMethod === 'whatsapp'
-        ? `https://api.whatsapp.com/send?phone=639273823885&text=${encodeURIComponent(orderDetails)}`
+        ? `https://api.whatsapp.com/send?phone=639278840808&text=${encodeURIComponent(orderDetails)}`
         : null;
 
       if (contactUrl) {
@@ -311,7 +311,7 @@ Please confirm this order. Thank you!
 
   const handleOpenContact = () => {
     const contactUrl = contactMethod === 'whatsapp'
-      ? `https://api.whatsapp.com/send?phone=639273823885&text=${encodeURIComponent(orderMessage)}`
+      ? `https://api.whatsapp.com/send?phone=639278840808&text=${encodeURIComponent(orderMessage)}`
       : null;
 
     if (contactUrl) {
