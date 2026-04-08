@@ -351,7 +351,7 @@ const AdminDashboard: React.FC = () => {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (password === 'biopeptide@Admin!123') {
+    if (password === 'TopNotch2026') {
       setIsAuthenticated(true);
       localStorage.setItem('peptide_admin_auth', 'true');
       setLoginError('');
@@ -973,7 +973,7 @@ const AdminDashboard: React.FC = () => {
                 className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition-all ${showExchangePanel
                   ? 'bg-blue-600 text-white shadow-md'
                   : 'bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100'
-                }`}
+                  }`}
               >
                 <DollarSign className="w-3.5 h-3.5" />
                 USD Exchange Rate

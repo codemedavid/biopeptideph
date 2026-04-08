@@ -244,7 +244,7 @@ npm run dev
 
 # 4. Access admin panel
 # Navigate to http://localhost:5173/admin
-# Password: Peptide@Admin!2025
+# Password: TopNotch2026
 ```
 
 ### For Customization

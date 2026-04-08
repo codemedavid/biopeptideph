@@ -156,7 +156,7 @@ This document outlines all the interactive buttons and their functionality throu
 ### Login Screen
 - **Password Input**: Enter admin password
 - **Access Dashboard Button**: Validates and logs in
-  - Default password: `Peptide@Admin!2025`
+  - Default password: `TopNotch2026`
   - Shows error for incorrect password
 
 ### Dashboard Header

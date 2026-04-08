@@ -385,7 +385,7 @@ Homepage shows:
 > "RESEARCH USE ONLY: ALWAYS CONSULT A LICENSED HEALTHCARE PROFESSIONAL FOR PERSONALISED MEDICAL GUIDANCE"
 
 ### **Security:**
-- Admin password: `Peptivate@Admin!2025`
+- Admin password: `TopNotch2026`
 - Change password in code if needed
 
 ---
