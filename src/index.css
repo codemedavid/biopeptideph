@@ -1,16 +1,21 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Manrope:wght@300;400;500;600;700;800&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  /* Biopeptides Branding */
-  --theme-navy: #0B1F33;
-  --theme-blue: #2E8BC0;
-  --theme-lightblue: #E6F2FA;
+  /* Diamond Glow Branding */
+  --theme-navy: #0B1430;
+  --theme-blue: #D6A24A;
+  --theme-lightblue: #F4E7D1;
   --theme-white: #FFFFFF;
-  --theme-red: #E63946;
+  --theme-red: #B87C2E;
+  --theme-bg: #FFF9F1;
+  --theme-text: #0B1430;
+  --theme-accent: #D6A24A;
+  --theme-secondary: #B87C2E;
+  --theme-soft-blue: #F4E7D1;
 
   --primary-black: #1E1E1E;
   --primary-white: #ffffff;
@@ -30,7 +35,7 @@
 }
 
 body {
-  font-family: 'Inter', sans-serif;
+  font-family: 'Manrope', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background-color: var(--theme-bg);
@@ -44,6 +49,7 @@ h3,
 h4,
 h5,
 h6 {
+  font-family: 'Cormorant Garamond', serif;
   font-weight: 600;
   color: var(--theme-text);
   letter-spacing: -0.02em;

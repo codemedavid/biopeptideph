@@ -13,12 +13,12 @@ const Hero: React.FC<HeroProps> = ({ onShopAll }) => {
   const { siteSettings } = useSiteSettings();
 
   // Content Fallbacks (Clinical Futurism Theme)
-  const badge = siteSettings?.home_hero_badge || 'Advanced Peptide Solutions';
-  const titlePrefix = siteSettings?.home_hero_title_prefix || 'The Science';
-  const titleHighlight = siteSettings?.home_hero_title_highlight || 'of Renewal';
+  const badge = siteSettings?.home_hero_badge || 'Luminous Beauty Essentials';
+  const titlePrefix = siteSettings?.home_hero_title_prefix || 'Diamond';
+  const titleHighlight = siteSettings?.home_hero_title_highlight || 'Glow';
   const titleSuffix = siteSettings?.home_hero_title_suffix || '';
-  const subtext = siteSettings?.home_hero_subtext || 'Advanced peptide solutions backed by science.';
-  const description = siteSettings?.home_hero_description || 'Experience the future of wellness with our research-grade peptides. Meticulously tested for purity, designed for longevity, and trusted by experts for superior results.';
+  const subtext = siteSettings?.home_hero_subtext || 'Radiance, refined for your everyday ritual.';
+  const description = siteSettings?.home_hero_description || 'Discover thoughtfully selected beauty and wellness essentials designed to elevate your natural glow with a luxe, gentle touch.';
 
   return (
     <div className="relative overflow-hidden bg-theme-navy text-white pt-6 pb-6 md:pt-20 md:pb-20 lg:pt-24 lg:pb-24">
@@ -117,4 +117,3 @@ const Hero: React.FC<HeroProps> = ({ onShopAll }) => {
 };
 
 export default Hero;
-

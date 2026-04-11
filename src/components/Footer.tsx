@@ -19,15 +19,15 @@ const Footer: React.FC = () => {
             <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-theme-blue/20">
               <img
                 src="/logo-new.jpg"
-                alt="TOPNOTCH"
+                alt="Diamond Glow"
                 className="w-full h-full object-cover"
               />
             </div>
             <div className="text-left">
               <div className="font-bold text-white text-xl tracking-tight">
-                TOPNOTCH
+                Diamond Glow
               </div>
-              <div className="text-sm text-theme-blue font-medium tracking-wide uppercase">The Science of Renewal</div>
+              <div className="text-sm text-theme-blue font-medium tracking-wide uppercase">Radiance in Every Detail</div>
 
               <div className="mt-4 flex gap-6 text-sm">
                 <Link to="/" className="text-gray-400 hover:text-white transition-colors">Home</Link>
@@ -56,7 +56,7 @@ const Footer: React.FC = () => {
           <p className="text-xs text-gray-500 flex items-center justify-center gap-1">
             Made with
             <Heart className="w-3 h-3 text-theme-red fill-theme-red" />
-            © {currentYear} TOPNOTCH. All rights reserved.
+            © {currentYear} Diamond Glow. All rights reserved.
           </p>
         </div>
       </div>

@@ -7,23 +7,23 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Biopeptides Branding
-        // Clinical Futurism Palette
+        // Diamond Glow Branding
+        // Luxe Nightfall Palette
         theme: {
-          navy: '#0B1F33',      // Deep Navy / Midnight Blue - Main background, headers, footer
-          blue: '#2E8BC0',      // Science Blue - Buttons, highlights, links
-          lightblue: '#E6F2FA', // Soft Light Blue - Section backgrounds, cards
+          navy: '#0B1430',      // Deep Navy - Main background, headers, footer
+          blue: '#D6A24A',      // Champagne Gold - Buttons, highlights, links
+          lightblue: '#F4E7D1', // Soft Champagne - Section backgrounds, cards
           white: '#FFFFFF',     // Clean White - Text areas, forms
-          red: '#E63946',       // Minimal Red Accent (from logo)
+          red: '#B87C2E',       // Warm Gold Accent
         },
         // Semantic mappings (backward compatibility + new structure)
-        'theme-bg': '#FFFFFF',          // Main content background (Clean White)
-        'theme-navy': '#0B1F33',        // Dark sections
-        'theme-text': '#0B1F33',        // Deep Navy for text (high contrast on white)
+        'theme-bg': '#FFF9F1',          // Main content background (Warm Ivory)
+        'theme-navy': '#0B1430',        // Dark sections
+        'theme-text': '#0B1430',        // Deep Navy for text (high contrast on ivory)
         'theme-text-light': '#FFFFFF',  // White text for dark backgrounds
-        'theme-accent': '#2E8BC0',      // Science Blue
-        'theme-secondary': '#E63946',   // Minimal Red
-        'theme-soft-blue': '#E6F2FA',   // Soft Light Blue
+        'theme-accent': '#D6A24A',      // Champagne Gold
+        'theme-secondary': '#B87C2E',   // Warm Gold
+        'theme-soft-blue': '#F4E7D1',   // Soft Champagne
 
         // Mapping standard colors to the new theme for compatibility
         primary: {
@@ -38,29 +38,30 @@ export default {
           800: '#0A3D78',
           900: '#083262',
         },
-        // Using Red/Danger for secondary to match logo accents
+        // Using Warm Gold for secondary to match logo accents
         secondary: {
-          50: '#FEF2F2',
-          100: '#FFE1E1',
-          200: '#FFC8C8',
-          300: '#FCA5A5',
-          400: '#F87171',
-          500: '#EF4444', // Main Red
-          600: '#DC2626',
-          700: '#B91C1C',
-          800: '#991B1B',
-          900: '#7F1D1D',
+          50: '#FFF7E8',
+          100: '#FDEBC7',
+          200: '#F8D89A',
+          300: '#F0C26B',
+          400: '#E6AD45',
+          500: '#D6A24A', // Main Gold
+          600: '#C18D36',
+          700: '#9E6E26',
+          800: '#7D561D',
+          900: '#614316',
         },
         accent: {
-          light: '#7CC1FD',
-          DEFAULT: '#2B76D9',
-          dark: '#0F5BB5',
+          light: '#F0D7A0',
+          DEFAULT: '#D6A24A',
+          dark: '#C18D36',
           white: '#ffffff',
           black: '#0F172A',
         },
       },
       fontFamily: {
-        inter: ['Inter', 'sans-serif'],
+        body: ['Manrope', 'sans-serif'],
+        display: ['Cormorant Garamond', 'serif'],
       },
       boxShadow: {
         'soft': '0 2px 10px rgba(0, 0, 0, 0.03)',

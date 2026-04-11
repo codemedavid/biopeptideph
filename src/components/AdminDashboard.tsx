@@ -18,9 +18,7 @@ import SmartGuideManager from './admin/SmartGuideManager';
 
 
 const AdminDashboard: React.FC = () => {
-  const [isAuthenticated, setIsAuthenticated] = useState(() => {
-    return localStorage.getItem('peptide_admin_auth') === 'true';
-  });
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState('');
   const { products, loading, addProduct, updateProduct, deleteProduct, refreshProducts } = useMenu();
@@ -351,9 +349,8 @@ const AdminDashboard: React.FC = () => {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (password === 'TopNotch2026') {
+    if (password === 'DiamondGlow2026') {
       setIsAuthenticated(true);
-      localStorage.setItem('peptide_admin_auth', 'true');
       setLoginError('');
     } else {
       setLoginError('Invalid password');
@@ -362,7 +359,6 @@ const AdminDashboard: React.FC = () => {
 
   const handleLogout = () => {
     setIsAuthenticated(false);
-    localStorage.removeItem('peptide_admin_auth');
     setPassword('');
     setCurrentView('dashboard');
   };
@@ -473,7 +469,7 @@ const AdminDashboard: React.FC = () => {
             <div className="relative mx-auto w-16 h-16 rounded-full overflow-hidden mb-4 border-2 border-theme-accent/30">
               <img
                 src="/logo-new.jpg"
-                alt="TOPNOTCH"
+                alt="Diamond Glow"
                 className="w-full h-full object-cover"
               />
             </div>

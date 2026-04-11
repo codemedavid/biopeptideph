@@ -194,7 +194,7 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack }) =>
       });
 
       const orderDetails = `
-✨TOPNOTCH - NEW ORDER
+✨DIAMOND GLOW - NEW ORDER
 
 📅 ORDER DATE & TIME
 ${dateTimeStamp}
