@@ -906,7 +906,7 @@ Please confirm this order. Thank you!
                   <MessageCircle className="w-6 h-6 text-theme-secondary" />
                   <div className="text-left">
                     <p className="font-semibold text-gray-900">WhatsApp</p>
-                    <p className="text-sm text-gray-500">+63 906 234 9763</p>
+                    <p className="text-sm text-gray-500">09273823885</p>
                   </div>
                 </div>
                 {contactMethod === 'whatsapp' && (
