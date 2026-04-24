@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { ArrowLeft, Package, CheckCircle, XCircle, Clock, Truck, AlertCircle, Search, RefreshCw, Eye, MessageCircle, Image as ImageIcon } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useMenu } from '../hooks/useMenu';
+import { useSiteSettings } from '../hooks/useSiteSettings';
 
 interface OrderItem {
   product_id: string;
@@ -56,6 +57,9 @@ const OrdersManager: React.FC<OrdersManagerProps> = ({ onBack }) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const { refreshProducts } = useMenu();
+  const { siteSettings } = useSiteSettings();
+  const adminFeePhp = siteSettings?.admin_fee_php ?? 150;
+  const adminFeeUsd = siteSettings?.admin_fee_usd ?? 3;
 
   useEffect(() => {
     loadOrders();
@@ -297,6 +301,8 @@ const OrdersManager: React.FC<OrdersManagerProps> = ({ onBack }) => {
         onConfirm={() => handleConfirmOrder(selectedOrder)}
         onUpdateStatus={handleUpdateOrderStatus}
         isProcessing={isProcessing}
+        adminFeePhp={adminFeePhp}
+        adminFeeUsd={adminFeeUsd}
       />
     );
   }
@@ -424,6 +430,8 @@ const OrdersManager: React.FC<OrdersManagerProps> = ({ onBack }) => {
                 onView={() => setSelectedOrder(order)}
                 getStatusColor={getStatusColor}
                 getStatusIcon={getStatusIcon}
+                adminFeePhp={adminFeePhp}
+                adminFeeUsd={adminFeeUsd}
               />
             ))
           )}
@@ -439,11 +447,16 @@ interface OrderCardProps {
   onView: () => void;
   getStatusColor: (status: string) => string;
   getStatusIcon: (status: string) => React.ReactNode;
+  adminFeePhp: number;
+  adminFeeUsd: number;
 }
 
-const OrderCard: React.FC<OrderCardProps> = ({ order, onView, getStatusColor, getStatusIcon }) => {
+const OrderCard: React.FC<OrderCardProps> = ({ order, onView, getStatusColor, getStatusIcon, adminFeePhp, adminFeeUsd }) => {
   const totalItems = order.order_items.reduce((sum, item) => sum + item.quantity, 0);
-  const finalTotal = order.total_price + (order.shipping_fee || 0);
+  const isUsd = order.currency === 'USD';
+  const currencySymbol = isUsd ? '$' : '₱';
+  const adminFee = isUsd ? adminFeeUsd : adminFeePhp;
+  const finalTotal = order.total_price + (order.shipping_fee || 0) + adminFee;
 
   return (
     <div className="bg-white rounded-lg md:rounded-xl shadow-md hover:shadow-lg p-3 md:p-4 lg:p-6 border border-gray-200 hover:border-theme-accent/30 transition-all">
@@ -486,10 +499,11 @@ const OrderCard: React.FC<OrderCardProps> = ({ order, onView, getStatusColor, ge
             </div>
             <div>
               <span className="text-gray-500 text-[10px] md:text-xs">Total</span>
-              <p className="font-semibold text-theme-secondary">₱{finalTotal.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</p>
+              <p className="font-semibold text-theme-secondary">{currencySymbol}{finalTotal.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</p>
               {order.shipping_fee && order.shipping_fee > 0 && (
-                <p className="text-[10px] md:text-xs text-gray-500">+ ₱{order.shipping_fee} shipping</p>
+                <p className="text-[10px] md:text-xs text-gray-500">+ {currencySymbol}{order.shipping_fee} shipping</p>
               )}
+              <p className="text-[10px] md:text-xs text-gray-500">+ {currencySymbol}{adminFee.toLocaleString('en-PH', { minimumFractionDigits: 2 })} admin fee</p>
             </div>
             <div>
               <span className="text-gray-500 text-[10px] md:text-xs">Date</span>
@@ -521,6 +535,8 @@ interface OrderDetailsViewProps {
   onConfirm: () => void;
   onUpdateStatus: (orderId: string, status: string) => void;
   isProcessing: boolean;
+  adminFeePhp: number;
+  adminFeeUsd: number;
 }
 
 const OrderDetailsView: React.FC<OrderDetailsViewProps> = ({
@@ -528,10 +544,15 @@ const OrderDetailsView: React.FC<OrderDetailsViewProps> = ({
   onBack,
   onConfirm,
   onUpdateStatus,
-  isProcessing
+  isProcessing,
+  adminFeePhp,
+  adminFeeUsd
 }) => {
   const totalItems = order.order_items.reduce((sum, item) => sum + item.quantity, 0);
-  const finalTotal = order.total_price + (order.shipping_fee || 0);
+  const isUsd = order.currency === 'USD';
+  const currencySymbol = isUsd ? '$' : '₱';
+  const adminFee = isUsd ? adminFeeUsd : adminFeePhp;
+  const finalTotal = order.total_price + (order.shipping_fee || 0) + adminFee;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-white via-gray-50 to-white">
@@ -678,17 +699,21 @@ const OrderDetailsView: React.FC<OrderDetailsViewProps> = ({
             <div className="space-y-1.5 md:space-y-2 text-xs md:text-sm">
               <div className="flex justify-between">
                 <span>Subtotal:</span>
-                <span className="font-semibold">₱{order.total_price.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>
+                <span className="font-semibold">{currencySymbol}{order.total_price.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>
               </div>
               {order.shipping_fee && order.shipping_fee > 0 && (
                 <div className="flex justify-between">
                   <span>Shipping Fee:</span>
-                  <span className="font-semibold">₱{order.shipping_fee.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>
+                  <span className="font-semibold">{currencySymbol}{order.shipping_fee.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>
                 </div>
               )}
+              <div className="flex justify-between">
+                <span>Admin Fee:</span>
+                <span className="font-semibold">{currencySymbol}{adminFee.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>
+              </div>
               <div className="flex justify-between text-base md:text-lg font-bold border-t-2 border-gray-200 pt-2">
                 <span>Total:</span>
-                <span className="text-theme-secondary">₱{finalTotal.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>
+                <span className="text-theme-secondary">{currencySymbol}{finalTotal.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>
               </div>
             </div>
           </div>

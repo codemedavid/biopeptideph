@@ -1,0 +1,1154 @@
+{
+  "name": "Peptide Assessment V2 Duplication Data",
+  "version": "1.0",
+  "purpose": "Single-file source of truth for duplicating the current peptide assessment flow on another website.",
+  "source_files": {
+    "wizard": "src/pages/AssessmentWizardV2.tsx",
+    "results_v2": "src/pages/AssessmentResultsV2.tsx",
+    "results_legacy": "src/pages/AssessmentResults.tsx",
+    "base_schema": "assessment_schema.sql",
+    "v2_migration": "RUN_THIS_MIGRATION.sql",
+    "rules_seed_v2": "seed_rules_v2.sql",
+    "admin_manager": "src/components/admin/AssessmentManager.tsx"
+  },
+  "flow": {
+    "type": "multi_step_wizard",
+    "total_steps": 12,
+    "result_route": "/assessment/results",
+    "storage_table": "assessment_responses"
+  },
+  "validation": {
+    "step_1": {
+      "required": [
+        "consent_agreed"
+      ],
+      "rule": "Must be true."
+    },
+    "step_2": {
+      "required": [
+        "emotional_motivators"
+      ],
+      "rule": "At least 1 selection required."
+    },
+    "step_3": {
+      "required": [
+        "goals"
+      ],
+      "rule": "At least 1 selection required."
+    },
+    "step_4": {
+      "required": [
+        "height_cm",
+        "weight_kg"
+      ],
+      "rule": "Both required."
+    },
+    "step_5": {
+      "required": [
+        "date_of_birth",
+        "sex_assigned",
+        "location"
+      ],
+      "rule": "All required. User must be at least 18 years old."
+    },
+    "step_10": {
+      "required": [
+        "experience_level",
+        "smoking_status"
+      ],
+      "rule": "Both required."
+    },
+    "step_12": {
+      "required": [
+        "full_name",
+        "email",
+        "final_consent"
+      ],
+      "rule": "Name and email required. final_consent must be true."
+    }
+  },
+  "derived_fields": {
+    "age_range": {
+      "source": "date_of_birth",
+      "logic": [
+        {
+          "if_age_between": [
+            18,
+            24
+          ],
+          "value": "18-24"
+        },
+        {
+          "if_age_between": [
+            25,
+            34
+          ],
+          "value": "25-34"
+        },
+        {
+          "if_age_between": [
+            35,
+            44
+          ],
+          "value": "35-44"
+        },
+        {
+          "if_age_gte": 45,
+          "value": "45+"
+        }
+      ]
+    }
+  },
+  "steps": [
+    {
+      "step": 1,
+      "title": "Consent & Terms",
+      "subtitle": "Let's start by reviewing our terms and consent",
+      "fields": [
+        {
+          "key": "consent_agreed",
+          "type": "boolean",
+          "label": "I accept the terms and conditions and understand that this is not medical advice",
+          "required": true
+        }
+      ],
+      "content_notes": [
+        "Links to /terms and /privacy",
+        "States the assessment is for educational and informational purposes only",
+        "States it is not medical advice"
+      ]
+    },
+    {
+      "step": 2,
+      "title": "Emotional Motivators",
+      "subtitle": "What would reaching your goal mean for you?",
+      "selection_mode": "multi_select",
+      "fields": [
+        {
+          "key": "emotional_motivators",
+          "type": "string[]",
+          "required": true,
+          "options": [
+            {
+              "value": "energy",
+              "label": "Having more energy"
+            },
+            {
+              "value": "confidence",
+              "label": "Feeling more confident"
+            },
+            {
+              "value": "health",
+              "label": "Improving overall health"
+            },
+            {
+              "value": "body_image",
+              "label": "Feeling better in my body"
+            },
+            {
+              "value": "clothes",
+              "label": "Feeling good in clothes"
+            },
+            {
+              "value": "longevity",
+              "label": "Living a longer, healthier life"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "step": 3,
+      "title": "Specific Goals",
+      "subtitle": "What are your specific goals?",
+      "selection_mode": "multi_select",
+      "fields": [
+        {
+          "key": "goals",
+          "type": "string[]",
+          "required": true,
+          "groups": [
+            {
+              "group_name": "Weight Management",
+              "options": [
+                {
+                  "value": "weight_5_10kg",
+                  "label": "Lose 5-10 kg"
+                },
+                {
+                  "value": "weight_10_20kg",
+                  "label": "Lose 10-20 kg"
+                },
+                {
+                  "value": "weight_20plus",
+                  "label": "Lose 20+ kg"
+                },
+                {
+                  "value": "weight_maintain",
+                  "label": "Maintain current weight"
+                }
+              ]
+            },
+            {
+              "group_name": "Other Health Goals",
+              "options": [
+                {
+                  "value": "energy_mild",
+                  "label": "Mild fatigue / Energy boost"
+                },
+                {
+                  "value": "energy_chronic",
+                  "label": "Chronic fatigue recovery"
+                },
+                {
+                  "value": "recovery_athletic",
+                  "label": "Athletic recovery"
+                },
+                {
+                  "value": "muscle_building",
+                  "label": "Build muscle mass"
+                },
+                {
+                  "value": "body_recomposition",
+                  "label": "Body recomposition"
+                },
+                {
+                  "value": "anti_aging",
+                  "label": "Anti-aging / Longevity"
+                },
+                {
+                  "value": "cognitive_function",
+                  "label": "Cognitive enhancement"
+                },
+                {
+                  "value": "immune_support",
+                  "label": "Immune system support"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "step": 4,
+      "title": "Physical Measurements",
+      "subtitle": "Help us understand your current metrics",
+      "fields": [
+        {
+          "key": "height_cm",
+          "type": "number",
+          "label": "Height (in cm)",
+          "required": true,
+          "placeholder": "159"
+        },
+        {
+          "key": "weight_kg",
+          "type": "number",
+          "label": "Current Weight (in kg)",
+          "required": true,
+          "placeholder": "80"
+        },
+        {
+          "key": "waist_inches",
+          "type": "number",
+          "label": "Waist Size (in inches)",
+          "required": false,
+          "placeholder": "29"
+        },
+        {
+          "key": "hip_inches",
+          "type": "number",
+          "label": "Hip Size (in inches)",
+          "required": false,
+          "placeholder": "38"
+        }
+      ]
+    },
+    {
+      "step": 5,
+      "title": "Basic Information",
+      "subtitle": "Help us personalize your recommendations",
+      "fields": [
+        {
+          "key": "date_of_birth",
+          "type": "date",
+          "label": "Date of Birth",
+          "required": true,
+          "notes": [
+            "User must be at least 18 years old to continue."
+          ]
+        },
+        {
+          "key": "sex_assigned",
+          "type": "enum",
+          "label": "Sex Assigned at Birth",
+          "required": true,
+          "options": [
+            {
+              "value": "male",
+              "label": "male"
+            },
+            {
+              "value": "female",
+              "label": "female"
+            },
+            {
+              "value": "other",
+              "label": "other"
+            }
+          ]
+        },
+        {
+          "key": "location",
+          "type": "string",
+          "label": "Location",
+          "required": true,
+          "placeholder": "e.g., Metro Manila, Philippines"
+        }
+      ]
+    },
+    {
+      "step": 6,
+      "title": "Pregnancy / Reproductive",
+      "subtitle": "Are you currently:",
+      "selection_mode": "multi_select",
+      "fields": [
+        {
+          "key": "pregnancy_status",
+          "type": "string[]",
+          "required": false,
+          "options": [
+            {
+              "value": "breastfeeding",
+              "label": "Breastfeeding"
+            },
+            {
+              "value": "pregnant",
+              "label": "Pregnant"
+            },
+            {
+              "value": "planning_pregnancy",
+              "label": "Planning to be pregnant in the next 2 months"
+            },
+            {
+              "value": "none",
+              "label": "None of the above"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "step": 7,
+      "title": "Medical History",
+      "subtitle": "Do you have a medical history of the following conditions?",
+      "selection_mode": "multi_select",
+      "fields": [
+        {
+          "key": "medical_conditions",
+          "type": "string[]",
+          "required": false,
+          "options": [
+            {
+              "value": "Medullary Thyroid Carcinoma / Multiple Endocrine Neoplasia",
+              "label": "Medullary Thyroid Carcinoma / Multiple Endocrine Neoplasia"
+            },
+            {
+              "value": "Thyroid Problems (goiter, Graves' disease, hypothyroid, hyperthyroid)",
+              "label": "Thyroid Problems (goiter, Graves' disease, hypothyroid, hyperthyroid)"
+            },
+            {
+              "value": "Thyroid Cancer",
+              "label": "Thyroid Cancer"
+            },
+            {
+              "value": "Pancreatitis",
+              "label": "Pancreatitis"
+            },
+            {
+              "value": "Gallbladder problems",
+              "label": "Gallbladder problems"
+            },
+            {
+              "value": "Gallstones",
+              "label": "Gallstones"
+            },
+            {
+              "value": "Low blood sugar",
+              "label": "Low blood sugar"
+            },
+            {
+              "value": "Kidney Problems",
+              "label": "Kidney Problems"
+            },
+            {
+              "value": "Vision Changes (Diabetic Retinopathy)",
+              "label": "Vision Changes (Diabetic Retinopathy)"
+            },
+            {
+              "value": "Hypersensitivity to peptides",
+              "label": "Hypersensitivity to peptides"
+            },
+            {
+              "value": "Heart Problems (abnormal rhythms, disease, attack, failure)",
+              "label": "Heart Problems (abnormal rhythms, disease, attack, failure)"
+            },
+            {
+              "value": "Mental Health Problems (severe anxiety, depression, schizophrenia, personality disorders)",
+              "label": "Mental Health Problems (severe anxiety, depression, schizophrenia, personality disorders)"
+            },
+            {
+              "value": "Eating Disorder (anorexia, bulimia, binge eating)",
+              "label": "Eating Disorder (anorexia, bulimia, binge eating)"
+            },
+            {
+              "value": "Severe Gastro-Intestinal Problems (IBD, gastroparesis)",
+              "label": "Severe Gastro-Intestinal Problems (IBD, gastroparesis)"
+            },
+            {
+              "value": "Liver Problems (hepatitis, fatty liver, alcohol liver disease)",
+              "label": "Liver Problems (hepatitis, fatty liver, alcohol liver disease)"
+            },
+            {
+              "value": "None of the above",
+              "label": "None of the above"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "step": 8,
+      "title": "Family History",
+      "subtitle": "Do you have family history with any of the following conditions?",
+      "selection_mode": "multi_select",
+      "fields": [
+        {
+          "key": "family_history_conditions",
+          "type": "string[]",
+          "required": false,
+          "options": [
+            {
+              "value": "Thyroid cancer or disorders",
+              "label": "Thyroid cancer or disorders"
+            },
+            {
+              "value": "Heart disease",
+              "label": "Heart disease"
+            },
+            {
+              "value": "Mental health issues (severe)",
+              "label": "Mental health issues (severe)"
+            },
+            {
+              "value": "Eating disorders",
+              "label": "Eating disorders"
+            },
+            {
+              "value": "Liver or kidney problems",
+              "label": "Liver or kidney problems"
+            },
+            {
+              "value": "GI issues",
+              "label": "GI issues"
+            },
+            {
+              "value": "Pancreatitis",
+              "label": "Pancreatitis"
+            },
+            {
+              "value": "Gallbladder problems",
+              "label": "Gallbladder problems"
+            },
+            {
+              "value": "Diabetic complications",
+              "label": "Diabetic complications"
+            },
+            {
+              "value": "None of the above",
+              "label": "None of the above"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "step": 9,
+      "title": "Medications / Surgeries / Allergies",
+      "subtitle": "Please list all medications you are currently taking",
+      "fields": [
+        {
+          "key": "current_medications",
+          "type": "text",
+          "label": "Current Medications",
+          "required": false,
+          "placeholder": "e.g., Metformin 500mg, twice daily\\nVitamin D 1000IU, once daily"
+        },
+        {
+          "key": "previous_surgeries",
+          "type": "boolean",
+          "label": "Have you had any previous surgeries?",
+          "required": false
+        },
+        {
+          "key": "previous_surgeries_details",
+          "type": "text",
+          "label": "Please specify surgery and year",
+          "required": false,
+          "conditional_on": {
+            "field": "previous_surgeries",
+            "equals": true
+          },
+          "placeholder": "e.g. Appendectomy (2018), ACL Repair (2020)"
+        },
+        {
+          "key": "drug_allergies",
+          "type": "boolean",
+          "label": "Do you have any food or drug allergies?",
+          "required": false
+        },
+        {
+          "key": "drug_allergies_details",
+          "type": "text",
+          "label": "Please list your allergies",
+          "required": false,
+          "conditional_on": {
+            "field": "drug_allergies",
+            "equals": true
+          },
+          "placeholder": "e.g. Penicillin, Peanuts, Shellfish"
+        }
+      ]
+    },
+    {
+      "step": 10,
+      "title": "Lifestyle & Experience",
+      "subtitle": "Tell us about your peptide experience and habits",
+      "fields": [
+        {
+          "key": "experience_level",
+          "type": "enum",
+          "label": "Peptide Experience Level",
+          "required": true,
+          "options": [
+            {
+              "value": "first_time",
+              "label": "First-time (Never used peptides)"
+            },
+            {
+              "value": "beginner",
+              "label": "Beginner (Some experience)"
+            },
+            {
+              "value": "experienced",
+              "label": "Experienced (Regular user)"
+            }
+          ]
+        },
+        {
+          "key": "peptide_experience_first_time",
+          "type": "boolean",
+          "label": "Is this your first time using any GLP-1 medication (Ozempic, Wegovy, Mounjaro, etc.)?",
+          "required": false
+        },
+        {
+          "key": "current_prescription_glp1",
+          "type": "boolean",
+          "label": "Do you have a current prescription for GLP-1 medications?",
+          "required": false,
+          "notes": [
+            "UI note: Don't worry if you don't have one, we can help with recommendations."
+          ]
+        },
+        {
+          "key": "smoking_status",
+          "type": "enum",
+          "label": "Smoking Status",
+          "required": true,
+          "options": [
+            {
+              "value": "smoker",
+              "label": "smoker"
+            },
+            {
+              "value": "non_smoker",
+              "label": "non-smoker"
+            },
+            {
+              "value": "other",
+              "label": "other"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "step": 11,
+      "title": "Preferences",
+      "subtitle": "Help us tailor our recommendations",
+      "fields": [
+        {
+          "key": "preferences.budget",
+          "type": "enum",
+          "label": "Budget Range",
+          "required": false,
+          "options": [
+            {
+              "value": "budget",
+              "label": "Budget-friendly (Entry level)"
+            },
+            {
+              "value": "mid_range",
+              "label": "Mid-range (Quality balance)"
+            },
+            {
+              "value": "premium",
+              "label": "Premium (Best quality)"
+            }
+          ]
+        },
+        {
+          "key": "preferences.frequency",
+          "type": "enum",
+          "label": "Preferred Dosing Frequency",
+          "required": false,
+          "options": [
+            {
+              "value": "daily",
+              "label": "Daily (Most convenient)"
+            },
+            {
+              "value": "weekly",
+              "label": "Weekly"
+            },
+            {
+              "value": "flexible",
+              "label": "Flexible schedule"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "step": 12,
+      "title": "Contact & Final Consent",
+      "subtitle": "We'll send your personalized recommendations to this email",
+      "fields": [
+        {
+          "key": "full_name",
+          "type": "string",
+          "label": "Full Name",
+          "required": true,
+          "placeholder": "Juan Dela Cruz"
+        },
+        {
+          "key": "email",
+          "type": "email",
+          "label": "Email",
+          "required": true,
+          "placeholder": "name@example.com"
+        },
+        {
+          "key": "phone",
+          "type": "tel",
+          "label": "Phone",
+          "required": false,
+          "placeholder": "+63 912 345 6789"
+        },
+        {
+          "key": "final_consent",
+          "type": "boolean",
+          "label": "I confirm that all information provided is accurate and I consent to receive personalized peptide recommendations based on this assessment",
+          "required": true
+        }
+      ]
+    }
+  ],
+  "submit_payload": {
+    "full_name": "string",
+    "email": "string",
+    "phone": "string|null",
+    "age_range": "derived string",
+    "date_of_birth": "date",
+    "sex_assigned": "male|female|other",
+    "location": "string",
+    "height_cm": "number",
+    "weight_kg": "number",
+    "waist_inches": "number|null",
+    "hip_inches": "number|null",
+    "goals": "string[]",
+    "emotional_motivators": "string[]",
+    "experience_level": "string",
+    "peptide_experience_first_time": "boolean|null",
+    "current_prescription_glp1": "boolean|null",
+    "medical_conditions": "string[]",
+    "family_history_conditions": "string[]",
+    "current_medications": "string|null",
+    "previous_surgeries": "boolean|null",
+    "previous_surgeries_details": "string|null",
+    "drug_allergies": "boolean|null",
+    "drug_allergies_details": "string|null",
+    "smoking_status": "smoker|non_smoker|other",
+    "pregnancy_status": "string[]",
+    "preferences": {
+      "budget": "budget|mid_range|premium",
+      "frequency": "daily|weekly|flexible"
+    },
+    "consent_agreed": true,
+    "status": "new"
+  },
+  "database": {
+    "table": "assessment_responses",
+    "base_columns_from_repo_schema": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "required": true
+      },
+      {
+        "name": "full_name",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "email",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "age_range",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "location",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "goals",
+        "type": "text[]",
+        "required": true
+      },
+      {
+        "name": "experience_level",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "preferences",
+        "type": "jsonb",
+        "required": false
+      },
+      {
+        "name": "consent_agreed",
+        "type": "boolean",
+        "required": false
+      },
+      {
+        "name": "agreed_at",
+        "type": "timestamptz",
+        "required": false
+      },
+      {
+        "name": "recommendation_generated",
+        "type": "jsonb",
+        "required": false
+      },
+      {
+        "name": "created_at",
+        "type": "timestamptz",
+        "required": false
+      },
+      {
+        "name": "status",
+        "type": "text",
+        "required": false
+      }
+    ],
+    "additional_columns_from_v2_migration": [
+      {
+        "name": "date_of_birth",
+        "type": "date"
+      },
+      {
+        "name": "sex_assigned",
+        "type": "text",
+        "allowed_values": [
+          "male",
+          "female",
+          "other"
+        ]
+      },
+      {
+        "name": "height_cm",
+        "type": "decimal(5,2)"
+      },
+      {
+        "name": "weight_kg",
+        "type": "decimal(5,2)"
+      },
+      {
+        "name": "waist_inches",
+        "type": "decimal(4,1)"
+      },
+      {
+        "name": "hip_inches",
+        "type": "decimal(4,1)"
+      },
+      {
+        "name": "weight_goal_kg",
+        "type": "decimal(4,1)"
+      },
+      {
+        "name": "emotional_motivators",
+        "type": "text[]"
+      },
+      {
+        "name": "medical_conditions",
+        "type": "text[]"
+      },
+      {
+        "name": "family_history_conditions",
+        "type": "text[]"
+      },
+      {
+        "name": "current_medications",
+        "type": "text"
+      },
+      {
+        "name": "previous_surgeries",
+        "type": "boolean"
+      },
+      {
+        "name": "drug_allergies",
+        "type": "boolean"
+      },
+      {
+        "name": "smoking_status",
+        "type": "text",
+        "allowed_values": [
+          "smoker",
+          "non_smoker",
+          "other"
+        ]
+      },
+      {
+        "name": "pregnancy_status",
+        "type": "text[]"
+      },
+      {
+        "name": "peptide_experience_first_time",
+        "type": "boolean"
+      },
+      {
+        "name": "current_prescription_glp1",
+        "type": "boolean"
+      },
+      {
+        "name": "phone",
+        "type": "text"
+      }
+    ],
+    "indexes_in_repo": [
+      "idx_assessment_email",
+      "idx_assessment_dob",
+      "idx_assessment_weight",
+      "idx_assessment_medical_conditions"
+    ],
+    "policies_in_repo": [
+      "Public can submit assessments",
+      "Admins can view assessments"
+    ]
+  },
+  "recommendation_systems": {
+    "current_live_v2_frontend_logic": {
+      "type": "hardcoded_goal_mapping_in_frontend",
+      "source": "src/pages/AssessmentResultsV2.tsx",
+      "goal_mappings": {
+        "weight_5_10kg": [
+          {
+            "product": "Semaglutide",
+            "reason": "Proven GLP-1 agonist for moderate weight loss (5-10kg)",
+            "priority": "primary"
+          },
+          {
+            "product": "Lipo-C",
+            "reason": "Lipotropic support for enhanced fat metabolism",
+            "priority": "supporting"
+          }
+        ],
+        "weight_10_20kg": [
+          {
+            "product": "Tirzepatide 15mg",
+            "reason": "Dual GIP/GLP-1 agonist for significant weight loss (10-20kg)",
+            "priority": "primary"
+          },
+          {
+            "product": "AOD-9604",
+            "reason": "HGH fragment for targeted fat metabolism",
+            "priority": "supporting"
+          }
+        ],
+        "weight_20plus": [
+          {
+            "product": "Tirzepatide 30mg",
+            "reason": "Maximum strength for aggressive weight loss (20+ kg)",
+            "priority": "primary"
+          },
+          {
+            "product": "Retatrutide",
+            "reason": "Triple agonist for maximum metabolic impact",
+            "priority": "supporting"
+          }
+        ],
+        "weight_maintain": [
+          {
+            "product": "CJC-1295 (No DAC) + Ipamorelin",
+            "reason": "Metabolic support and body composition maintenance",
+            "priority": "primary"
+          }
+        ],
+        "energy_mild": [
+          {
+            "product": "BPC-157",
+            "reason": "Supports mitochondrial function and cellular energy",
+            "priority": "primary"
+          },
+          {
+            "product": "NAD+ 100mg",
+            "reason": "Essential coenzyme for cellular energy production",
+            "priority": "supporting"
+          }
+        ],
+        "energy_chronic": [
+          {
+            "product": "TB-500",
+            "reason": "Promotes cellular healing for chronic fatigue recovery",
+            "priority": "primary"
+          },
+          {
+            "product": "MOTS-C",
+            "reason": "Mitochondrial peptide for enhanced energy metabolism",
+            "priority": "supporting"
+          }
+        ],
+        "recovery_athletic": [
+          {
+            "product": "BPC-157",
+            "reason": "Accelerates tissue repair and reduces inflammation",
+            "priority": "primary"
+          },
+          {
+            "product": "TB-500",
+            "reason": "Promotes cell migration and healing",
+            "priority": "supporting"
+          }
+        ],
+        "muscle_building": [
+          {
+            "product": "CJC-1295 (No DAC) + Ipamorelin",
+            "reason": "Stimulates growth hormone for muscle development",
+            "priority": "primary"
+          },
+          {
+            "product": "Ipamorelin",
+            "reason": "Selective GH secretagogue with minimal side effects",
+            "priority": "supporting"
+          }
+        ],
+        "body_recomposition": [
+          {
+            "product": "CJC-1295 (No DAC) + Ipamorelin",
+            "reason": "Enhances fat metabolism while preserving lean muscle",
+            "priority": "primary"
+          },
+          {
+            "product": "AOD-9604",
+            "reason": "Targets fat loss without affecting muscle mass",
+            "priority": "supporting"
+          }
+        ],
+        "anti_aging": [
+          {
+            "product": "Epithalon",
+            "reason": "Telomerase activator for cellular longevity",
+            "priority": "primary"
+          },
+          {
+            "product": "NAD+ 500mg",
+            "reason": "High-dose NAD+ for anti-aging and DNA repair",
+            "priority": "supporting"
+          }
+        ],
+        "cognitive_function": [
+          {
+            "product": "Semax",
+            "reason": "Nootropic peptide for mental clarity and focus",
+            "priority": "primary"
+          },
+          {
+            "product": "Selank",
+            "reason": "Anxiolytic and cognitive enhancer",
+            "priority": "supporting"
+          }
+        ]
+      },
+      "missing_goal_mappings": [
+        "immune_support"
+      ],
+      "product_lookup_behavior": {
+        "table": "products",
+        "query_style": "name.ilike partial match",
+        "notes": [
+          "The frontend gathers mapped product names, queries products by ilike, and matches by string includes.",
+          "If no product row matches, the recommendation is dropped from the displayed results."
+        ]
+      }
+    },
+    "legacy_or_admin_db_rules_engine": {
+      "type": "database_driven",
+      "source": "src/pages/AssessmentResults.tsx and src/components/admin/AssessmentManager.tsx",
+      "table": "recommendation_rules",
+      "matching_logic": [
+        "Rule must be is_active = true",
+        "target_goal must match one of the selected goals",
+        "target_experience must equal experience_level or be All",
+        "primary_product_id must be present"
+      ],
+      "rule_fields": [
+        "rule_name",
+        "target_goal",
+        "target_experience",
+        "primary_product_id",
+        "secondary_product_ids",
+        "educational_note",
+        "priority",
+        "is_active"
+      ]
+    }
+  },
+  "seed_rules_v2_from_repo": [
+    {
+      "rule_name": "Moderate Weight Loss - Semaglutide",
+      "target_goal": "weight_5_10kg",
+      "target_experience": "All",
+      "product_name_lookup": "Semaglutide",
+      "priority": 10
+    },
+    {
+      "rule_name": "Significant Weight Loss - Tirzepatide",
+      "target_goal": "weight_10_20kg",
+      "target_experience": "All",
+      "product_name_lookup": "Tirzepatide",
+      "priority": 10
+    },
+    {
+      "rule_name": "Aggressive Weight Loss Protocol",
+      "target_goal": "weight_20plus",
+      "target_experience": "All",
+      "product_name_lookup": "Tirzepatide",
+      "priority": 10
+    },
+    {
+      "rule_name": "Weight Maintenance & Metabolic Health",
+      "target_goal": "weight_maintain",
+      "target_experience": "All",
+      "product_name_lookup": "CJC-1295%",
+      "priority": 10
+    },
+    {
+      "rule_name": "Energy Boost - Recovery Support",
+      "target_goal": "energy_mild",
+      "target_experience": "All",
+      "product_name_lookup": "BPC-157",
+      "priority": 10
+    },
+    {
+      "rule_name": "Chronic Fatigue Protocol",
+      "target_goal": "energy_chronic",
+      "target_experience": "All",
+      "product_name_lookup": "TB-500",
+      "priority": 10
+    },
+    {
+      "rule_name": "Athletic Recovery Enhancement",
+      "target_goal": "recovery_athletic",
+      "target_experience": "All",
+      "product_name_lookup": "BPC-157",
+      "priority": 10
+    },
+    {
+      "rule_name": "Muscle Growth Protocol",
+      "target_goal": "muscle_building",
+      "target_experience": "All",
+      "product_name_lookup": "CJC-1295%",
+      "priority": 10
+    },
+    {
+      "rule_name": "Body Recomposition Stack",
+      "target_goal": "body_recomposition",
+      "target_experience": "All",
+      "product_name_lookup": "CJC-1295%",
+      "priority": 10
+    },
+    {
+      "rule_name": "Anti-Aging & Longevity Protocol",
+      "target_goal": "anti_aging",
+      "target_experience": "All",
+      "product_name_lookup": "TB-500",
+      "priority": 10
+    },
+    {
+      "rule_name": "Immune System Support",
+      "target_goal": "immune_support",
+      "target_experience": "All",
+      "product_name_lookup": "BPC-157",
+      "priority": 10
+    }
+  ],
+  "admin_export_fields": [
+    "id",
+    "full_name",
+    "email",
+    "age_range",
+    "location",
+    "goals",
+    "experience_level",
+    "created_at",
+    "status"
+  ],
+  "known_repo_inconsistencies": [
+    {
+      "issue": "Two recommendation systems exist.",
+      "details": "V2 results page uses hardcoded frontend mappings, while legacy/admin flows still use recommendation_rules from the database."
+    },
+    {
+      "issue": "Base schema is outdated.",
+      "details": "assessment_schema.sql does not include most V2 assessment fields."
+    },
+    {
+      "issue": "Migration appears incomplete for V2 submit payload.",
+      "details": "RUN_THIS_MIGRATION.sql does not add previous_surgeries_details or drug_allergies_details, but the V2 form submits both fields."
+    },
+    {
+      "issue": "One goal has no live V2 recommendation mapping.",
+      "details": "immune_support can be selected in the form but has no mapping in AssessmentResultsV2.tsx."
+    },
+    {
+      "issue": "Seeded DB rules and V2 hardcoded results do not fully agree.",
+      "details": "Example: anti_aging is TB-500 in seed_rules_v2.sql but Epithalon in AssessmentResultsV2.tsx."
+    }
+  ],
+  "recommended_if_rebuilding_cleanly": {
+    "single_source_of_truth": "Move all goals, questions, and recommendations into database tables or one config file instead of splitting between frontend code and SQL seed files.",
+    "missing_columns_to_add": [
+      "previous_surgeries_details text",
+      "drug_allergies_details text"
+    ],
+    "missing_v2_mapping_to_define": [
+      "immune_support"
+    ]
+  }
+}
