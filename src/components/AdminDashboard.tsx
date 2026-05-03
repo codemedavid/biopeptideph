@@ -33,6 +33,7 @@ const AdminDashboard: React.FC = () => {
   const [showExchangePanel, setShowExchangePanel] = useState(false);
   const [exchangeRate, setExchangeRate] = useState<string>('');
   const [isApplyingRate, setIsApplyingRate] = useState(false);
+  const [isApplyingRateUsdToPhp, setIsApplyingRateUsdToPhp] = useState(false);
   const [adminFeePhp, setAdminFeePhp] = useState<string>('');
   const [adminFeeUsd, setAdminFeeUsd] = useState<string>('');
   const [isSavingFees, setIsSavingFees] = useState(false);
@@ -435,6 +436,76 @@ const AdminDashboard: React.FC = () => {
       alert('Failed to apply exchange rate. Please try again.');
     } finally {
       setIsApplyingRate(false);
+    }
+  };
+
+  const handleApplyExchangeRateUsdToPhp = async () => {
+    const rate = parseFloat(exchangeRate);
+    if (!rate || rate <= 0) {
+      alert('Please enter a valid exchange rate');
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `This will set all PHP prices automatically:\n\n` +
+      `Exchange Rate: $1 = ₱${rate}\n\n` +
+      `Example: A product priced at $1.00 USD will become ₱${rate.toLocaleString()} PHP\n\n` +
+      `This will update ALL products and their size variations. Continue?`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setIsApplyingRateUsdToPhp(true);
+
+      await upsertSiteSetting('usd_php_rate', rate.toString(), 'USD to PHP exchange rate');
+
+      let productUpdates = 0;
+      let variationUpdates = 0;
+
+      for (const product of products) {
+        const usdPrice = product.international_price;
+        if (usdPrice == null || usdPrice <= 0) continue;
+
+        const phpPrice = Math.round(usdPrice * rate * 100) / 100;
+
+        const { error: prodErr } = await supabase
+          .from('products')
+          .update({ national_price: phpPrice, base_price: phpPrice })
+          .eq('id', product.id);
+
+        if (!prodErr) productUpdates++;
+
+        if (product.variations && product.variations.length > 0) {
+          for (const variation of product.variations) {
+            const varUsdPrice = variation.international_price;
+            if (varUsdPrice == null || varUsdPrice <= 0) continue;
+
+            const varPhpPrice = Math.round(varUsdPrice * rate * 100) / 100;
+
+            const { error: varErr } = await supabase
+              .from('product_variations')
+              .update({ national_price: varPhpPrice, price: varPhpPrice })
+              .eq('id', variation.id);
+
+            if (!varErr) variationUpdates++;
+          }
+        }
+      }
+
+      await refreshProducts();
+
+      alert(
+        `Exchange rate applied successfully!\n\n` +
+        `Rate: $1 USD = ₱${rate}\n` +
+        `Products updated: ${productUpdates}\n` +
+        `Variations updated: ${variationUpdates}`
+      );
+    } catch (error) {
+      console.error('Error applying USD→PHP exchange rate:', error);
+      alert('Failed to apply exchange rate. Please try again.');
+    } finally {
+      setIsApplyingRateUsdToPhp(false);
     }
   };
 
@@ -982,9 +1053,9 @@ const AdminDashboard: React.FC = () => {
                       <DollarSign className="w-5 h-5 text-blue-600" />
                     </div>
                     <div>
-                      <h3 className="text-sm font-bold text-gray-900">Auto-Calculate USD Prices</h3>
+                      <h3 className="text-sm font-bold text-gray-900">Auto-Calculate Prices</h3>
                       <p className="text-xs text-gray-600 mt-0.5">
-                        Set the PHP to USD exchange rate and all product USD prices will be calculated automatically.
+                        Enter the exchange rate, then choose a direction: <span className="font-semibold">PHP → USD</span> updates USD prices from PHP, or <span className="font-semibold">USD → PHP</span> updates PHP prices from USD.
                       </p>
                     </div>
                   </div>
@@ -1025,7 +1096,7 @@ const AdminDashboard: React.FC = () => {
 
                     <button
                       onClick={handleApplyExchangeRate}
-                      disabled={isApplyingRate || !exchangeRate}
+                      disabled={isApplyingRate || isApplyingRateUsdToPhp || !exchangeRate}
                       className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 whitespace-nowrap shadow-sm"
                     >
                       {isApplyingRate ? (
@@ -1036,7 +1107,25 @@ const AdminDashboard: React.FC = () => {
                       ) : (
                         <>
                           <Check className="w-4 h-4" />
-                          Apply to All Products
+                          PHP → USD
+                        </>
+                      )}
+                    </button>
+
+                    <button
+                      onClick={handleApplyExchangeRateUsdToPhp}
+                      disabled={isApplyingRate || isApplyingRateUsdToPhp || !exchangeRate}
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 whitespace-nowrap shadow-sm"
+                    >
+                      {isApplyingRateUsdToPhp ? (
+                        <>
+                          <RefreshCw className="w-4 h-4 animate-spin" />
+                          Applying...
+                        </>
+                      ) : (
+                        <>
+                          <Check className="w-4 h-4" />
+                          USD → PHP
                         </>
                       )}
                     </button>
