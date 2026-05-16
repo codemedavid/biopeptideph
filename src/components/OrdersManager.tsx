@@ -21,6 +21,7 @@ interface Order {
   customer_email: string;
   customer_phone: string;
   shipping_address: string;
+  shipping_barangay: string;
   shipping_city: string;
   shipping_state: string;
   shipping_zip_code: string;
@@ -491,6 +492,9 @@ const OrderCard: React.FC<OrderCardProps> = ({ order, onView, getStatusColor, ge
               <span className="text-gray-500 text-[10px] md:text-xs">Customer</span>
               <p className="font-semibold text-gray-900 truncate">{order.customer_name}</p>
               <p className="text-[10px] md:text-xs text-gray-500 truncate">{order.customer_email}</p>
+              {order.shipping_barangay && (
+                <p className="text-[10px] md:text-xs text-gray-500 truncate">Brgy. {order.shipping_barangay}</p>
+              )}
             </div>
             <div>
               <span className="text-gray-500 text-[10px] md:text-xs">Items</span>
@@ -624,6 +628,7 @@ const OrderDetailsView: React.FC<OrderDetailsViewProps> = ({
             <h3 className="font-bold text-gray-900 mb-2 md:mb-3 text-sm md:text-base">Shipping Address</h3>
             <div className="bg-gray-50 rounded-lg p-3 md:p-4 text-xs md:text-sm">
               <p>{order.shipping_address}</p>
+              {order.shipping_barangay && <p>Brgy. {order.shipping_barangay}</p>}
               <p>{order.shipping_city}, {order.shipping_state} {order.shipping_zip_code}</p>
               <p>{order.shipping_country}</p>
               {order.shipping_location && (
