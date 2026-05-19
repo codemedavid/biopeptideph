@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { ArrowLeft, Package, CheckCircle, XCircle, Clock, Truck, AlertCircle, Search, RefreshCw, Eye, MessageCircle, Image as ImageIcon } from 'lucide-react';
+import { ArrowLeft, Package, CheckCircle, XCircle, Clock, Truck, AlertCircle, Search, RefreshCw, Eye, MessageCircle, Image as ImageIcon, Trash2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useMenu } from '../hooks/useMenu';
 import { useSiteSettings } from '../hooks/useSiteSettings';
@@ -57,6 +57,10 @@ const OrdersManager: React.FC<OrdersManagerProps> = ({ onBack }) => {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkConfirmText, setBulkConfirmText] = useState('');
+  const [showBulkConfirm, setShowBulkConfirm] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const { refreshProducts } = useMenu();
   const { siteSettings } = useSiteSettings();
   const adminFeePhp = siteSettings?.admin_fee_php ?? 150;
@@ -225,6 +229,58 @@ const OrdersManager: React.FC<OrdersManagerProps> = ({ onBack }) => {
     }
   };
 
+  const handleDeleteOrder = async (order: Order) => {
+    if (!confirm(`Permanently delete order #${order.id.slice(0, 8).toUpperCase()} for ${order.customer_name}?\n\nThis cannot be undone. Stock will NOT be restored.`)) {
+      return;
+    }
+    try {
+      setIsDeleting(true);
+      const { error } = await supabase.from('orders').delete().eq('id', order.id);
+      if (error) throw error;
+      setSelectedIds(prev => {
+        const next = new Set(prev);
+        next.delete(order.id);
+        return next;
+      });
+      if (selectedOrder?.id === order.id) setSelectedOrder(null);
+      await loadOrders();
+    } catch (error) {
+      console.error('Error deleting order:', error);
+      alert(`Failed to delete order: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    if (bulkConfirmText !== 'DELETE') return;
+    try {
+      setIsDeleting(true);
+      const { error } = await supabase.from('orders').delete().in('id', ids);
+      if (error) throw error;
+      setSelectedIds(new Set());
+      setBulkConfirmText('');
+      setShowBulkConfirm(false);
+      await loadOrders();
+    } catch (error) {
+      console.error('Error bulk deleting orders:', error);
+      alert(`Failed to delete orders: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
   const filteredOrders = useMemo(() => {
     let filtered = orders;
 
@@ -301,12 +357,27 @@ const OrdersManager: React.FC<OrdersManagerProps> = ({ onBack }) => {
         onBack={() => setSelectedOrder(null)}
         onConfirm={() => handleConfirmOrder(selectedOrder)}
         onUpdateStatus={handleUpdateOrderStatus}
+        onDelete={() => handleDeleteOrder(selectedOrder)}
         isProcessing={isProcessing}
+        isDeleting={isDeleting}
         adminFeePhp={adminFeePhp}
         adminFeeUsd={adminFeeUsd}
       />
     );
   }
+
+  const allVisibleSelected = filteredOrders.length > 0 && filteredOrders.every(o => selectedIds.has(o.id));
+  const toggleSelectAllVisible = () => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (allVisibleSelected) {
+        filteredOrders.forEach(o => next.delete(o.id));
+      } else {
+        filteredOrders.forEach(o => next.add(o.id));
+      }
+      return next;
+    });
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-white via-gray-50 to-white">
@@ -415,6 +486,32 @@ const OrdersManager: React.FC<OrdersManagerProps> = ({ onBack }) => {
           </div>
         </div>
 
+        {/* Bulk Actions Toolbar */}
+        {filteredOrders.length > 0 && (
+          <div className="bg-white rounded-lg md:rounded-xl shadow-md p-3 md:p-4 mb-3 md:mb-4 border border-gray-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <label className="flex items-center gap-2 text-xs md:text-sm font-medium text-gray-700 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={allVisibleSelected}
+                onChange={toggleSelectAllVisible}
+                className="w-4 h-4 rounded border-gray-300 text-theme-accent focus:ring-theme-accent"
+              />
+              Select all visible ({filteredOrders.length})
+            </label>
+            <div className="flex items-center gap-3">
+              <span className="text-xs md:text-sm text-gray-600">{selectedIds.size} selected</span>
+              <button
+                onClick={() => setShowBulkConfirm(true)}
+                disabled={selectedIds.size === 0 || isDeleting}
+                className="px-3 md:px-4 py-1.5 md:py-2 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-lg transition-colors font-medium text-xs md:text-sm flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed shadow-md"
+              >
+                <Trash2 className="w-3 h-3 md:w-4 md:h-4" />
+                Delete Selected
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Orders List */}
         <div className="space-y-3 md:space-y-4">
           {filteredOrders.length === 0 ? (
@@ -429,6 +526,10 @@ const OrdersManager: React.FC<OrdersManagerProps> = ({ onBack }) => {
                 key={order.id}
                 order={order}
                 onView={() => setSelectedOrder(order)}
+                onDelete={() => handleDeleteOrder(order)}
+                isSelected={selectedIds.has(order.id)}
+                onToggleSelect={() => toggleSelect(order.id)}
+                isDeleting={isDeleting}
                 getStatusColor={getStatusColor}
                 getStatusIcon={getStatusIcon}
                 adminFeePhp={adminFeePhp}
@@ -438,6 +539,48 @@ const OrdersManager: React.FC<OrdersManagerProps> = ({ onBack }) => {
           )}
         </div>
       </div>
+
+      {showBulkConfirm && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-5 md:p-6">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
+                <AlertCircle className="w-5 h-5 text-red-600" />
+              </div>
+              <h3 className="font-bold text-gray-900 text-base md:text-lg">Delete {selectedIds.size} order{selectedIds.size === 1 ? '' : 's'}?</h3>
+            </div>
+            <p className="text-sm text-gray-600 mb-3">
+              This permanently deletes the selected orders. It cannot be undone. Stock levels will NOT be restored.
+            </p>
+            <p className="text-xs text-gray-500 mb-2">Type <span className="font-mono font-bold text-red-600">DELETE</span> to confirm:</p>
+            <input
+              type="text"
+              value={bulkConfirmText}
+              onChange={(e) => setBulkConfirmText(e.target.value)}
+              placeholder="DELETE"
+              autoFocus
+              className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20 text-sm mb-4"
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => { setShowBulkConfirm(false); setBulkConfirmText(''); }}
+                disabled={isDeleting}
+                className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 text-sm font-medium disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleBulkDelete}
+                disabled={bulkConfirmText !== 'DELETE' || isDeleting}
+                className="px-4 py-2 rounded-lg bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                <Trash2 className="w-4 h-4" />
+                {isDeleting ? 'Deleting...' : `Delete ${selectedIds.size}`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -446,13 +589,17 @@ const OrdersManager: React.FC<OrdersManagerProps> = ({ onBack }) => {
 interface OrderCardProps {
   order: Order;
   onView: () => void;
+  onDelete: () => void;
+  isSelected: boolean;
+  onToggleSelect: () => void;
+  isDeleting: boolean;
   getStatusColor: (status: string) => string;
   getStatusIcon: (status: string) => React.ReactNode;
   adminFeePhp: number;
   adminFeeUsd: number;
 }
 
-const OrderCard: React.FC<OrderCardProps> = ({ order, onView, getStatusColor, getStatusIcon, adminFeePhp, adminFeeUsd }) => {
+const OrderCard: React.FC<OrderCardProps> = ({ order, onView, onDelete, isSelected, onToggleSelect, isDeleting, getStatusColor, getStatusIcon, adminFeePhp, adminFeeUsd }) => {
   const totalItems = order.order_items.reduce((sum, item) => sum + item.quantity, 0);
   const isUsd = order.currency === 'USD';
   const currencySymbol = isUsd ? '$' : '₱';
@@ -460,8 +607,17 @@ const OrderCard: React.FC<OrderCardProps> = ({ order, onView, getStatusColor, ge
   const finalTotal = order.total_price + (order.shipping_fee || 0) + adminFee;
 
   return (
-    <div className="bg-white rounded-lg md:rounded-xl shadow-md hover:shadow-lg p-3 md:p-4 lg:p-6 border border-gray-200 hover:border-theme-accent/30 transition-all">
+    <div className={`bg-white rounded-lg md:rounded-xl shadow-md hover:shadow-lg p-3 md:p-4 lg:p-6 border transition-all ${isSelected ? 'border-red-400 ring-2 ring-red-200' : 'border-gray-200 hover:border-theme-accent/30'}`}>
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-4">
+        <div className="flex items-start gap-2 md:gap-3 pt-1">
+          <input
+            type="checkbox"
+            checked={isSelected}
+            onChange={onToggleSelect}
+            aria-label={`Select order ${order.id.slice(0, 8)}`}
+            className="w-4 h-4 md:w-5 md:h-5 rounded border-gray-300 text-red-600 focus:ring-red-500 cursor-pointer"
+          />
+        </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 md:gap-3 mb-2 flex-wrap">
             <h3 className="font-bold text-gray-900 text-sm md:text-base lg:text-lg truncate">
@@ -526,6 +682,14 @@ const OrderCard: React.FC<OrderCardProps> = ({ order, onView, getStatusColor, ge
             <span className="hidden sm:inline">View Details</span>
             <span className="sm:hidden">View</span>
           </button>
+          <button
+            onClick={onDelete}
+            disabled={isDeleting}
+            className="px-3 md:px-4 py-1.5 md:py-2 bg-white hover:bg-red-50 text-red-600 border border-red-200 hover:border-red-400 rounded-lg transition-colors font-medium text-xs md:text-sm flex items-center justify-center gap-1 md:gap-2 disabled:opacity-50"
+          >
+            <Trash2 className="w-3 h-3 md:w-4 md:h-4" />
+            <span className="hidden sm:inline">Delete</span>
+          </button>
         </div>
       </div>
     </div>
@@ -538,7 +702,9 @@ interface OrderDetailsViewProps {
   onBack: () => void;
   onConfirm: () => void;
   onUpdateStatus: (orderId: string, status: string) => void;
+  onDelete: () => void;
   isProcessing: boolean;
+  isDeleting: boolean;
   adminFeePhp: number;
   adminFeeUsd: number;
 }
@@ -548,7 +714,9 @@ const OrderDetailsView: React.FC<OrderDetailsViewProps> = ({
   onBack,
   onConfirm,
   onUpdateStatus,
+  onDelete,
   isProcessing,
+  isDeleting,
   adminFeePhp,
   adminFeeUsd
 }) => {
@@ -575,6 +743,14 @@ const OrderDetailsView: React.FC<OrderDetailsViewProps> = ({
                 Order #{order.id.slice(0, 8).toUpperCase()}
               </h1>
             </div>
+            <button
+              onClick={onDelete}
+              disabled={isDeleting || isProcessing}
+              className="px-2 md:px-4 py-1.5 md:py-2 bg-white hover:bg-red-50 text-red-600 border border-red-200 hover:border-red-400 rounded-lg md:rounded-xl transition-colors font-medium text-xs md:text-sm flex items-center gap-1 md:gap-2 disabled:opacity-50"
+            >
+              <Trash2 className="w-3 h-3 md:w-4 md:h-4" />
+              <span className="hidden sm:inline">{isDeleting ? 'Deleting...' : 'Delete'}</span>
+            </button>
           </div>
         </div>
       </div>
