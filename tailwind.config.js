@@ -8,55 +8,55 @@ export default {
     extend: {
       colors: {
         // Diamond Glow Branding
-        // Luxe Nightfall Palette
+        // Tiffany Blue Palette
         theme: {
-          navy: '#0B1430',      // Deep Navy - Main background, headers, footer
-          blue: '#D6A24A',      // Champagne Gold - Buttons, highlights, links
-          lightblue: '#F4E7D1', // Soft Champagne - Section backgrounds, cards
+          navy: '#0F4744',      // Deep Teal - Headers, footer, dark sections
+          blue: '#0ABAB5',      // Tiffany Blue - Buttons, highlights, links
+          lightblue: '#D6F0EE', // Soft Tiffany - Section backgrounds, cards
           white: '#FFFFFF',     // Clean White - Text areas, forms
-          red: '#B87C2E',       // Warm Gold Accent
+          red: '#088B87',       // Deep Tiffany Accent
         },
         // Semantic mappings (backward compatibility + new structure)
-        'theme-bg': '#FFF9F1',          // Main content background (Warm Ivory)
-        'theme-navy': '#0B1430',        // Dark sections
-        'theme-text': '#0B1430',        // Deep Navy for text (high contrast on ivory)
+        'theme-bg': '#F7FCFC',          // Main content background (Soft Ice)
+        'theme-navy': '#0F4744',        // Dark sections
+        'theme-text': '#0F4744',        // Deep Teal for text (high contrast on ice)
         'theme-text-light': '#FFFFFF',  // White text for dark backgrounds
-        'theme-accent': '#D6A24A',      // Champagne Gold
-        'theme-secondary': '#B87C2E',   // Warm Gold
-        'theme-soft-blue': '#F4E7D1',   // Soft Champagne
+        'theme-accent': '#0ABAB5',      // Tiffany Blue
+        'theme-secondary': '#088B87',   // Deep Tiffany
+        'theme-soft-blue': '#D6F0EE',   // Soft Tiffany
 
         // Mapping standard colors to the new theme for compatibility
         primary: {
-          50: '#F8FAFC',
-          100: '#E0F0FE',
-          200: '#BAE2FE',
-          300: '#7CC1FD',
-          400: '#359DFA',
-          500: '#2B76D9', // Main Blue
-          600: '#0F5BB5',
-          700: '#0C4891',
-          800: '#0A3D78',
-          900: '#083262',
+          50: '#F0FAF9',
+          100: '#D6F0EE',
+          200: '#A8E2DE',
+          300: '#6FCFC9',
+          400: '#2EC1BB',
+          500: '#0ABAB5', // Main Tiffany Blue
+          600: '#088B87',
+          700: '#066D6A',
+          800: '#05524F',
+          900: '#03393A',
         },
-        // Using Warm Gold for secondary to match logo accents
+        // Using Deep Tiffany for secondary
         secondary: {
-          50: '#FFF7E8',
-          100: '#FDEBC7',
-          200: '#F8D89A',
-          300: '#F0C26B',
-          400: '#E6AD45',
-          500: '#D6A24A', // Main Gold
-          600: '#C18D36',
-          700: '#9E6E26',
-          800: '#7D561D',
-          900: '#614316',
+          50: '#E8F8F7',
+          100: '#C7EFEC',
+          200: '#9AE0DC',
+          300: '#6BCEC8',
+          400: '#3FBCB5',
+          500: '#0ABAB5', // Main Tiffany
+          600: '#088B87',
+          700: '#066D6A',
+          800: '#05524F',
+          900: '#03393A',
         },
         accent: {
-          light: '#F0D7A0',
-          DEFAULT: '#D6A24A',
-          dark: '#C18D36',
+          light: '#A8E2DE',
+          DEFAULT: '#0ABAB5',
+          dark: '#088B87',
           white: '#ffffff',
-          black: '#0F172A',
+          black: '#0F4744',
         },
       },
       fontFamily: {

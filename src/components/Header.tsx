@@ -45,12 +45,12 @@ const Header: React.FC<HeaderProps> = ({ cartItemsCount, onCartClick, onMenuClic
 
   // Currency Toggle Component
   const CurrencyToggle = ({ className = '' }: { className?: string }) => (
-    <div className={`flex items-center gap-1 bg-white/10 rounded-full p-0.5 ${className}`}>
+    <div className={`flex items-center gap-1 bg-white/15 rounded-full p-0.5 ${className}`}>
       <button
         onClick={() => handlePricingModeClick('national')}
         className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold transition-all ${pricingMode === 'national'
-          ? 'bg-theme-blue text-white shadow-md'
-          : 'text-gray-300 hover:text-white hover:bg-white/10'
+          ? 'bg-white text-theme-navy shadow-md'
+          : 'text-white/80 hover:text-white hover:bg-white/15'
           }`}
         title="Philippine Peso (PHP)"
       >
@@ -60,8 +60,8 @@ const Header: React.FC<HeaderProps> = ({ cartItemsCount, onCartClick, onMenuClic
       <button
         onClick={() => handlePricingModeClick('international')}
         className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold transition-all ${pricingMode === 'international'
-          ? 'bg-theme-blue text-white shadow-md'
-          : 'text-gray-300 hover:text-white hover:bg-white/10'
+          ? 'bg-white text-theme-navy shadow-md'
+          : 'text-white/80 hover:text-white hover:bg-white/15'
           }`}
         title="US Dollar (USD)"
       >
@@ -73,7 +73,7 @@ const Header: React.FC<HeaderProps> = ({ cartItemsCount, onCartClick, onMenuClic
 
   return (
     <>
-      <header className="bg-theme-navy sticky top-0 z-50 border-b border-theme-blue/20 shadow-lg backdrop-blur-sm bg-theme-navy/95">
+      <header className="bg-theme-blue sticky top-0 z-50 border-b border-white/20 shadow-lg backdrop-blur-sm bg-theme-blue/95">
         <div className="container mx-auto px-3 md:px-6 py-2 md:py-3">
           <div className="flex items-center justify-between gap-2">
             {/* Logo - Rectangular to show full logo */}
@@ -90,7 +90,7 @@ const Header: React.FC<HeaderProps> = ({ cartItemsCount, onCartClick, onMenuClic
               </div>
               <div className="flex flex-col">
                 <span className="text-white font-bold text-lg leading-tight tracking-wide">Diamond Glow</span>
-                <span className="text-theme-blue text-[10px] sm:text-xs font-medium tracking-wider uppercase">Radiance in Every Detail</span>
+                <span className="text-white/75 text-[10px] sm:text-xs font-medium tracking-wider uppercase">Radiance in Every Detail</span>
               </div>
             </button>
 
@@ -98,24 +98,24 @@ const Header: React.FC<HeaderProps> = ({ cartItemsCount, onCartClick, onMenuClic
             <div className="flex items-center gap-1 sm:gap-2 md:gap-4">
               {/* Desktop Navigation */}
               <nav className="hidden lg:flex items-center gap-5">
-                <Link to="/" className="text-sm font-medium text-gray-300 hover:text-white transition-colors">Home</Link>
+                <Link to="/" className="text-sm font-medium text-white/85 hover:text-white transition-colors">Home</Link>
                 <button
                   onClick={() => onMenuClick()}
-                  className="text-sm font-medium text-gray-300 hover:text-white transition-colors bg-transparent border-none cursor-pointer"
+                  className="text-sm font-medium text-white/85 hover:text-white transition-colors bg-transparent border-none cursor-pointer"
                 >
                   Shop
                 </button>
-                <Link to="/journey" className="text-sm font-medium text-gray-300 hover:text-white transition-colors">Our Journey</Link>
-                <Link to="/guides" className="text-sm font-medium text-gray-300 hover:text-white transition-colors">Guides</Link>
-                <Link to="/assessment" className="text-sm font-medium text-theme-blue bg-white/10 px-3 py-1.5 rounded-full hover:bg-white/20 transition-all border border-transparent hover:border-theme-blue/30 backdrop-blur-sm">
+                <Link to="/journey" className="text-sm font-medium text-white/85 hover:text-white transition-colors">Our Journey</Link>
+                <Link to="/guides" className="text-sm font-medium text-white/85 hover:text-white transition-colors">Guides</Link>
+                <Link to="/assessment" className="text-sm font-semibold text-theme-navy bg-white px-3 py-1.5 rounded-full hover:bg-white/90 shadow-sm transition-all">
                   Start Assessment
                 </Link>
-                <div className="h-4 w-px bg-white/20"></div>
+                <div className="h-4 w-px bg-white/30"></div>
                 <a
                   href={whatsappUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-2 text-gray-300 hover:text-white transition-colors text-sm font-medium"
+                  className="flex items-center gap-2 text-white/85 hover:text-white transition-colors text-sm font-medium"
                 >
                   <MessageCircle className="w-4 h-4" />
                   WhatsApp
@@ -128,11 +128,11 @@ const Header: React.FC<HeaderProps> = ({ cartItemsCount, onCartClick, onMenuClic
               {/* Cart Button */}
               <button
                 onClick={onCartClick}
-                className="relative p-1.5 sm:p-2 text-white hover:text-theme-blue transition-colors flex-shrink-0"
+                className="relative p-1.5 sm:p-2 text-white hover:text-theme-navy transition-colors flex-shrink-0"
               >
                 <ShoppingCart className="w-5 h-5 sm:w-6 sm:h-6" />
                 {cartItemsCount > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 bg-theme-blue text-white text-[9px] sm:text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center border border-theme-navy">
+                  <span className="absolute -top-0.5 -right-0.5 bg-theme-navy text-white text-[9px] sm:text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center border border-white">
                     {cartItemsCount}
                   </span>
                 )}
@@ -141,7 +141,7 @@ const Header: React.FC<HeaderProps> = ({ cartItemsCount, onCartClick, onMenuClic
               {/* Mobile Menu Button */}
               <button
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="lg:hidden p-1.5 sm:p-2 text-white hover:text-theme-blue transition-colors flex-shrink-0"
+                className="lg:hidden p-1.5 sm:p-2 text-white hover:text-theme-navy transition-colors flex-shrink-0"
                 aria-label="Toggle menu"
               >
                 {mobileMenuOpen ? (
@@ -159,7 +159,7 @@ const Header: React.FC<HeaderProps> = ({ cartItemsCount, onCartClick, onMenuClic
       {mobileMenuOpen && (
         <div className="lg:hidden fixed inset-0 z-40 bg-black/50 backdrop-blur-sm" onClick={() => setMobileMenuOpen(false)}>
           <div
-            className="absolute top-[56px] sm:top-[60px] right-0 left-0 bg-theme-navy shadow-xl animate-slideIn border-b border-theme-blue/20"
+            className="absolute top-[56px] sm:top-[60px] right-0 left-0 bg-theme-blue shadow-xl animate-slideIn border-b border-white/20"
             onClick={(e) => e.stopPropagation()}
           >
             <nav className="px-4 py-6">
@@ -169,35 +169,35 @@ const Header: React.FC<HeaderProps> = ({ cartItemsCount, onCartClick, onMenuClic
                     onMenuClick();
                     setMobileMenuOpen(false);
                   }}
-                  className="text-left text-white font-medium text-base hover:text-theme-blue transition-colors border-l-2 border-transparent hover:border-theme-blue pl-4 py-1"
+                  className="text-left text-white font-medium text-base hover:text-theme-navy transition-colors border-l-2 border-transparent hover:border-white pl-4 py-1"
                 >
                   Shop
                 </button>
                 <Link
                   to="/journey"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="text-left text-white font-medium text-base hover:text-theme-blue transition-colors border-l-2 border-transparent hover:border-theme-blue pl-4 py-1"
+                  className="text-left text-white font-medium text-base hover:text-theme-navy transition-colors border-l-2 border-transparent hover:border-white pl-4 py-1"
                 >
                   Our Journey
                 </Link>
                 <Link
                   to="/guides"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="text-left text-white font-medium text-base hover:text-theme-blue transition-colors border-l-2 border-transparent hover:border-theme-blue pl-4 py-1"
+                  className="text-left text-white font-medium text-base hover:text-theme-navy transition-colors border-l-2 border-transparent hover:border-white pl-4 py-1"
                 >
                   Smart Guides
                 </Link>
-                <div className="pt-4 border-t border-gray-800 flex flex-col gap-3">
+                <div className="pt-4 border-t border-white/20 flex flex-col gap-3">
                   {/* Currency Toggle for small screens */}
                   <div className="sm:hidden pl-4 pb-2">
-                    <p className="text-xs text-gray-400 mb-2 font-medium uppercase tracking-wider">Currency</p>
+                    <p className="text-xs text-white/70 mb-2 font-medium uppercase tracking-wider">Currency</p>
                     <CurrencyToggle />
                   </div>
                   <a
                     href={whatsappUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-3 text-gray-300 hover:text-theme-blue transition-colors pl-4"
+                    className="flex items-center gap-3 text-white/85 hover:text-theme-navy transition-colors pl-4"
                     onClick={() => setMobileMenuOpen(false)}
                   >
                     <MessageCircle className="w-5 h-5" />

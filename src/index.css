@@ -5,27 +5,27 @@
 @tailwind utilities;
 
 :root {
-  /* Diamond Glow Branding */
-  --theme-navy: #0B1430;
-  --theme-blue: #D6A24A;
-  --theme-lightblue: #F4E7D1;
+  /* Diamond Glow Branding - Tiffany Blue Palette */
+  --theme-navy: #0F4744;
+  --theme-blue: #0ABAB5;
+  --theme-lightblue: #D6F0EE;
   --theme-white: #FFFFFF;
-  --theme-red: #B87C2E;
-  --theme-bg: #FFF9F1;
-  --theme-text: #0B1430;
-  --theme-accent: #D6A24A;
-  --theme-secondary: #B87C2E;
-  --theme-soft-blue: #F4E7D1;
+  --theme-red: #088B87;
+  --theme-bg: #F7FCFC;
+  --theme-text: #0F4744;
+  --theme-accent: #0ABAB5;
+  --theme-secondary: #088B87;
+  --theme-soft-blue: #D6F0EE;
 
-  --primary-black: #1E1E1E;
+  --primary-black: #0F4744;
   --primary-white: #ffffff;
 
-  --gray-50: #F1EFE7;
-  --gray-100: #EAE8DE;
-  --gray-200: #DDDBCF;
-  --gray-300: #C0BEB5;
-  --gray-500: #888888;
-  --gray-900: #1E1E1E;
+  --gray-50: #F0FAF9;
+  --gray-100: #E4F4F2;
+  --gray-200: #CFE9E6;
+  --gray-300: #A8CECB;
+  --gray-500: #6B8987;
+  --gray-900: #0F4744;
 }
 
 * {
