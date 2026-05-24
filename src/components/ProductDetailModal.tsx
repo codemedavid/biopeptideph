@@ -98,8 +98,19 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product, onClos
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4 overflow-y-auto">
-      <div className="bg-white rounded-xl sm:rounded-2xl shadow-2xl max-w-4xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-hidden my-2 sm:my-8">
+    <div
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 sm:p-4 sm:overflow-y-auto"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] sm:max-h-[90vh] overflow-hidden sm:my-8 animate-slideUp sm:animate-fadeIn"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Drag handle (mobile bottom sheet) */}
+        <div className="sm:hidden flex justify-center pt-2.5 pb-1">
+          <div className="w-10 h-1.5 bg-gray-300 rounded-full" />
+        </div>
+
         {/* Header */}
         <div className="bg-white text-theme-text p-3 sm:p-4 md:p-6 relative border-b border-gray-100">
           <button
@@ -132,7 +143,7 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product, onClos
         </div>
 
         {/* Content */}
-        <div className="p-3 sm:p-4 md:p-6 overflow-y-auto max-h-[calc(95vh-180px)] sm:max-h-[calc(90vh-280px)]">
+        <div className="p-3 sm:p-4 md:p-6 overflow-y-auto max-h-[calc(90vh-180px)] sm:max-h-[calc(90vh-280px)]">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 md:gap-6">
             {/* Left Column */}
             <div className="space-y-3 sm:space-y-4 md:space-y-6">
