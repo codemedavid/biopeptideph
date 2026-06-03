@@ -10,6 +10,8 @@ interface MenuItemCardProps {
   cartQuantity?: number;
   onUpdateQuantity?: (index: number, quantity: number) => void;
   onProductClick?: (product: Product) => void;
+  // Turned OFF for the active GB (behavior = "disable"): visible but not purchasable.
+  unavailable?: boolean;
 }
 
 // QuantityInput component
@@ -62,6 +64,7 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
   onAddToCart,
   cartQuantity = 0,
   onProductClick,
+  unavailable = false,
 }) => {
   const { pricingMode, currencySymbol, isInternational, globalDiscount } = usePricingMode();
   const [selectedVariation, setSelectedVariation] = useState<ProductVariation | undefined>(
@@ -144,10 +147,19 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
         </div>
 
         {/* Stock Status Overlay */}
-        {!hasAnyStock && (
+        {!hasAnyStock && !unavailable && (
           <div className="absolute inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center">
             <span className="bg-theme-navy text-white px-2 py-0.5 text-[10px] font-bold rounded-full uppercase tracking-wide">
               Out of Stock
+            </span>
+          </div>
+        )}
+
+        {/* GB Unavailable Overlay (admin turned this product OFF for the current Group Buy) */}
+        {unavailable && (
+          <div className="absolute inset-0 bg-white/85 backdrop-blur-sm flex items-center justify-center z-10">
+            <span className="bg-theme-navy text-white px-3 py-1 text-[10px] md:text-[11px] font-bold rounded-full uppercase tracking-wide text-center">
+              Currently Unavailable
             </span>
           </div>
         )}
@@ -248,6 +260,7 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
             <button
               onClick={(e) => {
                 e.stopPropagation();
+                if (unavailable) return;
                 if (quantity > availableStock) {
                   alert(`Only ${availableStock} item(s) available in stock.`);
                   setQuantity(availableStock);
@@ -255,11 +268,11 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
                 }
                 handleAddToCart();
               }}
-              disabled={!hasAnyStock || availableStock === 0}
+              disabled={!hasAnyStock || availableStock === 0 || unavailable}
               className="flex-1 min-w-0 bg-theme-blue text-white px-3 py-2 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold hover:bg-theme-blue/90 hover:shadow-lg hover:shadow-theme-blue/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 group/btn"
             >
               <ShoppingCart className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0 group-hover/btn:scale-110 transition-transform" />
-              <span>Add</span>
+              <span>{unavailable ? 'Unavailable' : 'Add'}</span>
             </button>
           </div>
 

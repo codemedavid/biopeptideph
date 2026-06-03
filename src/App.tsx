@@ -15,6 +15,7 @@ import Footer from './components/Footer';
 import AdminDashboard from './components/AdminDashboard';
 import { useMenu } from './hooks/useMenu';
 import { useGroupBuys } from './hooks/useGroupBuys';
+import { useGroupBuyAvailability } from './hooks/useGroupBuyAvailability';
 import PeptideJourney from './pages/PeptideJourney';
 import AssessmentWizardV2 from './pages/AssessmentWizardV2';
 import AssessmentResults from './pages/AssessmentResults';
@@ -24,11 +25,16 @@ import SmartGuide from './pages/SmartGuide';
 import PeptideCheatSheet from './pages/PeptideCheatSheet';
 import type { PricingMode } from './types';
 
+// Stable empty set so "no active GB" never thrashes downstream memoization.
+const EMPTY_IDS: Set<string> = new Set();
+
 function MainApp() {
   const { menuItems } = useMenu();
   const { globalDiscount } = usePricingMode();
-  const cart = useCart(menuItems, globalDiscount);
   const { activeGroupBuy } = useGroupBuys();
+  // Per-GB product availability (for the active round): hide or disable OFF products.
+  const { unavailableIds, behavior } = useGroupBuyAvailability(activeGroupBuy?.id);
+  const cart = useCart(menuItems, globalDiscount, unavailableIds);
   const [currentView, setCurrentView] = React.useState<'menu' | 'cart' | 'checkout'>('menu');
   const [selectedCategory, setSelectedCategory] = React.useState<string>('all');
   // When a GB is active, "Explore GB #N" narrows the storefront to that round's
@@ -60,13 +66,17 @@ function MainApp() {
     return true;
   };
 
-  // Filter products: optional active-GB narrowing, then category.
+  // Filter products: optional active-GB narrowing, then category, then hide any
+  // products turned OFF for this GB when the chosen behavior is "hide".
   const gbScoped = gbOnly && activeGroupBuy
     ? menuItems.filter(item => item.group_buy_id === activeGroupBuy.id)
     : menuItems;
-  const filteredProducts = selectedCategory === 'all'
+  const categoryScoped = selectedCategory === 'all'
     ? gbScoped
     : gbScoped.filter(item => item.category === selectedCategory);
+  const filteredProducts = behavior === 'hide'
+    ? categoryScoped.filter(item => !unavailableIds.has(item.id))
+    : categoryScoped;
 
   return (
     <div className="min-h-screen bg-white font-inter flex flex-col">
@@ -119,6 +129,7 @@ function MainApp() {
               addToCart={cart.addToCart}
               cartItems={cart.cartItems}
               updateQuantity={cart.updateQuantity}
+              unavailableProductIds={behavior === 'disable' ? unavailableIds : undefined}
             />
             <CTASection />
           </>

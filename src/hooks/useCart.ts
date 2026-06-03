@@ -112,7 +112,11 @@ function placeholderProduct(ref: CartItemRef): Product {
  * @param menuItems live products from useMenu()
  * @param globalDiscount optional sitewide discount (wired in Phase 4)
  */
-export function useCart(menuItems: Product[] = [], globalDiscount?: GlobalDiscount | null) {
+export function useCart(
+  menuItems: Product[] = [],
+  globalDiscount?: GlobalDiscount | null,
+  unavailableProductIds?: Set<string>,
+) {
   const [refs, setRefs] = useState<CartItemRef[]>(() => loadRefsFromStorage());
 
   // Persist identity-only refs whenever they change.
@@ -146,7 +150,9 @@ export function useCart(menuItems: Product[] = [], globalDiscount?: GlobalDiscou
 
       // A variation that no longer exists means the line is unavailable.
       const variationMissing = !!ref.variation_id && !variation;
-      const available = liveProduct.available !== false && !variationMissing;
+      // Turned OFF for the active Group Buy (does not affect global availability).
+      const gbUnavailable = unavailableProductIds?.has(ref.product_id) ?? false;
+      const available = liveProduct.available !== false && !variationMissing && !gbUnavailable;
 
       const availableStock = variation
         ? variation.stock_quantity
@@ -171,7 +177,7 @@ export function useCart(menuItems: Product[] = [], globalDiscount?: GlobalDiscou
         lineTotal: price * ref.quantity,
       };
     });
-  }, [refs, menuItems, globalDiscount]);
+  }, [refs, menuItems, globalDiscount, unavailableProductIds]);
 
   const addToCart = useCallback((product: Product, variation?: ProductVariation, quantity: number = 1) => {
     const pricingMode = getCurrentPricingMode();

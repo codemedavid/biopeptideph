@@ -8,6 +8,8 @@ interface ProductDetailModalProps {
   product: Product;
   onClose: () => void;
   onAddToCart: (product: Product, variation: ProductVariation | undefined, quantity: number) => void;
+  // Turned OFF for the active GB (behavior = "disable"): visible but not purchasable.
+  unavailable?: boolean;
 }
 
 // QuantityInput component for handling numeric input with string state
@@ -64,7 +66,7 @@ const QuantityInput: React.FC<{
   );
 };
 
-const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product, onClose, onAddToCart }) => {
+const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product, onClose, onAddToCart, unavailable = false }) => {
   const { pricingMode, currencySymbol, globalDiscount } = usePricingMode();
 
   // Select first available variation, or first variation if all are out of stock
@@ -335,12 +337,14 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product, onClos
 
                 {/* Add to Cart Button */}
                 <button
-                  onClick={handleAddToCart}
-                  disabled={!hasAnyStock || (selectedVariation && selectedVariation.stock_quantity === 0) || (!selectedVariation && product.stock_quantity === 0)}
+                  onClick={() => { if (!unavailable) handleAddToCart(); }}
+                  disabled={unavailable || !hasAnyStock || (selectedVariation && selectedVariation.stock_quantity === 0) || (!selectedVariation && product.stock_quantity === 0)}
                   className="w-full bg-theme-accent hover:bg-theme-accent/90 text-white py-2.5 sm:py-3 md:py-4 rounded-lg sm:rounded-xl font-bold text-sm sm:text-base md:text-lg shadow-lg hover:shadow-xl transform hover:scale-[1.02] transition-all flex items-center justify-center gap-1.5 sm:gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                 >
                   <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6" />
-                  {!hasAnyStock || (selectedVariation && selectedVariation.stock_quantity === 0) || (!selectedVariation && product.stock_quantity === 0) ? 'Out of Stock' : 'Add to Cart'}
+                  {unavailable
+                    ? 'Currently Unavailable'
+                    : (!hasAnyStock || (selectedVariation && selectedVariation.stock_quantity === 0) || (!selectedVariation && product.stock_quantity === 0) ? 'Out of Stock' : 'Add to Cart')}
                 </button>
               </div>
 

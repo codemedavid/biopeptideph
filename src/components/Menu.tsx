@@ -9,9 +9,11 @@ interface MenuProps {
   addToCart: (product: Product, variation?: ProductVariation, quantity?: number) => void;
   cartItems: CartItem[];
   updateQuantity: (index: number, quantity: number) => void;
+  // Products turned OFF for the active GB when behavior is "disable" (shown but not purchasable).
+  unavailableProductIds?: Set<string>;
 }
 
-const Menu: React.FC<MenuProps> = ({ menuItems, addToCart, cartItems }) => {
+const Menu: React.FC<MenuProps> = ({ menuItems, addToCart, cartItems, unavailableProductIds }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<'name' | 'price' | 'purity'>('name');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -51,6 +53,7 @@ const Menu: React.FC<MenuProps> = ({ menuItems, addToCart, cartItems }) => {
       {selectedProduct && (
         <ProductDetailModal
           product={selectedProduct}
+          unavailable={unavailableProductIds?.has(selectedProduct.id) ?? false}
           onClose={() => setSelectedProduct(null)}
           onAddToCart={(product, variation, quantity) => {
             addToCart(product, variation, quantity);
@@ -128,6 +131,7 @@ const Menu: React.FC<MenuProps> = ({ menuItems, addToCart, cartItems }) => {
                   onAddToCart={addToCart}
                   cartQuantity={getCartQuantity(product.id)}
                   onProductClick={setSelectedProduct}
+                  unavailable={unavailableProductIds?.has(product.id) ?? false}
                 />
               ))}
             </div>

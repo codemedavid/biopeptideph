@@ -5,6 +5,7 @@ import { useMenu } from '../hooks/useMenu';
 import { useCategories } from '../hooks/useCategories';
 import { useSiteSettings } from '../hooks/useSiteSettings';
 import { supabase } from '../lib/supabase';
+import { phpToUsd, usdToPhp, normalizeRate, DEFAULT_USD_PHP_RATE } from '../lib/exchange';
 import ImageUpload from './ImageUpload';
 import CategoryManager from './CategoryManager';
 import PaymentMethodManager from './PaymentMethodManager';
@@ -187,6 +188,10 @@ const AdminDashboard: React.FC = () => {
     try {
       setIsProcessing(true);
 
+      // The admin only ever enters the PHP price; USD is always derived from it
+      // using the one saved exchange rate, so the two currencies can never drift.
+      const rate = normalizeRate(siteSettings?.usd_php_rate) ?? DEFAULT_USD_PHP_RATE;
+
       // Prepare data for saving - convert undefined to null for nullable fields
       const prepareData = (data: Partial<Product>) => {
         const prepared = { ...data };
@@ -198,6 +203,12 @@ const AdminDashboard: React.FC = () => {
         if (prepared.cas_number === undefined) prepared.cas_number = null;
         if (prepared.sequence === undefined) prepared.sequence = null;
         if (prepared.inclusions === undefined) prepared.inclusions = null;
+
+        // Auto-sync currencies: national (PHP) defaults to the base price, and
+        // the international (USD) price is always recomputed from it at the rate.
+        const php = Number(prepared.national_price ?? prepared.base_price) || 0;
+        prepared.national_price = prepared.national_price ?? prepared.base_price;
+        prepared.international_price = phpToUsd(php, rate);
         return prepared;
       };
 
@@ -347,6 +358,11 @@ const AdminDashboard: React.FC = () => {
     setManagingVariationsProductId(null);
   };
 
+  // Saved PHP<->USD rate (₱ per $1), used to live-preview the auto-calculated
+  // USD price in the product form. Falls back until the admin sets a rate.
+  const savedRate = normalizeRate(siteSettings?.usd_php_rate) ?? DEFAULT_USD_PHP_RATE;
+  const formUsdPreview = phpToUsd(Number(formData.national_price ?? formData.base_price) || 0, savedRate);
+
   // Dashboard Stats
   const totalProducts = products.length;
   const featuredProducts = products.filter(p => p.featured).length;
@@ -397,35 +413,47 @@ const AdminDashboard: React.FC = () => {
       // Save the exchange rate to site settings
       await upsertSiteSetting('usd_php_rate', rate.toString(), 'USD to PHP exchange rate');
 
-      // Update all products: international_price = round(national_price / rate)
-      let productUpdates = 0;
-      let variationUpdates = 0;
+      // Fetch EVERY product/variation directly (not the storefront-filtered list,
+      // which only loads available products) so the rate is applied to all of them:
+      // international_price = round(national_price / rate).
+      const { data: allProducts, error: prodFetchErr } = await supabase
+        .from('products')
+        .select('id, base_price, national_price');
+      const { data: allVariations, error: varFetchErr } = await supabase
+        .from('product_variations')
+        .select('id, price, national_price');
 
-      for (const product of products) {
+      if (prodFetchErr || varFetchErr) {
+        throw prodFetchErr || varFetchErr;
+      }
+
+      let productUpdates = 0;
+      let productFailures = 0;
+      let variationUpdates = 0;
+      let variationFailures = 0;
+
+      for (const product of allProducts || []) {
         const phpPrice = product.national_price ?? product.base_price;
-        const usdPrice = Math.round((phpPrice / rate) * 100) / 100;
+        const usdPrice = phpToUsd(phpPrice, rate);
 
         const { error: prodErr } = await supabase
           .from('products')
           .update({ international_price: usdPrice })
           .eq('id', product.id);
 
-        if (!prodErr) productUpdates++;
+        if (prodErr) productFailures++; else productUpdates++;
+      }
 
-        // Update all variations for this product
-        if (product.variations && product.variations.length > 0) {
-          for (const variation of product.variations) {
-            const varPhpPrice = variation.national_price ?? variation.price;
-            const varUsdPrice = Math.round((varPhpPrice / rate) * 100) / 100;
+      for (const variation of allVariations || []) {
+        const varPhpPrice = variation.national_price ?? variation.price;
+        const varUsdPrice = phpToUsd(varPhpPrice, rate);
 
-            const { error: varErr } = await supabase
-              .from('product_variations')
-              .update({ international_price: varUsdPrice })
-              .eq('id', variation.id);
+        const { error: varErr } = await supabase
+          .from('product_variations')
+          .update({ international_price: varUsdPrice })
+          .eq('id', variation.id);
 
-            if (!varErr) variationUpdates++;
-          }
-        }
+        if (varErr) variationFailures++; else variationUpdates++;
       }
 
       await refreshProducts();
@@ -433,8 +461,8 @@ const AdminDashboard: React.FC = () => {
       alert(
         `Exchange rate applied successfully!\n\n` +
         `Rate: ₱${rate} = $1 USD\n` +
-        `Products updated: ${productUpdates}\n` +
-        `Variations updated: ${variationUpdates}`
+        `Products updated: ${productUpdates}${productFailures ? ` (${productFailures} failed)` : ''}\n` +
+        `Variations updated: ${variationUpdates}${variationFailures ? ` (${variationFailures} failed)` : ''}`
       );
     } catch (error) {
       console.error('Error applying exchange rate:', error);
@@ -465,37 +493,50 @@ const AdminDashboard: React.FC = () => {
 
       await upsertSiteSetting('usd_php_rate', rate.toString(), 'USD to PHP exchange rate');
 
-      let productUpdates = 0;
-      let variationUpdates = 0;
+      // Fetch EVERY product/variation directly so the rate is applied to all of
+      // them: national_price = base_price = round(international_price * rate).
+      const { data: allProducts, error: prodFetchErr } = await supabase
+        .from('products')
+        .select('id, international_price');
+      const { data: allVariations, error: varFetchErr } = await supabase
+        .from('product_variations')
+        .select('id, international_price');
 
-      for (const product of products) {
+      if (prodFetchErr || varFetchErr) {
+        throw prodFetchErr || varFetchErr;
+      }
+
+      let productUpdates = 0;
+      let productFailures = 0;
+      let variationUpdates = 0;
+      let variationFailures = 0;
+
+      for (const product of allProducts || []) {
         const usdPrice = product.international_price;
         if (usdPrice == null || usdPrice <= 0) continue;
 
-        const phpPrice = Math.round(usdPrice * rate * 100) / 100;
+        const phpPrice = usdToPhp(usdPrice, rate);
 
         const { error: prodErr } = await supabase
           .from('products')
           .update({ national_price: phpPrice, base_price: phpPrice })
           .eq('id', product.id);
 
-        if (!prodErr) productUpdates++;
+        if (prodErr) productFailures++; else productUpdates++;
+      }
 
-        if (product.variations && product.variations.length > 0) {
-          for (const variation of product.variations) {
-            const varUsdPrice = variation.international_price;
-            if (varUsdPrice == null || varUsdPrice <= 0) continue;
+      for (const variation of allVariations || []) {
+        const varUsdPrice = variation.international_price;
+        if (varUsdPrice == null || varUsdPrice <= 0) continue;
 
-            const varPhpPrice = Math.round(varUsdPrice * rate * 100) / 100;
+        const varPhpPrice = usdToPhp(varUsdPrice, rate);
 
-            const { error: varErr } = await supabase
-              .from('product_variations')
-              .update({ national_price: varPhpPrice, price: varPhpPrice })
-              .eq('id', variation.id);
+        const { error: varErr } = await supabase
+          .from('product_variations')
+          .update({ national_price: varPhpPrice, price: varPhpPrice })
+          .eq('id', variation.id);
 
-            if (!varErr) variationUpdates++;
-          }
-        }
+        if (varErr) variationFailures++; else variationUpdates++;
       }
 
       await refreshProducts();
@@ -503,8 +544,8 @@ const AdminDashboard: React.FC = () => {
       alert(
         `Exchange rate applied successfully!\n\n` +
         `Rate: $1 USD = ₱${rate}\n` +
-        `Products updated: ${productUpdates}\n` +
-        `Variations updated: ${variationUpdates}`
+        `Products updated: ${productUpdates}${productFailures ? ` (${productFailures} failed)` : ''}\n` +
+        `Variations updated: ${variationUpdates}${variationFailures ? ` (${variationFailures} failed)` : ''}`
       );
     } catch (error) {
       console.error('Error applying USD→PHP exchange rate:', error);
@@ -717,19 +758,22 @@ const AdminDashboard: React.FC = () => {
                       </div>
                       <div className="bg-blue-50/50 rounded-lg p-2 border border-blue-100">
                         <label className="block text-[10px] md:text-xs font-semibold text-blue-700 mb-1">
-                          🌎 International (USD) *
+                          🌎 International (USD) — auto
                         </label>
                         <div className="relative">
                           <span className="absolute left-2 top-1/2 -translate-y-1/2 text-blue-600 font-bold text-sm">$</span>
                           <input
-                            type="number"
-                            step="0.01"
-                            value={formData.international_price || ''}
-                            onChange={(e) => setFormData({ ...formData, international_price: Number(e.target.value) || null })}
-                            className="input-field text-sm pl-6 border-blue-200 focus:border-blue-500 focus:ring-blue-500"
-                            placeholder="0"
+                            type="text"
+                            readOnly
+                            value={formUsdPreview ? formUsdPreview.toFixed(2) : ''}
+                            title="Auto-calculated from the PHP price and the saved exchange rate"
+                            className="input-field text-sm pl-6 border-blue-200 bg-blue-50/60 text-blue-700 cursor-not-allowed"
+                            placeholder="0.00"
                           />
                         </div>
+                        <p className="text-[10px] text-blue-600/80 mt-1">
+                          Auto from ₱{savedRate} = $1
+                        </p>
                       </div>
                     </div>
 

@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { Plus, Edit, Trash2, Save, X, Package } from 'lucide-react';
 import type { Product, ProductVariation } from '../types';
 import { useMenu } from '../hooks/useMenu';
+import { useSiteSettings } from '../hooks/useSiteSettings';
+import { phpToUsd, normalizeRate, DEFAULT_USD_PHP_RATE } from '../lib/exchange';
 
 interface VariationManagerProps {
   product: Product;
@@ -10,6 +12,9 @@ interface VariationManagerProps {
 
 const VariationManager: React.FC<VariationManagerProps> = ({ product, onClose }) => {
   const { addVariation, updateVariation, deleteVariation } = useMenu();
+  const { siteSettings } = useSiteSettings();
+  // USD per size is always derived from its PHP price at the saved rate.
+  const savedRate = normalizeRate(siteSettings?.usd_php_rate) ?? DEFAULT_USD_PHP_RATE;
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -46,9 +51,9 @@ const VariationManager: React.FC<VariationManagerProps> = ({ product, onClose })
         product_id: product.id,
         name: newVariation.name,
         quantity_mg: newVariation.quantity_mg,
-        price: newVariation.price,
+        price: newVariation.national_price,
         national_price: newVariation.national_price,
-        international_price: newVariation.international_price,
+        international_price: phpToUsd(newVariation.national_price, savedRate),
         stock_quantity: newVariation.stock_quantity
       });
 
@@ -94,7 +99,11 @@ const VariationManager: React.FC<VariationManagerProps> = ({ product, onClose })
 
     try {
       setIsProcessing(true);
-      const result = await updateVariation(editingId, editingVariation);
+      const result = await updateVariation(editingId, {
+        ...editingVariation,
+        price: editingVariation.national_price,
+        international_price: phpToUsd(editingVariation.national_price, savedRate),
+      });
       if (result.success) {
         setEditingId(null);
         alert('Variation updated successfully!');
@@ -221,15 +230,16 @@ const VariationManager: React.FC<VariationManagerProps> = ({ product, onClose })
 
                           <div>
                             <label className="block text-sm font-semibold text-gray-700 mb-2">
-                              Price USD ($) *
+                              Price USD ($) — auto
                             </label>
                             <input
-                              type="number"
-                              step="0.01"
-                              value={editingVariation.international_price}
-                              onChange={(e) => setEditingVariation({ ...editingVariation, international_price: parseFloat(e.target.value) || 0 })}
-                              className="input-field"
+                              type="text"
+                              readOnly
+                              value={phpToUsd(editingVariation.national_price, savedRate).toFixed(2)}
+                              title="Auto-calculated from the PHP price and the saved exchange rate"
+                              className="input-field bg-blue-50/60 text-blue-700 cursor-not-allowed"
                             />
+                            <p className="text-[10px] text-blue-600/80 mt-1">Auto from ₱{savedRate} = $1</p>
                           </div>
 
                           <div>
@@ -376,15 +386,16 @@ const VariationManager: React.FC<VariationManagerProps> = ({ product, onClose })
 
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Price USD ($) *
+                      Price USD ($) — auto
                     </label>
                     <input
-                      type="number"
-                      step="0.01"
-                      value={newVariation.international_price}
-                      onChange={(e) => setNewVariation({ ...newVariation, international_price: parseFloat(e.target.value) || 0 })}
-                      className="input-field"
+                      type="text"
+                      readOnly
+                      value={phpToUsd(newVariation.national_price, savedRate).toFixed(2)}
+                      title="Auto-calculated from the PHP price and the saved exchange rate"
+                      className="input-field bg-blue-50/60 text-blue-700 cursor-not-allowed"
                     />
+                    <p className="text-[10px] text-blue-600/80 mt-1">Auto from ₱{savedRate} = $1</p>
                   </div>
 
                   <div>

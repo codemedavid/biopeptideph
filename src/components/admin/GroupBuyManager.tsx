@@ -2,9 +2,11 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   ArrowLeft, Plus, Edit, Trash2, Save, X, Package, Play, Square,
   Calendar, ShoppingBag, RefreshCw, AlertTriangle, Tag, FileSpreadsheet,
+  ToggleRight, Eye, EyeOff, CheckCircle2, XCircle,
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useGroupBuys, type GroupBuyInput } from '../../hooks/useGroupBuys';
+import { useGroupBuyAvailability } from '../../hooks/useGroupBuyAvailability';
 import { downloadGroupBuyReport } from '../../utils/groupBuyReport';
 import type { GroupBuy, GroupBuyStatus } from '../../types';
 
@@ -45,9 +47,16 @@ const GroupBuyManager: React.FC<GroupBuyManagerProps> = ({ onBack }) => {
     createGroupBuy, updateGroupBuy, setStatus, deleteGroupBuy, setProductGroupBuy,
   } = useGroupBuys();
 
-  const [view, setView] = useState<'list' | 'form' | 'assign'>('list');
+  const [view, setView] = useState<'list' | 'form' | 'assign' | 'availability'>('list');
   const [editing, setEditing] = useState<GroupBuy | null>(null);
   const [assignTarget, setAssignTarget] = useState<GroupBuy | null>(null);
+  const [availabilityTarget, setAvailabilityTarget] = useState<GroupBuy | null>(null);
+
+  // Per-GB availability for the GB currently open in the availability view.
+  const {
+    availabilityMap, behavior, available: availTableExists,
+    setAvailability, setBehavior,
+  } = useGroupBuyAvailability(availabilityTarget?.id);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -279,6 +288,9 @@ const GroupBuyManager: React.FC<GroupBuyManagerProps> = ({ onBack }) => {
                       <button onClick={() => { setAssignTarget(gb); setView('assign'); }} className="flex items-center gap-1.5 bg-theme-accent/10 hover:bg-theme-accent/20 text-theme-accent px-3 py-1.5 rounded-lg text-xs font-semibold">
                         <Package className="w-3.5 h-3.5" /> Assign Products
                       </button>
+                      <button onClick={() => { setAvailabilityTarget(gb); setView('availability'); }} className="flex items-center gap-1.5 bg-sky-50 hover:bg-sky-100 text-sky-700 px-3 py-1.5 rounded-lg text-xs font-semibold">
+                        <ToggleRight className="w-3.5 h-3.5" /> Availability
+                      </button>
                       <button onClick={() => handleDownloadReport(gb)} className="flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 px-3 py-1.5 rounded-lg text-xs font-semibold">
                         <FileSpreadsheet className="w-3.5 h-3.5" /> Report
                       </button>
@@ -407,6 +419,82 @@ const GroupBuyManager: React.FC<GroupBuyManagerProps> = ({ onBack }) => {
                 );
               })}
             </div>
+          </div>
+        )}
+
+        {/* ---- PRODUCT AVAILABILITY (per GB) ---- */}
+        {view === 'availability' && availabilityTarget && (
+          <div className="max-w-3xl mx-auto">
+            <div className="mb-4">
+              <button onClick={() => setView('list')} className="text-sm text-gray-500 hover:text-gray-800 flex items-center gap-1 mb-1">
+                <ArrowLeft className="w-4 h-4" /> Back to list
+              </button>
+              <h2 className="text-lg font-bold text-gray-900">Product availability — GB #{availabilityTarget.gb_number}</h2>
+              <p className="text-xs text-gray-500">Turn products ON/OFF for this Group Buy only. This never changes a product's global availability.</p>
+            </div>
+
+            {!availTableExists ? (
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-5 flex items-start gap-3">
+                <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0" />
+                <p className="text-sm text-amber-800">
+                  Run <code className="bg-amber-100 px-1 rounded">supabase/migrations/20260603000005_add_gb_product_availability.sql</code> to enable this feature.
+                </p>
+              </div>
+            ) : (
+              <>
+                {/* Behavior selector */}
+                <div className="bg-white rounded-xl shadow-soft border border-gray-100 p-4 mb-4">
+                  <p className="text-sm font-medium text-gray-700 mb-2">When a product is turned OFF, on the storefront:</p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={async () => { await setBehavior('hide'); flash('success', 'Unavailable products will be hidden.'); }}
+                      className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold ${behavior === 'hide' ? 'bg-theme-accent text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                    >
+                      <EyeOff className="w-3.5 h-3.5" /> Hide from store
+                    </button>
+                    <button
+                      onClick={async () => { await setBehavior('disable'); flash('success', 'Unavailable products will show as "Currently Unavailable".'); }}
+                      className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold ${behavior === 'disable' ? 'bg-theme-accent text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                    >
+                      <Eye className="w-3.5 h-3.5" /> Show as unavailable
+                    </button>
+                  </div>
+                </div>
+
+                {/* Assigned products list with toggles */}
+                <div className="bg-white rounded-xl shadow-soft border border-gray-100 divide-y divide-gray-100">
+                  {allProducts.filter((p) => p.group_buy_id === availabilityTarget.id).length === 0 && (
+                    <p className="p-6 text-sm text-gray-400 text-center">
+                      No products assigned to this Group Buy yet. Use “Assign Products” first.
+                    </p>
+                  )}
+                  {allProducts.filter((p) => p.group_buy_id === availabilityTarget.id).map((p) => {
+                    const isAvail = availabilityMap.get(p.id) ?? true;
+                    return (
+                      <div key={p.id} className="flex items-center gap-3 p-3">
+                        <div className="w-10 h-10 rounded-lg bg-gray-100 overflow-hidden flex items-center justify-center flex-shrink-0">
+                          {p.image_url ? <img src={p.image_url} alt={p.name} className="w-full h-full object-cover" /> : <Package className="w-5 h-5 text-gray-400" />}
+                        </div>
+                        <p className="flex-1 min-w-0 text-sm font-medium text-gray-800 truncate">{p.name}</p>
+                        <span className={`flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full ${isAvail ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-600'}`}>
+                          {isAvail ? <><CheckCircle2 className="w-3.5 h-3.5" /> Available</> : <><XCircle className="w-3.5 h-3.5" /> Unavailable</>}
+                        </span>
+                        <button
+                          onClick={async () => {
+                            const res = await setAvailability(p.id, !isAvail);
+                            if (!res.success) flash('error', res.error || 'Failed');
+                          }}
+                          aria-label={isAvail ? 'Turn off' : 'Turn on'}
+                          className={`relative w-12 h-6 rounded-full transition-colors flex-shrink-0 ${isAvail ? 'bg-green-500' : 'bg-gray-300'}`}
+                        >
+                          <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${isAvail ? 'translate-x-6' : ''}`} />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
           </div>
         )}
       </div>
