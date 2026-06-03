@@ -1,12 +1,21 @@
 import { Link } from 'react-router-dom';
+import { useSiteSettings } from '../hooks/useSiteSettings';
 
 export default function Terms() {
+    const { siteSettings } = useSiteSettings();
+    const customTerms = siteSettings?.terms_and_conditions_content?.trim();
+
     return (
         <div className="min-h-screen bg-gray-50 py-12">
             <div className="max-w-4xl mx-auto px-4">
                 <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
                     <h1 className="text-3xl font-bold text-gray-900 mb-6">Terms and Conditions</h1>
 
+                    {/* Admin-editable content (managed in Dashboard → Terms). Falls back
+                        to the static sections below when no custom content is set. */}
+                    {customTerms ? (
+                        <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">{customTerms}</p>
+                    ) : (
                     <div className="prose prose-gray max-w-none space-y-6">
                         <section>
                             <h2 className="text-xl font-semibold text-gray-900 mb-3">1. Acceptance of Terms</h2>
@@ -63,13 +72,14 @@ export default function Terms() {
                             </p>
                         </section>
                     </div>
+                    )}
 
                     <div className="mt-8 pt-6 border-t border-gray-200">
                         <Link
-                            to="/assessment"
+                            to="/"
                             className="text-blue-600 hover:text-blue-700 font-medium"
                         >
-                            ← Back to Assessment
+                            ← Back to Home
                         </Link>
                     </div>
                 </div>

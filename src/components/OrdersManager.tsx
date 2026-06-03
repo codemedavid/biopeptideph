@@ -43,6 +43,8 @@ interface Order {
   discount_amount?: number;
   pricing_mode?: 'national' | 'international';
   currency?: 'PHP' | 'USD';
+  group_buy_id?: string | null;
+  group_buy_number?: number | null;
 }
 
 interface OrdersManagerProps {
@@ -54,6 +56,8 @@ const OrdersManager: React.FC<OrdersManagerProps> = ({ onBack }) => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [paymentFilter, setPaymentFilter] = useState<string>('all');
+  const [gbFilter, setGbFilter] = useState<string>('all');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -281,12 +285,35 @@ const OrdersManager: React.FC<OrdersManagerProps> = ({ onBack }) => {
     });
   };
 
+  // Distinct Group Buys present across orders, for the GB filter dropdown.
+  const gbOptions = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const o of orders) {
+      if (o.group_buy_id) map.set(o.group_buy_id, o.group_buy_number ?? 0);
+    }
+    return Array.from(map.entries())
+      .map(([id, number]) => ({ id, number }))
+      .sort((a, b) => b.number - a.number);
+  }, [orders]);
+
   const filteredOrders = useMemo(() => {
     let filtered = orders;
 
-    // Filter by status
+    // Filter by order status
     if (statusFilter !== 'all') {
       filtered = filtered.filter(o => o.order_status === statusFilter);
+    }
+
+    // Filter by payment status
+    if (paymentFilter !== 'all') {
+      filtered = filtered.filter(o => o.payment_status === paymentFilter);
+    }
+
+    // Filter by Group Buy
+    if (gbFilter !== 'all') {
+      filtered = gbFilter === 'none'
+        ? filtered.filter(o => !o.group_buy_id)
+        : filtered.filter(o => o.group_buy_id === gbFilter);
     }
 
     // Filter by search query
@@ -301,7 +328,7 @@ const OrdersManager: React.FC<OrdersManagerProps> = ({ onBack }) => {
     }
 
     return filtered;
-  }, [orders, statusFilter, searchQuery]);
+  }, [orders, statusFilter, paymentFilter, gbFilter, searchQuery]);
 
   const statusCounts = useMemo(() => {
     return {
@@ -483,6 +510,29 @@ const OrdersManager: React.FC<OrdersManagerProps> = ({ onBack }) => {
                 className="w-full pl-9 md:pl-10 pr-3 md:pr-4 py-2 text-sm md:text-base border-2 border-gray-200 rounded-lg focus:border-theme-accent focus:outline-none focus:ring-2 focus:ring-theme-accent/20 transition-colors"
               />
             </div>
+            <select
+              value={gbFilter}
+              onChange={(e) => setGbFilter(e.target.value)}
+              className="py-2 px-3 text-sm md:text-base border-2 border-gray-200 rounded-lg focus:border-theme-accent focus:outline-none focus:ring-2 focus:ring-theme-accent/20 bg-white"
+              title="Filter by Group Buy"
+            >
+              <option value="all">All Group Buys</option>
+              {gbOptions.map((g) => (
+                <option key={g.id} value={g.id}>GB #{g.number}</option>
+              ))}
+              <option value="none">No Group Buy</option>
+            </select>
+            <select
+              value={paymentFilter}
+              onChange={(e) => setPaymentFilter(e.target.value)}
+              className="py-2 px-3 text-sm md:text-base border-2 border-gray-200 rounded-lg focus:border-theme-accent focus:outline-none focus:ring-2 focus:ring-theme-accent/20 bg-white"
+              title="Filter by payment status"
+            >
+              <option value="all">All Payments</option>
+              <option value="pending">Pending</option>
+              <option value="paid">Paid</option>
+              <option value="failed">Failed</option>
+            </select>
           </div>
         </div>
 
@@ -641,6 +691,12 @@ const OrderCard: React.FC<OrderCardProps> = ({ order, onView, onDelete, isSelect
                 {order.pricing_mode === 'international' ? '🌎 USD' : '🇵🇭 PHP'}
               </span>
             )}
+            {/* Group Buy Badge */}
+            {order.group_buy_number ? (
+              <span className="px-2 md:px-3 py-0.5 md:py-1 rounded-full text-[10px] md:text-xs font-semibold bg-theme-accent/10 text-theme-accent border border-theme-accent/20">
+                GB #{order.group_buy_number}
+              </span>
+            ) : null}
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4 text-xs md:text-sm">

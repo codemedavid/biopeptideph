@@ -115,6 +115,7 @@ const Cart: React.FC<CartProps> = ({
   const totalPrice = getTotalPrice();
   // Shipping fee will be discussed via chat
   const finalTotal = totalPrice;
+  const hasUnavailable = cartItems.some(item => item.available === false);
 
   return (
     <div className="min-h-screen bg-white py-6 md:py-8">
@@ -195,6 +196,16 @@ const Cart: React.FC<CartProps> = ({
                             </span>
                           </div>
                         ) : null}
+                        {item.available === false && (
+                          <p className="mt-1 text-[10px] md:text-xs font-semibold text-red-600">
+                            ⚠️ No longer available — please remove to continue.
+                          </p>
+                        )}
+                        {item.available && item.availableStock > 0 && item.quantity > item.availableStock && (
+                          <p className="mt-1 text-[10px] md:text-xs font-semibold text-amber-600">
+                            ⚠️ Only {item.availableStock} left in stock.
+                          </p>
+                        )}
                       </div>
                       <button
                         onClick={() => removeFromCart(index)}
@@ -300,9 +311,15 @@ const Cart: React.FC<CartProps> = ({
                 </div>
               </div>
 
+              {hasUnavailable && (
+                <p className="text-xs text-red-600 font-medium mb-2 text-center">
+                  Remove unavailable items to proceed to checkout.
+                </p>
+              )}
               <button
                 onClick={onCheckout}
-                className="w-full bg-theme-accent hover:bg-theme-accent/90 text-white py-3 md:py-4 rounded-lg font-semibold text-sm md:text-base shadow-lg hover:shadow-xl transform hover:scale-105 transition-all mb-3 flex items-center justify-center gap-2"
+                disabled={hasUnavailable}
+                className="w-full bg-theme-accent hover:bg-theme-accent/90 text-white py-3 md:py-4 rounded-lg font-semibold text-sm md:text-base shadow-lg hover:shadow-xl transform hover:scale-105 transition-all mb-3 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
               >
                 <CreditCard className="w-5 h-5" />
                 Proceed to Checkout

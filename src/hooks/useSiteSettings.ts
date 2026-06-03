@@ -43,7 +43,20 @@ export const useSiteSettings = () => {
         home_hero_title_suffix: data.find(s => s.id === 'home_hero_title_suffix')?.value || '',
         home_hero_subtext: data.find(s => s.id === 'home_hero_subtext')?.value || 'Radiance, refined for your everyday ritual.',
         home_hero_tagline: data.find(s => s.id === 'home_hero_tagline')?.value || 'Curated essentials. Gentle formulas. A glow you can feel.',
-        home_hero_description: data.find(s => s.id === 'home_hero_description')?.value || 'Discover thoughtfully selected beauty and wellness essentials designed to elevate your natural glow with a luxe, gentle touch.'
+        home_hero_description: data.find(s => s.id === 'home_hero_description')?.value || 'Discover thoughtfully selected beauty and wellness essentials designed to elevate your natural glow with a luxe, gentle touch.',
+        home_hero_image_url: data.find(s => s.id === 'home_hero_image_url')?.value || '',
+        home_hero_cta_text: data.find(s => s.id === 'home_hero_cta_text')?.value || '',
+        home_hero_cta_link: data.find(s => s.id === 'home_hero_cta_link')?.value || '',
+
+        // Global Discount
+        global_discount_active: data.find(s => s.id === 'global_discount_active')?.value === 'true',
+        global_discount_type: (data.find(s => s.id === 'global_discount_type')?.value === 'fixed' ? 'fixed' : 'percentage'),
+        global_discount_value: parseFloat(data.find(s => s.id === 'global_discount_value')?.value || '0'),
+        global_discount_start: data.find(s => s.id === 'global_discount_start')?.value || '',
+        global_discount_end: data.find(s => s.id === 'global_discount_end')?.value || '',
+
+        // Terms & Conditions
+        terms_and_conditions_content: data.find(s => s.id === 'terms_and_conditions_content')?.value || '',
       };
 
       setSiteSettings(settings);

@@ -34,6 +34,9 @@ export interface Product {
   image_url: string | null;
   safety_sheet_url: string | null;
 
+  // Group Buy assignment (the preorder "round" a product belongs to). Nullable.
+  group_buy_id?: string | null;
+
   created_at: string;
   updated_at: string;
 
@@ -85,7 +88,60 @@ export interface SiteSetting {
   updated_at: string;
 }
 
+// Group Buy ("round") — see supabase/migrations/*_add_group_buys.sql
+export type GroupBuyStatus = 'upcoming' | 'active' | 'closed';
+
+export interface GroupBuy {
+  id: string;
+  gb_number: number;
+  title: string;
+  description: string | null;
+  start_date: string | null;
+  end_date: string | null;
+  status: GroupBuyStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+// Hero Carousel slide — see supabase/migrations/*_add_hero_carousel.sql
+export interface HeroSlide {
+  id: string;
+  image_url: string;
+  title: string | null;
+  subtitle: string | null;
+  button_text: string | null;
+  button_link: string | null;
+  sort_order: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 // Cart Types
+//
+// Two shapes, on purpose:
+//  - CartItemRef is what we PERSIST (localStorage). It stores identity + quantity
+//    ONLY. Prices are deliberately never persisted, so a cart can't carry a stale
+//    price across a price change or a browser session. (Fixes the cart-price bug.)
+//  - CartItem is the RESOLVED line the UI consumes. product/variation/price are
+//    always live, re-derived from the menu on every change.
+export interface CartItemRef {
+  product_id: string;
+  variation_id?: string;
+  quantity: number;
+  pricing_mode: PricingMode;
+  currency: 'PHP' | 'USD';
+  added_at: number;
+  // Resilient display-only snapshot — used solely so a deleted/not-yet-loaded
+  // product still renders a name/image. NEVER used to compute totals or charge.
+  snapshot?: {
+    name: string;
+    image_url: string | null;
+    variation_name?: string | null;
+    purity_percentage?: number | null;
+  };
+}
+
 export interface CartItem {
   product: Product;
   variation?: ProductVariation;
@@ -93,6 +149,10 @@ export interface CartItem {
   price: number;
   pricing_mode: PricingMode;
   currency: 'PHP' | 'USD';
+  // Live state, set by the cart resolver:
+  available: boolean;      // product (and variation, if any) currently exists & is available
+  availableStock: number;  // current live stock for this line
+  lineTotal: number;       // price * quantity (live)
 }
 
 // Order Types
@@ -133,6 +193,19 @@ export interface SiteSettings {
   home_hero_subtext: string;
   home_hero_tagline: string;
   home_hero_description: string;
+  home_hero_image_url: string;
+  home_hero_cta_text: string;
+  home_hero_cta_link: string;
+
+  // Global Discount (#7)
+  global_discount_active: boolean;
+  global_discount_type: 'percentage' | 'fixed';
+  global_discount_value: number;
+  global_discount_start: string;
+  global_discount_end: string;
+
+  // Terms & Conditions (#8)
+  terms_and_conditions_content: string;
 }
 
 // Assessment Types

@@ -1,7 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { useCart } from './hooks/useCart';
-import { PricingProvider } from './hooks/usePricingMode';
+import { PricingProvider, usePricingMode } from './hooks/usePricingMode';
 import Header from './components/Header';
 import Hero from './components/Hero';
 import CTASection from './components/CTASection';
@@ -14,6 +14,7 @@ import FloatingCartButton from './components/FloatingCartButton';
 import Footer from './components/Footer';
 import AdminDashboard from './components/AdminDashboard';
 import { useMenu } from './hooks/useMenu';
+import { useGroupBuys } from './hooks/useGroupBuys';
 import PeptideJourney from './pages/PeptideJourney';
 import AssessmentWizardV2 from './pages/AssessmentWizardV2';
 import AssessmentResults from './pages/AssessmentResults';
@@ -24,10 +25,15 @@ import PeptideCheatSheet from './pages/PeptideCheatSheet';
 import type { PricingMode } from './types';
 
 function MainApp() {
-  const cart = useCart();
   const { menuItems } = useMenu();
+  const { globalDiscount } = usePricingMode();
+  const cart = useCart(menuItems, globalDiscount);
+  const { activeGroupBuy } = useGroupBuys();
   const [currentView, setCurrentView] = React.useState<'menu' | 'cart' | 'checkout'>('menu');
   const [selectedCategory, setSelectedCategory] = React.useState<string>('all');
+  // When a GB is active, "Explore GB #N" narrows the storefront to that round's
+  // products. Defaults to off so browsing is never broken if nothing is assigned.
+  const [gbOnly, setGbOnly] = React.useState(false);
 
   const handleViewChange = (view: 'menu' | 'cart' | 'checkout') => {
     setCurrentView(view);
@@ -54,10 +60,13 @@ function MainApp() {
     return true;
   };
 
-  // Filter products based on selected category
+  // Filter products: optional active-GB narrowing, then category.
+  const gbScoped = gbOnly && activeGroupBuy
+    ? menuItems.filter(item => item.group_buy_id === activeGroupBuy.id)
+    : menuItems;
   const filteredProducts = selectedCategory === 'all'
-    ? menuItems
-    : menuItems.filter(item => item.category === selectedCategory);
+    ? gbScoped
+    : gbScoped.filter(item => item.category === selectedCategory);
 
   return (
     <div className="min-h-screen bg-white font-inter flex flex-col">
@@ -79,10 +88,32 @@ function MainApp() {
         {currentView === 'menu' && (
           <>
             <Hero
+              activeGbNumber={activeGroupBuy?.gb_number ?? null}
               onShopAll={() => {
+                if (activeGroupBuy) setGbOnly(true);
                 document.getElementById('product-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
               }}
             />
+            {activeGroupBuy && (
+              <div className="bg-theme-accent/10 border-y border-theme-accent/20">
+                <div className="container mx-auto px-4 py-3 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-center">
+                  <span className="text-sm font-semibold text-theme-accent">
+                    🛒 Group Buy #{activeGroupBuy.gb_number} — {activeGroupBuy.title} is now OPEN
+                  </span>
+                  {activeGroupBuy.end_date && (
+                    <span className="text-xs text-gray-600">
+                      closes {new Date(activeGroupBuy.end_date).toLocaleDateString()}
+                    </span>
+                  )}
+                  <button
+                    onClick={() => setGbOnly((v) => !v)}
+                    className="text-xs font-semibold underline text-theme-accent hover:text-theme-accent/80"
+                  >
+                    {gbOnly ? 'View all products' : `View GB #${activeGroupBuy.gb_number} only`}
+                  </button>
+                </div>
+              </div>
+            )}
             <Menu
               menuItems={filteredProducts}
               addToCart={cart.addToCart}
@@ -110,6 +141,8 @@ function MainApp() {
             cartItems={cart.cartItems}
             totalPrice={cart.getTotalPrice()}
             onBack={() => handleViewChange('cart')}
+            clearCart={cart.clearCart}
+            activeGroupBuy={activeGroupBuy}
           />
         )}
       </main>

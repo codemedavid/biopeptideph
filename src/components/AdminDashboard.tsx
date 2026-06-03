@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Edit, Trash2, Save, X, ArrowLeft, Package, CreditCard, Sparkles, Layers, Shield, RefreshCw, Warehouse, ShoppingCart, MapPin, Check, ClipboardList, FileText, DollarSign } from 'lucide-react';
+import { Plus, Edit, Trash2, Save, X, ArrowLeft, Package, CreditCard, Sparkles, Layers, Shield, RefreshCw, Warehouse, ShoppingCart, MapPin, Check, ClipboardList, FileText, DollarSign, ShoppingBag, BarChart3, Image as ImageIcon, Percent, ScrollText } from 'lucide-react';
 import type { Product } from '../types';
 import { useMenu } from '../hooks/useMenu';
 import { useCategories } from '../hooks/useCategories';
@@ -15,6 +15,11 @@ import ShippingManager from './ShippingManager';
 import JourneyManager from './admin/JourneyManager';
 import AssessmentManager from './admin/AssessmentManager';
 import SmartGuideManager from './admin/SmartGuideManager';
+import GroupBuyManager from './admin/GroupBuyManager';
+import SalesAnalytics from './admin/SalesAnalytics';
+import HeroManager from './admin/HeroManager';
+import DiscountManager from './admin/DiscountManager';
+import TermsManager from './admin/TermsManager';
 
 
 const AdminDashboard: React.FC = () => {
@@ -24,7 +29,7 @@ const AdminDashboard: React.FC = () => {
   const { products, loading, addProduct, updateProduct, deleteProduct, refreshProducts } = useMenu();
   const { categories } = useCategories();
   const { siteSettings, upsertSiteSetting } = useSiteSettings();
-  const [currentView, setCurrentView] = useState<'dashboard' | 'products' | 'add' | 'edit' | 'categories' | 'payments' | 'inventory' | 'orders' | 'shipping' | 'journey' | 'assessment' | 'guides'>('dashboard');
+  const [currentView, setCurrentView] = useState<'dashboard' | 'products' | 'add' | 'edit' | 'categories' | 'payments' | 'inventory' | 'orders' | 'shipping' | 'journey' | 'assessment' | 'guides' | 'group-buys' | 'analytics' | 'hero' | 'discounts' | 'terms'>('dashboard');
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [managingVariationsProductId, setManagingVariationsProductId] = useState<string | null>(null);
@@ -1386,6 +1391,31 @@ const AdminDashboard: React.FC = () => {
     return <OrdersManager onBack={() => setCurrentView('dashboard')} />;
   }
 
+  // Group Buys View
+  if (currentView === 'group-buys') {
+    return <GroupBuyManager onBack={() => setCurrentView('dashboard')} />;
+  }
+
+  // Sales Analytics View
+  if (currentView === 'analytics') {
+    return <SalesAnalytics onBack={() => setCurrentView('dashboard')} />;
+  }
+
+  // Hero Section View
+  if (currentView === 'hero') {
+    return <HeroManager onBack={() => setCurrentView('dashboard')} />;
+  }
+
+  // Global Discount View
+  if (currentView === 'discounts') {
+    return <DiscountManager onBack={() => setCurrentView('dashboard')} />;
+  }
+
+  // Terms & Conditions View
+  if (currentView === 'terms') {
+    return <TermsManager onBack={() => setCurrentView('dashboard')} />;
+  }
+
 
 
   // Shipping View
@@ -1574,6 +1604,71 @@ const AdminDashboard: React.FC = () => {
               </div>
               <h3 className="text-sm md:text-lg font-bold text-theme-text mb-1 md:mb-2 group-hover:text-green-600 transition-colors">Orders</h3>
               <p className="text-xs md:text-sm text-gray-500 line-clamp-2">Manage orders.</p>
+            </button>
+
+            {/* Group Buys Management Card */}
+            <button
+              onClick={() => setCurrentView('group-buys')}
+              className="bg-white p-4 md:p-6 rounded-xl shadow-soft border border-gray-100 hover:shadow-medium transition-all group text-left relative overflow-hidden"
+            >
+              <div className="absolute top-0 right-0 w-16 h-16 md:w-24 md:h-24 bg-theme-accent/5 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
+              <div className="p-2 md:p-3 bg-theme-accent/10 rounded-lg w-fit mb-3 md:mb-4 group-hover:bg-theme-accent group-hover:text-white transition-colors">
+                <ShoppingBag className="w-4 h-4 md:w-6 md:h-6 text-theme-accent group-hover:text-white" />
+              </div>
+              <h3 className="text-sm md:text-lg font-bold text-theme-text mb-1 md:mb-2 group-hover:text-theme-accent transition-colors">Group Buys</h3>
+              <p className="text-xs md:text-sm text-gray-500 line-clamp-2">Create & manage GB rounds.</p>
+            </button>
+
+            {/* Sales Analytics Card */}
+            <button
+              onClick={() => setCurrentView('analytics')}
+              className="bg-white p-4 md:p-6 rounded-xl shadow-soft border border-gray-100 hover:shadow-medium transition-all group text-left relative overflow-hidden"
+            >
+              <div className="absolute top-0 right-0 w-16 h-16 md:w-24 md:h-24 bg-blue-50 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
+              <div className="p-2 md:p-3 bg-blue-50 rounded-lg w-fit mb-3 md:mb-4 group-hover:bg-blue-500 group-hover:text-white transition-colors">
+                <BarChart3 className="w-4 h-4 md:w-6 md:h-6 text-blue-600 group-hover:text-white" />
+              </div>
+              <h3 className="text-sm md:text-lg font-bold text-theme-text mb-1 md:mb-2 group-hover:text-blue-600 transition-colors">Sales Analytics</h3>
+              <p className="text-xs md:text-sm text-gray-500 line-clamp-2">Revenue & best sellers.</p>
+            </button>
+
+            {/* Hero Section Card */}
+            <button
+              onClick={() => setCurrentView('hero')}
+              className="bg-white p-4 md:p-6 rounded-xl shadow-soft border border-gray-100 hover:shadow-medium transition-all group text-left relative overflow-hidden"
+            >
+              <div className="absolute top-0 right-0 w-16 h-16 md:w-24 md:h-24 bg-indigo-50 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
+              <div className="p-2 md:p-3 bg-indigo-50 rounded-lg w-fit mb-3 md:mb-4 group-hover:bg-indigo-500 group-hover:text-white transition-colors">
+                <ImageIcon className="w-4 h-4 md:w-6 md:h-6 text-indigo-600 group-hover:text-white" />
+              </div>
+              <h3 className="text-sm md:text-lg font-bold text-theme-text mb-1 md:mb-2 group-hover:text-indigo-600 transition-colors">Hero Section</h3>
+              <p className="text-xs md:text-sm text-gray-500 line-clamp-2">Edit homepage banner.</p>
+            </button>
+
+            {/* Global Discount Card */}
+            <button
+              onClick={() => setCurrentView('discounts')}
+              className="bg-white p-4 md:p-6 rounded-xl shadow-soft border border-gray-100 hover:shadow-medium transition-all group text-left relative overflow-hidden"
+            >
+              <div className="absolute top-0 right-0 w-16 h-16 md:w-24 md:h-24 bg-rose-50 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
+              <div className="p-2 md:p-3 bg-rose-50 rounded-lg w-fit mb-3 md:mb-4 group-hover:bg-rose-500 group-hover:text-white transition-colors">
+                <Percent className="w-4 h-4 md:w-6 md:h-6 text-rose-600 group-hover:text-white" />
+              </div>
+              <h3 className="text-sm md:text-lg font-bold text-theme-text mb-1 md:mb-2 group-hover:text-rose-600 transition-colors">Discounts</h3>
+              <p className="text-xs md:text-sm text-gray-500 line-clamp-2">Sitewide promo pricing.</p>
+            </button>
+
+            {/* Terms & Conditions Card */}
+            <button
+              onClick={() => setCurrentView('terms')}
+              className="bg-white p-4 md:p-6 rounded-xl shadow-soft border border-gray-100 hover:shadow-medium transition-all group text-left relative overflow-hidden"
+            >
+              <div className="absolute top-0 right-0 w-16 h-16 md:w-24 md:h-24 bg-slate-100 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
+              <div className="p-2 md:p-3 bg-slate-100 rounded-lg w-fit mb-3 md:mb-4 group-hover:bg-slate-600 group-hover:text-white transition-colors">
+                <ScrollText className="w-4 h-4 md:w-6 md:h-6 text-slate-600 group-hover:text-white" />
+              </div>
+              <h3 className="text-sm md:text-lg font-bold text-theme-text mb-1 md:mb-2 group-hover:text-slate-700 transition-colors">Terms</h3>
+              <p className="text-xs md:text-sm text-gray-500 line-clamp-2">Edit checkout T&amp;C.</p>
             </button>
 
             {/* Payment Methods Card */}

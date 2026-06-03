@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { ArrowLeft, CreditCard, ShieldCheck, Check, Copy, MessageCircle, Package, Sparkles, Heart } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import type { CartItem } from '../types';
+import type { CartItem, GroupBuy } from '../types';
 import ImageUpload from './ImageUpload';
 import { usePaymentMethods } from '../hooks/usePaymentMethods';
 import { useShippingLocations } from '../hooks/useShippingLocations';
@@ -12,9 +12,45 @@ interface CheckoutProps {
   cartItems: CartItem[];
   totalPrice: number;
   onBack: () => void;
+  clearCart: () => void;
+  activeGroupBuy?: GroupBuy | null;
 }
 
-const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack }) => {
+// Saved customer details for one-click repeat checkout (feature #10).
+// Only non-sensitive contact/shipping fields — never payment data.
+const CUSTOMER_KEY = 'peptide_customer_details';
+
+interface SavedCustomer {
+  fullName?: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  barangay?: string;
+  city?: string;
+  state?: string;
+  zipCode?: string;
+}
+
+function loadSavedCustomer(): SavedCustomer | null {
+  try {
+    const raw = localStorage.getItem(CUSTOMER_KEY);
+    return raw ? (JSON.parse(raw) as SavedCustomer) : null;
+  } catch {
+    return null;
+  }
+}
+
+// True when a Supabase error is "this column does not exist yet" — lets us retry
+// the order insert without the newer columns so the live store keeps working
+// before the Phase 1 migration is applied.
+function isMissingColumnError(err: { code?: string; message?: string } | null | undefined): boolean {
+  if (!err) return false;
+  if (err.code === '42703' || err.code === 'PGRST204') return true;
+  const m = (err.message || '').toLowerCase();
+  return m.includes('column') && (m.includes('does not exist') || m.includes('schema cache') || m.includes('could not find'));
+}
+
+const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, clearCart, activeGroupBuy }) => {
   const { paymentMethods } = usePaymentMethods();
   const { locations: shippingLocations, getShippingFee } = useShippingLocations();
   const { siteSettings } = useSiteSettings();
@@ -26,17 +62,21 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack }) =>
   const cartPricingMode = cartItems.length > 0 ? cartItems[0].pricing_mode : pricingMode;
   const currencySymbol = cartCurrency === 'PHP' ? '₱' : '$';
 
+  // Prefill customer/shipping details from a prior order (feature #10).
+  const savedCustomer = useMemo(() => loadSavedCustomer(), []);
+
   // Customer Details
-  const [fullName, setFullName] = useState('');
-  const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
+  const [fullName, setFullName] = useState(savedCustomer?.fullName ?? '');
+  const [email, setEmail] = useState(savedCustomer?.email ?? '');
+  const [phone, setPhone] = useState(savedCustomer?.phone ?? '');
 
   // Shipping Details
-  const [address, setAddress] = useState('');
-  const [barangay, setBarangay] = useState('');
-  const [city, setCity] = useState('');
-  const [state, setState] = useState('');
-  const [zipCode, setZipCode] = useState('');
+  const [address, setAddress] = useState(savedCustomer?.address ?? '');
+  const [barangay, setBarangay] = useState(savedCustomer?.barangay ?? '');
+  const [city, setCity] = useState(savedCustomer?.city ?? '');
+  const [state, setState] = useState(savedCustomer?.state ?? '');
+  const [zipCode, setZipCode] = useState(savedCustomer?.zipCode ?? '');
+  const [saveDetails, setSaveDetails] = useState(true);
   const [shippingLocation, setShippingLocation] = useState<'NCR' | 'LUZON' | 'VISAYAS_MINDANAO' | ''>('');
   const [courier, setCourier] = useState<'jnt' | 'lalamove'>('jnt');
 
@@ -45,6 +85,8 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack }) =>
   const [paymentProof, setPaymentProof] = useState<string | null>(null);
   const [contactMethod, setContactMethod] = useState<'whatsapp' | ''>('whatsapp');
   const [notes, setNotes] = useState('');
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   // Order message for copying
   const [orderMessage, setOrderMessage] = useState<string>('');
@@ -119,11 +161,40 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack }) =>
       return;
     }
 
+    if (!termsAccepted) {
+      alert('Please read and agree to the Terms & Conditions before completing your order.');
+      return;
+    }
+
+    if (cartItems.length === 0) {
+      alert('Your cart is empty.');
+      return;
+    }
+
+    if (cartItems.some(item => item.available === false)) {
+      alert('Some items in your cart are no longer available. Please go back and remove them before checking out.');
+      return;
+    }
+
+    // Prevent duplicate submissions (feature #9).
+    if (submitting) return;
+    setSubmitting(true);
+
     const paymentMethod = paymentMethods.find(pm => pm.id === selectedPaymentMethod);
 
     try {
-      // Prepare order items for database
-      const orderItems = cartItems.map(item => ({
+      // --- Server-side price validation (feature #11) ---------------------------
+      // Recompute every line price + the subtotal on the server from the live
+      // database. The server is the source of truth; a tampered/stale localStorage
+      // price can never reach the saved order. If the RPC isn't deployed yet we
+      // fall back to the live client prices (already correct, just not anti-tamper).
+      const rpcItems = cartItems.map(item => ({
+        product_id: item.product.id,
+        variation_id: item.variation?.id ?? null,
+        quantity: item.quantity,
+      }));
+
+      let orderItems = cartItems.map(item => ({
         product_id: item.product.id,
         product_name: item.product.name,
         variation_id: item.variation?.id || null,
@@ -131,37 +202,98 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack }) =>
         quantity: item.quantity,
         price: item.price,
         total: item.price * item.quantity,
-        purity_percentage: item.product.purity_percentage
+        purity_percentage: item.product.purity_percentage,
       }));
+      let effectiveSubtotal = totalPrice;
 
-      // Save order to database
-      const { data: orderData, error: orderError } = await supabase
-        .from('orders')
-        .insert([{
-          customer_name: fullName,
-          customer_email: email,
-          customer_phone: phone,
-          shipping_address: address,
-          shipping_barangay: barangay,
-          shipping_city: city,
-          shipping_state: state,
-          shipping_zip_code: zipCode,
-          order_items: orderItems,
-          total_price: totalPrice,
-          shipping_fee: shippingFee,
-          shipping_location: shippingLocation,
-          payment_method_id: paymentMethod?.id || null,
-          payment_method_name: paymentMethod?.name || null,
-          payment_proof_url: paymentProof,
-          contact_method: contactMethod || null,
-          notes: `Courier Preference: ${courier === 'jnt' ? 'J&T Express' : 'Lalamove'} \n${notes.trim() || ''} `.trim(),
-          order_status: 'new',
-          payment_status: 'pending',
-          pricing_mode: cartPricingMode,
-          currency: cartCurrency,
-        }])
-        .select()
-        .single();
+      try {
+        const { data: priced, error: rpcError } = await supabase.rpc('validate_and_price_order', {
+          p_items: rpcItems,
+          p_pricing_mode: cartPricingMode,
+        });
+        if (rpcError) {
+          console.warn('⚠️ Price validation RPC unavailable, using live client prices:', rpcError.message);
+        } else if (priced && Array.isArray(priced.items)) {
+          const blocked = priced.items.find((it: any) => !it.available || Number(it.stock) < Number(it.quantity));
+          if (blocked) {
+            alert('Some items in your cart just changed (price, stock, or availability). Please go back to your cart and review before checking out.');
+            setSubmitting(false);
+            return;
+          }
+          orderItems = priced.items.map((it: any) => ({
+            product_id: it.product_id,
+            product_name: it.product_name,
+            variation_id: it.variation_id ?? null,
+            variation_name: it.variation_name ?? null,
+            quantity: it.quantity,
+            price: Number(it.unit_price),
+            total: Number(it.line_total),
+            purity_percentage: it.purity_percentage ?? null,
+          }));
+          // Use the server subtotal only when it is a valid number (0 is valid).
+          if (priced.subtotal !== null && priced.subtotal !== undefined && !isNaN(Number(priced.subtotal))) {
+            effectiveSubtotal = Number(priced.subtotal);
+          }
+        }
+      } catch (rpcErr) {
+        console.warn('⚠️ Price validation RPC threw, using live client prices:', rpcErr);
+      }
+
+      const effectiveFinalTotal = effectiveSubtotal + shippingFee + adminFee;
+
+      // If the server's authoritative subtotal differs from what was shown (a price
+      // changed since checkout opened), tell the customer — the order summary,
+      // saved order, and total all use this corrected figure.
+      if (Math.abs(effectiveSubtotal - totalPrice) > 0.01) {
+        alert(
+          `Heads up — prices updated since you opened checkout.\n` +
+          `Your order total is now ${currencySymbol}${effectiveFinalTotal.toLocaleString('en-PH', { minimumFractionDigits: 0 })} ` +
+          `(was ${currencySymbol}${(totalPrice + shippingFee + adminFee).toLocaleString('en-PH', { minimumFractionDigits: 0 })}).\n` +
+          `This corrected total is what appears in your order summary below.`
+        );
+      }
+
+      // --- Persist the order ----------------------------------------------------
+      const baseRow: Record<string, unknown> = {
+        customer_name: fullName,
+        customer_email: email,
+        customer_phone: phone,
+        shipping_address: address,
+        shipping_barangay: barangay,
+        shipping_city: city,
+        shipping_state: state,
+        shipping_zip_code: zipCode,
+        order_items: orderItems,
+        total_price: effectiveSubtotal,
+        shipping_fee: shippingFee,
+        shipping_location: shippingLocation,
+        payment_method_id: paymentMethod?.id || null,
+        payment_method_name: paymentMethod?.name || null,
+        payment_proof_url: paymentProof,
+        contact_method: contactMethod || null,
+        notes: `Courier Preference: ${courier === 'jnt' ? 'J&T Express' : 'Lalamove'} \n${notes.trim() || ''} `.trim(),
+        order_status: 'new',
+        payment_status: 'pending',
+        pricing_mode: cartPricingMode,
+        currency: cartCurrency,
+      };
+
+      // Newer columns (feature #8). Sent if present; on a "missing column" error we
+      // retry with the base row so the store keeps working before the migration.
+      const enhancedRow = {
+        ...baseRow,
+        terms_accepted: true,
+        terms_accepted_at: new Date().toISOString(),
+        ...(activeGroupBuy ? { group_buy_id: activeGroupBuy.id, group_buy_number: activeGroupBuy.gb_number } : {}),
+      };
+
+      let insertRes = await supabase.from('orders').insert([enhancedRow]).select().single();
+      if (insertRes.error && isMissingColumnError(insertRes.error)) {
+        console.warn('ℹ️ Orders table is missing newer columns — run the Phase 1 migration to persist T&C consent. Saving base order for now.');
+        insertRes = await supabase.from('orders').insert([baseRow]).select().single();
+      }
+
+      const { data: orderData, error: orderError } = insertRes;
 
       if (orderError) {
         console.error('❌ Error saving order:', orderError);
@@ -175,6 +307,7 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack }) =>
         }
 
         alert(`Failed to save order: ${errorMessage}\n\nPlease contact support if this issue persists.`);
+        setSubmitting(false);
         return;
       }
 
@@ -213,23 +346,23 @@ ${city}, ${state} ${zipCode}
 ${courier === 'jnt' ? 'J&T Express' : 'Lalamove'}
 
 🛒 ORDER DETAILS
-${cartItems.map(item => {
-        let line = `• ${item.product.name}`;
-        if (item.variation) {
-          line += ` (${item.variation.name})`;
+${orderItems.map(item => {
+        let line = `• ${item.product_name}`;
+        if (item.variation_name) {
+          line += ` (${item.variation_name})`;
         }
-        line += ` x${item.quantity} - ${currencySymbol}${(item.price * item.quantity).toLocaleString('en-PH', { minimumFractionDigits: 0 })}`;
-        if (item.product.purity_percentage && item.product.purity_percentage > 0) {
-          line += `\n  Purity: ${item.product.purity_percentage}%`;
+        line += ` x${item.quantity} - ${currencySymbol}${Number(item.total).toLocaleString('en-PH', { minimumFractionDigits: 0 })}`;
+        if (item.purity_percentage && item.purity_percentage > 0) {
+          line += `\n  Purity: ${item.purity_percentage}%`;
         }
         return line;
       }).join('\n\n')}
 
 💰 PRICING
-Product Total: ${currencySymbol}${totalPrice.toLocaleString('en-PH', { minimumFractionDigits: 0 })}
+Product Total: ${currencySymbol}${effectiveSubtotal.toLocaleString('en-PH', { minimumFractionDigits: 0 })}
 Shipping Fee: ${currencySymbol}${shippingFee.toLocaleString('en-PH', { minimumFractionDigits: 0 })} (${shippingLocation.replace('_', ' & ')})
 Admin Fee: ${currencySymbol}${adminFee.toLocaleString('en-PH', { minimumFractionDigits: 0 })}
-Grand Total: ${currencySymbol}${finalTotal.toLocaleString('en-PH', { minimumFractionDigits: 0 })}
+Grand Total: ${currencySymbol}${effectiveFinalTotal.toLocaleString('en-PH', { minimumFractionDigits: 0 })}
 
 💳 PAYMENT METHOD
 ${paymentMethod?.name || 'N/A'}
@@ -249,6 +382,20 @@ Please confirm this order. Thank you!
 
       // Store order message for copying
       setOrderMessage(orderDetails);
+
+      // Save customer details for next time (feature #10), or clear if opted out.
+      try {
+        if (saveDetails) {
+          localStorage.setItem(CUSTOMER_KEY, JSON.stringify({ fullName, email, phone, address, barangay, city, state, zipCode }));
+        } else {
+          localStorage.removeItem(CUSTOMER_KEY);
+        }
+      } catch {
+        /* ignore storage errors */
+      }
+
+      // Clear the cart now that the order is saved (feature #9).
+      clearCart();
 
       // Open contact method based on selection
       const contactUrl = contactMethod === 'whatsapp'
@@ -277,10 +424,12 @@ Please confirm this order. Thank you!
       }
 
       // Show confirmation
+      setSubmitting(false);
       setStep('confirmation');
     } catch (error) {
       console.error('❌ Error placing order:', error);
       alert(`Failed to place order: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`);
+      setSubmitting(false);
     }
   };
 
@@ -673,6 +822,17 @@ Please confirm this order. Thank you!
                 )}
               </div>
 
+              {/* Save details for faster repeat checkout (feature #10) */}
+              <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-600 px-1">
+                <input
+                  type="checkbox"
+                  checked={saveDetails}
+                  onChange={(e) => setSaveDetails(e.target.checked)}
+                  className="w-4 h-4 rounded border-gray-300 text-theme-accent focus:ring-theme-accent"
+                />
+                Save my details on this device for faster checkout next time
+              </label>
+
               <button
                 onClick={handleProceedToPayment}
                 disabled={!isDetailsValid}
@@ -935,16 +1095,40 @@ Please confirm this order. Thank you!
             />
           </div>
 
+          {/* Terms & Conditions agreement (required) */}
+          <div className="bg-white rounded-2xl shadow-lg p-5 md:p-6 border border-gray-200">
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={termsAccepted}
+                onChange={(e) => setTermsAccepted(e.target.checked)}
+                className="mt-1 w-5 h-5 rounded border-gray-300 text-theme-accent focus:ring-theme-accent flex-shrink-0"
+              />
+              <span className="text-sm text-gray-700">
+                I have read and agree to the{' '}
+                <a
+                  href="/terms"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-theme-accent font-semibold underline hover:text-theme-accent/80"
+                >
+                  Terms &amp; Conditions
+                </a>
+                , including the preorder, payment, and shipping policies. <span className="text-red-500">*</span>
+              </span>
+            </label>
+          </div>
+
           <button
             onClick={handlePlaceOrder}
-            disabled={!contactMethod || !shippingLocation}
-            className={`w-full py-3 md:py-4 rounded-2xl font-bold text-base md:text-lg shadow-lg transition-all flex items-center justify-center gap-2 ${contactMethod && shippingLocation
+            disabled={!contactMethod || !shippingLocation || !termsAccepted || submitting}
+            className={`w-full py-3 md:py-4 rounded-2xl font-bold text-base md:text-lg shadow-lg transition-all flex items-center justify-center gap-2 ${contactMethod && shippingLocation && termsAccepted && !submitting
               ? 'bg-theme-accent hover:bg-theme-accent/90 text-white hover:shadow-xl transform hover:scale-[1.02]'
               : 'bg-gray-300 text-gray-500 cursor-not-allowed'
               }`}
           >
             <ShieldCheck className="w-5 h-5 md:w-6 md:h-6" />
-            Complete Order
+            {submitting ? 'Placing Order…' : 'Complete Order'}
           </button>
         </div>
 

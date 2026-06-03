@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, Package, Beaker, ShoppingCart, Plus, Minus, Sparkles } from 'lucide-react';
 import type { Product, ProductVariation } from '../types';
 import { usePricingMode, getPrice, getVariationPrice } from '../hooks/usePricingMode';
+import { getBasePriceByMode } from '../lib/pricing';
 
 interface ProductDetailModalProps {
   product: Product;
@@ -64,7 +65,7 @@ const QuantityInput: React.FC<{
 };
 
 const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product, onClose, onAddToCart }) => {
-  const { pricingMode, currencySymbol } = usePricingMode();
+  const { pricingMode, currencySymbol, globalDiscount } = usePricingMode();
 
   // Select first available variation, or first variation if all are out of stock
   const getFirstAvailableVariation = () => {
@@ -78,10 +79,11 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product, onClos
   );
   const [quantity, setQuantity] = useState(1);
 
-  const hasDiscount = pricingMode === 'national' && product.discount_active && product.discount_price;
   const currentPrice = selectedVariation
-    ? getVariationPrice(selectedVariation, pricingMode)
-    : getPrice(product, pricingMode);
+    ? getVariationPrice(selectedVariation, pricingMode, globalDiscount)
+    : getPrice(product, pricingMode, globalDiscount);
+  const wasPrice = getBasePriceByMode(product, selectedVariation, pricingMode);
+  const hasDiscount = currentPrice < wasPrice - 0.001;
   const showPurity = Boolean(product.purity_percentage);
 
   // Check if product has any available stock
@@ -226,7 +228,7 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product, onClos
                 <div className="text-center mb-3 sm:mb-4">
                   {hasDiscount && (
                     <div className="text-base sm:text-lg md:text-xl lg:text-2xl text-gray-400 line-through mb-0.5 sm:mb-1">
-                      {currencySymbol}{(product.national_price ?? product.base_price).toLocaleString('en-PH', { minimumFractionDigits: 0 })}
+                      {currencySymbol}{wasPrice.toLocaleString('en-PH', { minimumFractionDigits: 0 })}
                     </div>
                   )}
                   <div className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-theme-secondary">
@@ -234,7 +236,7 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product, onClos
                   </div>
                   {hasDiscount && (
                     <div className="inline-block bg-theme-accent text-white px-2 py-0.5 sm:px-2.5 sm:py-1 md:px-3 md:py-1 rounded-full text-[10px] sm:text-xs md:text-sm font-bold mt-1 sm:mt-1.5 md:mt-2 shadow-sm">
-                      Save {currencySymbol}{((product.national_price ?? product.base_price) - product.discount_price!).toLocaleString('en-PH', { minimumFractionDigits: 0 })}
+                      Save {currencySymbol}{(wasPrice - currentPrice).toLocaleString('en-PH', { minimumFractionDigits: 0 })}
                     </div>
                   )}
                 </div>
@@ -264,7 +266,7 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product, onClos
                             disabled={isOutOfStock}
                             className={isOutOfStock ? 'line-through text-gray-400 italic' : ''}
                           >
-                            {variation.name} - {currencySymbol}{getVariationPrice(variation, pricingMode).toLocaleString('en-PH')}
+                            {variation.name} - {currencySymbol}{getVariationPrice(variation, pricingMode, globalDiscount).toLocaleString('en-PH')}
                             {isOutOfStock ? ' (Out of Stock)' : ''}
                           </option>
                         );

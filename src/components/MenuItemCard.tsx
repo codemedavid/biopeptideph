@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Plus, Minus, ShoppingCart, Package } from 'lucide-react';
 import type { Product, ProductVariation } from '../types';
-import { usePricingMode, getPrice, getVariationPrice, formatPrice } from '../hooks/usePricingMode';
+import { usePricingMode, getPrice, getVariationPrice } from '../hooks/usePricingMode';
+import { getBasePriceByMode } from '../lib/pricing';
 
 interface MenuItemCardProps {
   product: Product;
@@ -62,25 +63,19 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
   cartQuantity = 0,
   onProductClick,
 }) => {
-  const { pricingMode, currencySymbol, isInternational } = usePricingMode();
+  const { pricingMode, currencySymbol, isInternational, globalDiscount } = usePricingMode();
   const [selectedVariation, setSelectedVariation] = useState<ProductVariation | undefined>(
     product.variations && product.variations.length > 0 ? product.variations[0] : undefined
   );
   const [quantity, setQuantity] = useState(1);
 
-  // Get current price based on pricing mode
+  // Effective (discounted) price and the non-discounted "was" price — both via the
+  // centralized pricing authority, so per-product AND global discounts are shown.
   const currentPrice = selectedVariation
-    ? getVariationPrice(selectedVariation, pricingMode)
-    : getPrice(product, pricingMode);
-
-  // Calculate discount based on pricing mode
-  const basePrice = selectedVariation
-    ? selectedVariation.price
-    : (pricingMode === 'national'
-      ? (product.national_price ?? product.base_price)
-      : (product.international_price ?? product.base_price));
-
-  const hasDiscount = !selectedVariation && product.discount_active && product.discount_price && pricingMode === 'national';
+    ? getVariationPrice(selectedVariation, pricingMode, globalDiscount)
+    : getPrice(product, pricingMode, globalDiscount);
+  const wasPrice = getBasePriceByMode(product, selectedVariation, pricingMode);
+  const hasDiscount = currentPrice < wasPrice - 0.001;
 
   const handleAddToCart = () => {
     onAddToCart(product, selectedVariation, quantity);
@@ -138,7 +133,7 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
           )}
           {hasDiscount && (
             <span className="bg-theme-red text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider shadow-sm">
-              {Math.round((1 - currentPrice / product.base_price) * 100)}% OFF
+              {Math.round((1 - currentPrice / wasPrice) * 100)}% OFF
             </span>
           )}
           {isInternational && (
@@ -212,7 +207,7 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
             </span>
             {hasDiscount && (
               <span className="text-xs sm:text-sm text-gray-400 line-through decoration-gray-300">
-                {currencySymbol}{product.base_price.toLocaleString('en-PH', { minimumFractionDigits: 0 })}
+                {currencySymbol}{wasPrice.toLocaleString('en-PH', { minimumFractionDigits: 0 })}
               </span>
             )}
           </div>
