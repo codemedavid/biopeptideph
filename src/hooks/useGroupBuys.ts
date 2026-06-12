@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase';
 import type { GroupBuy, GroupBuyStatus } from '../types';
 
 export interface GroupBuyInput {
-  gb_number: number;
+  gb_number: string;
   title: string;
   description?: string | null;
   start_date?: string | null;
@@ -32,7 +32,7 @@ export function useGroupBuys() {
       const { data, error } = await supabase
         .from('group_buys')
         .select('*')
-        .order('gb_number', { ascending: false });
+        .order('created_at', { ascending: false });
 
       if (error) throw error;
       setGroupBuys((data as GroupBuy[]) || []);
@@ -60,10 +60,14 @@ export function useGroupBuys() {
     [groupBuys]
   );
 
-  const nextGbNumber = useMemo(
-    () => (groupBuys.length ? Math.max(...groupBuys.map((g) => g.gb_number)) + 1 : 1),
-    [groupBuys]
-  );
+  // gb_number is free text, but suggest the next sequential number for the common
+  // case where rounds are still labelled "1", "2", "3"… (ignores non-numeric labels).
+  const nextGbNumber = useMemo(() => {
+    const numeric = groupBuys
+      .map((g) => parseInt(g.gb_number, 10))
+      .filter((n) => !Number.isNaN(n));
+    return numeric.length ? String(Math.max(...numeric) + 1) : '1';
+  }, [groupBuys]);
 
   const createGroupBuy = useCallback(async (input: GroupBuyInput) => {
     try {

@@ -66,7 +66,7 @@ const GroupBuyManager: React.FC<GroupBuyManagerProps> = ({ onBack }) => {
   const [allProducts, setAllProducts] = useState<AssignProduct[]>([]);
 
   const [form, setForm] = useState<GroupBuyInput>({
-    gb_number: 1, title: '', description: '', start_date: null, end_date: null, status: 'upcoming',
+    gb_number: '1', title: '', description: '', start_date: null, end_date: null, status: 'upcoming',
   });
 
   const flash = (type: 'success' | 'error', text: string) => {
@@ -123,10 +123,10 @@ const GroupBuyManager: React.FC<GroupBuyManagerProps> = ({ onBack }) => {
 
   const handleSave = async () => {
     if (!form.title.trim()) { flash('error', 'Title is required.'); return; }
-    if (!form.gb_number || form.gb_number < 1) { flash('error', 'GB number must be a positive number.'); return; }
+    if (!form.gb_number.trim()) { flash('error', 'GB number is required.'); return; }
     setSaving(true);
     const payload: GroupBuyInput = {
-      gb_number: Number(form.gb_number),
+      gb_number: form.gb_number.trim(),
       title: form.title.trim(),
       description: form.description?.trim() || null,
       start_date: form.start_date,
@@ -320,9 +320,9 @@ const GroupBuyManager: React.FC<GroupBuyManagerProps> = ({ onBack }) => {
               <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">GB Number *</label>
-                  <input type="number" min={1} value={form.gb_number}
-                    onChange={(e) => setForm((f) => ({ ...f, gb_number: Number(e.target.value) }))}
-                    className="input-field" />
+                  <input type="text" value={form.gb_number}
+                    onChange={(e) => setForm((f) => ({ ...f, gb_number: e.target.value }))}
+                    className="input-field" placeholder="e.g. 5 or Mini GB" />
                 </div>
                 <div className="col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>

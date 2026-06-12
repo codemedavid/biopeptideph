@@ -44,7 +44,7 @@ interface Order {
   pricing_mode?: 'national' | 'international';
   currency?: 'PHP' | 'USD';
   group_buy_id?: string | null;
-  group_buy_number?: number | null;
+  group_buy_number?: string | null;
 }
 
 interface OrdersManagerProps {
@@ -287,13 +287,13 @@ const OrdersManager: React.FC<OrdersManagerProps> = ({ onBack }) => {
 
   // Distinct Group Buys present across orders, for the GB filter dropdown.
   const gbOptions = useMemo(() => {
-    const map = new Map<string, number>();
+    const map = new Map<string, string>();
     for (const o of orders) {
-      if (o.group_buy_id) map.set(o.group_buy_id, o.group_buy_number ?? 0);
+      if (o.group_buy_id) map.set(o.group_buy_id, o.group_buy_number ?? '');
     }
     return Array.from(map.entries())
       .map(([id, number]) => ({ id, number }))
-      .sort((a, b) => b.number - a.number);
+      .sort((a, b) => b.number.localeCompare(a.number, undefined, { numeric: true }));
   }, [orders]);
 
   const filteredOrders = useMemo(() => {

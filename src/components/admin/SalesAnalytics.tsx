@@ -26,7 +26,7 @@ interface AOrder {
   payment_status: string;
   order_status: string;
   currency?: string | null;
-  group_buy_number?: number | null;
+  group_buy_number?: string | null;
   created_at: string;
 }
 
@@ -99,7 +99,7 @@ const SalesAnalytics: React.FC<AnalyticsManagerProps> = ({ onBack }) => {
   }, [paidOrders]);
 
   const perGB = useMemo(() => {
-    const map = new Map<number, { gb: number; orders: number; revenue: number }>();
+    const map = new Map<string, { gb: string; orders: number; revenue: number }>();
     for (const o of periodOrders) {
       if (!o.group_buy_number) continue;
       const e = map.get(o.group_buy_number) || { gb: o.group_buy_number, orders: 0, revenue: 0 };
@@ -107,7 +107,7 @@ const SalesAnalytics: React.FC<AnalyticsManagerProps> = ({ onBack }) => {
       if (o.payment_status === 'paid') e.revenue += o.total_price || 0;
       map.set(o.group_buy_number, e);
     }
-    return Array.from(map.values()).sort((a, b) => b.gb - a.gb);
+    return Array.from(map.values()).sort((a, b) => b.gb.localeCompare(a.gb, undefined, { numeric: true }));
   }, [periodOrders]);
 
   const statusBreakdown = useMemo(() => {

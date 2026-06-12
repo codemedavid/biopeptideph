@@ -93,7 +93,7 @@ export type GroupBuyStatus = 'upcoming' | 'active' | 'closed';
 
 export interface GroupBuy {
   id: string;
-  gb_number: number;
+  gb_number: string;
   title: string;
   description: string | null;
   start_date: string | null;
