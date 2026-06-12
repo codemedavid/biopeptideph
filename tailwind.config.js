@@ -7,66 +7,77 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Diamond Glow Branding
-        // Tiffany Blue Palette
+        // Snow Snow Branding
+        // Frosted-Ice Palette
         theme: {
-          navy: '#0F4744',      // Deep Teal - Headers, footer, dark sections
-          blue: '#0ABAB5',      // Tiffany Blue - Buttons, highlights, links
-          lightblue: '#D6F0EE', // Soft Tiffany - Section backgrounds, cards
-          white: '#FFFFFF',     // Clean White - Text areas, forms
-          red: '#088B87',       // Deep Tiffany Accent
+          navy: '#0c2c4a',      // Deep Glacier - Headers, footer, dark sections
+          blue: '#3ea0e0',      // Ice Blue - Buttons, highlights, links
+          lightblue: '#dceeff', // Soft Frost - Section backgrounds, cards
+          white: '#FFFFFF',     // Snow White - Text areas, forms
+          red: '#e11d48',       // Warm "live" accent (used intentionally)
         },
         // Semantic mappings (backward compatibility + new structure)
-        'theme-bg': '#F7FCFC',          // Main content background (Soft Ice)
-        'theme-navy': '#0F4744',        // Dark sections
-        'theme-text': '#0F4744',        // Deep Teal for text (high contrast on ice)
+        'theme-bg': '#e9f6ff',          // Main content background (Frost wash)
+        'theme-navy': '#0c2c4a',        // Dark sections
+        'theme-text': '#0f2c45',        // Glacier ink (high contrast on frost)
         'theme-text-light': '#FFFFFF',  // White text for dark backgrounds
-        'theme-accent': '#0ABAB5',      // Tiffany Blue
-        'theme-secondary': '#088B87',   // Deep Tiffany
-        'theme-soft-blue': '#D6F0EE',   // Soft Tiffany
+        'theme-accent': '#38bdf8',      // Icy cyan accent
+        'theme-secondary': '#1d6fb8',   // Ice deep
+        'theme-soft-blue': '#dceeff',   // Soft Frost
 
         // Mapping standard colors to the new theme for compatibility
         primary: {
-          50: '#F0FAF9',
-          100: '#D6F0EE',
-          200: '#A8E2DE',
-          300: '#6FCFC9',
-          400: '#2EC1BB',
-          500: '#0ABAB5', // Main Tiffany Blue
-          600: '#088B87',
-          700: '#066D6A',
-          800: '#05524F',
-          900: '#03393A',
+          50: '#f0f9ff',
+          100: '#dceeff',
+          200: '#bae1fd',
+          300: '#7dd3fc',
+          400: '#54bdf5',
+          500: '#3ea0e0', // Main Ice Blue
+          600: '#1d6fb8',
+          700: '#175a96',
+          800: '#13456e',
+          900: '#0c2c4a',
         },
-        // Using Deep Tiffany for secondary
+        // Ice deep for secondary
         secondary: {
-          50: '#E8F8F7',
-          100: '#C7EFEC',
-          200: '#9AE0DC',
-          300: '#6BCEC8',
-          400: '#3FBCB5',
-          500: '#0ABAB5', // Main Tiffany
-          600: '#088B87',
-          700: '#066D6A',
-          800: '#05524F',
-          900: '#03393A',
+          50: '#eef7ff',
+          100: '#d7ecfd',
+          200: '#b0d8fa',
+          300: '#7dbef3',
+          400: '#4f9fe4',
+          500: '#3ea0e0',
+          600: '#1d6fb8',
+          700: '#175a96',
+          800: '#13456e',
+          900: '#0c2c4a',
         },
         accent: {
-          light: '#A8E2DE',
-          DEFAULT: '#0ABAB5',
-          dark: '#088B87',
+          light: '#7dd3fc',
+          DEFAULT: '#38bdf8',
+          dark: '#1d6fb8',
           white: '#ffffff',
-          black: '#0F4744',
+          black: '#0c2c4a',
         },
       },
       fontFamily: {
-        body: ['Manrope', 'sans-serif'],
-        display: ['Cormorant Garamond', 'serif'],
+        body: ['Plus Jakarta Sans', 'system-ui', 'sans-serif'],
+        display: ['Sora', 'system-ui', 'sans-serif'],
+        inter: ['Plus Jakarta Sans', 'system-ui', 'sans-serif'],
+      },
+      backdropBlur: {
+        frost: '18px',
+      },
+      borderRadius: {
+        'frost-lg': '26px',
+        'frost-md': '18px',
       },
       boxShadow: {
         'soft': '0 2px 10px rgba(0, 0, 0, 0.03)',
         'medium': '0 4px 15px rgba(0, 0, 0, 0.05)',
         'hover': '0 8px 25px rgba(0, 0, 0, 0.08)',
+        'frost': '0 22px 50px -24px rgba(20, 70, 120, .45), 0 2px 0 rgba(255, 255, 255, .7) inset',
+        'frost-soft': '0 14px 34px -20px rgba(20, 70, 120, .4)',
+        'glow': '0 0 0 1px rgba(255, 255, 255, .6), 0 14px 40px -14px rgba(56, 189, 248, .6)',
       },
       animation: {
         'fadeIn': 'fadeIn 0.5s ease-out',

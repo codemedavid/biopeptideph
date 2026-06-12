@@ -10,9 +10,9 @@ interface HeroManagerProps {
 
 // Hero fields managed here -> all stored in site_settings (no hardcoded homepage).
 const FIELDS: { key: string; label: string; placeholder: string; textarea?: boolean }[] = [
-  { key: 'home_hero_badge', label: 'Badge (small label above title)', placeholder: 'Luminous Beauty Essentials' },
-  { key: 'home_hero_title_prefix', label: 'Title — line 1', placeholder: 'Diamond' },
-  { key: 'home_hero_title_highlight', label: 'Title — highlighted line', placeholder: 'Glow' },
+  { key: 'home_hero_badge', label: 'Badge (small label above title)', placeholder: 'Frost-Fresh Beauty Essentials' },
+  { key: 'home_hero_title_prefix', label: 'Title — line 1', placeholder: 'Snow' },
+  { key: 'home_hero_title_highlight', label: 'Title — highlighted line', placeholder: 'Snow' },
   { key: 'home_hero_title_suffix', label: 'Title — line 3 (optional)', placeholder: '' },
   { key: 'home_hero_subtext', label: 'Subtext', placeholder: 'Radiance, refined for your everyday ritual.', textarea: true },
   { key: 'home_hero_cta_text', label: 'CTA button text (blank = "Explore Products" / "Explore GB")', placeholder: 'Shop the Drop' },

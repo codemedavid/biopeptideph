@@ -105,16 +105,16 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
   const decrementQuantity = () => setQuantity(prev => prev > 1 ? prev - 1 : 1);
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm hover:shadow-lg transition-all duration-300 border-t-4 border-theme-blue overflow-hidden h-full flex flex-col group relative">
+    <div className="bg-gradient-to-b from-[var(--frost-strong)] to-[var(--frost)] backdrop-blur-[14px] rounded-[var(--r-lg)] shadow-[var(--shadow-soft)] hover:shadow-[var(--shadow-frost),var(--glow)] hover:-translate-y-1.5 transition-all duration-300 border border-[var(--frost-line)] overflow-hidden h-full flex flex-col group relative p-2.5">
       {/* Click overlay for product details */}
       <div
         onClick={() => onProductClick?.(product)}
-        className="absolute inset-x-0 top-0 h-32 z-10 cursor-pointer"
+        className="absolute inset-x-0 top-0 h-36 z-10 cursor-pointer"
         title="View details"
       />
 
-      {/* Product Image - Reduced height for compact feel */}
-      <div className="relative h-32 bg-theme-lightblue/10 overflow-hidden">
+      {/* Product Image - frosted media pane */}
+      <div className="relative h-36 rounded-[16px] overflow-hidden" style={{ background: 'radial-gradient(120% 120% at 50% 18%, #ffffff, #e4f3ff 70%, #cfeaff)' }}>
         {product.image_url ? (
           <img
             src={product.image_url}
@@ -269,7 +269,7 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
                 handleAddToCart();
               }}
               disabled={!hasAnyStock || availableStock === 0 || unavailable}
-              className="flex-1 min-w-0 bg-theme-blue text-white px-3 py-2 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold hover:bg-theme-blue/90 hover:shadow-lg hover:shadow-theme-blue/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 group/btn"
+              className="flex-1 min-w-0 bg-gradient-to-b from-theme-blue to-theme-secondary text-white px-3 py-2 sm:py-2 rounded-xl text-xs sm:text-sm font-semibold shadow-[0_12px_26px_-12px_var(--ice-deep)] hover:-translate-y-0.5 hover:shadow-[var(--glow)] transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 flex items-center justify-center gap-2 group/btn"
             >
               <ShoppingCart className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0 group-hover/btn:scale-110 transition-transform" />
               <span>{unavailable ? 'Unavailable' : 'Add'}</span>

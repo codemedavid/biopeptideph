@@ -61,29 +61,36 @@ const Menu: React.FC<MenuProps> = ({ menuItems, addToCart, cartItems, unavailabl
         />
       )}
 
-      <div className="min-h-screen bg-theme-bg">
-        <div className="container mx-auto px-4 py-8" ref={productsRef} id="product-section">
+      <div className="min-h-screen">
+        <div className="container mx-auto px-4 py-10" ref={productsRef} id="product-section">
+          {/* Section heading */}
+          <div className="mb-6">
+            <h2 className="font-display font-extrabold text-[28px] sm:text-[30px] tracking-[-0.02em] text-theme-text flex items-center gap-3">
+              <span className="text-theme-accent">❄</span> The Collection
+            </h2>
+          </div>
+
           {/* Search and Filter Controls */}
           <div className="mb-8 flex flex-col sm:flex-row gap-4">
             {/* Search Bar */}
             <div className="flex-1 relative">
-              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-theme-text/40 w-5 h-5" />
               <input
                 type="text"
                 placeholder="Search products..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-12 pr-4 py-3 text-base border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-theme-accent focus:border-theme-accent transition-all bg-white"
+                className="w-full pl-12 pr-4 py-3 text-base rounded-[var(--r-md)] frost-soft text-theme-text placeholder:text-theme-text/40 focus:outline-none focus:ring-1 focus:ring-theme-accent transition-all"
               />
             </div>
 
             {/* Sort Dropdown */}
-            <div className="flex items-center gap-3 sm:w-auto bg-white rounded-lg px-4 py-3 border border-gray-200">
-              <Filter className="text-gray-500 w-5 h-5" />
+            <div className="flex items-center gap-3 sm:w-auto frost-soft rounded-[var(--r-md)] px-4 py-3">
+              <Filter className="text-theme-secondary w-5 h-5" />
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as 'name' | 'price' | 'purity')}
-                className="focus:outline-none bg-transparent font-medium text-theme-text text-sm"
+                className="focus:outline-none bg-transparent font-semibold text-theme-text text-sm"
               >
                 <option value="name">Sort by Name</option>
                 <option value="price">Sort by Price</option>
@@ -94,8 +101,8 @@ const Menu: React.FC<MenuProps> = ({ menuItems, addToCart, cartItems, unavailabl
 
           {/* Results Count */}
           <div className="mb-6 flex items-center gap-2">
-            <p className="text-gray-500 font-medium text-sm">
-              Showing <span className="font-bold text-theme-text">{sortedProducts.length}</span> products
+            <p className="text-theme-text/50 font-medium text-sm">
+              Showing <span className="font-bold text-theme-secondary">{sortedProducts.length}</span> products
             </p>
           </div>
 

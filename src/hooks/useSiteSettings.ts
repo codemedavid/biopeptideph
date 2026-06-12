@@ -21,7 +21,7 @@ export const useSiteSettings = () => {
 
       // Transform the data into a more usable format
       const settings: SiteSettings = {
-        site_name: data.find(s => s.id === 'site_name')?.value || 'Diamond Glow',
+        site_name: data.find(s => s.id === 'site_name')?.value || 'Snow Snow',
         site_logo: data.find(s => s.id === 'site_logo')?.value || '/logo-new.jpg',
         site_description: data.find(s => s.id === 'site_description')?.value || '',
         currency: data.find(s => s.id === 'currency')?.value || 'PHP',
@@ -37,13 +37,13 @@ export const useSiteSettings = () => {
         lalamove_delay_message: data.find(s => s.id === 'lalamove_delay_message')?.value || 'Lalamove pickup is scheduled. Please wait for confirmation.',
 
         // Homepage Settings
-        home_hero_badge: data.find(s => s.id === 'home_hero_badge')?.value || 'Luminous Beauty Essentials',
-        home_hero_title_prefix: data.find(s => s.id === 'home_hero_title_prefix')?.value || 'Diamond',
-        home_hero_title_highlight: data.find(s => s.id === 'home_hero_title_highlight')?.value || 'Glow',
+        home_hero_badge: data.find(s => s.id === 'home_hero_badge')?.value || 'Frost-Fresh Beauty Essentials',
+        home_hero_title_prefix: data.find(s => s.id === 'home_hero_title_prefix')?.value || 'Snow',
+        home_hero_title_highlight: data.find(s => s.id === 'home_hero_title_highlight')?.value || 'Snow',
         home_hero_title_suffix: data.find(s => s.id === 'home_hero_title_suffix')?.value || '',
-        home_hero_subtext: data.find(s => s.id === 'home_hero_subtext')?.value || 'Radiance, refined for your everyday ritual.',
+        home_hero_subtext: data.find(s => s.id === 'home_hero_subtext')?.value || 'A cooler kind of glow, refined for your everyday ritual.',
         home_hero_tagline: data.find(s => s.id === 'home_hero_tagline')?.value || 'Curated essentials. Gentle formulas. A glow you can feel.',
-        home_hero_description: data.find(s => s.id === 'home_hero_description')?.value || 'Discover thoughtfully selected beauty and wellness essentials designed to elevate your natural glow with a luxe, gentle touch.',
+        home_hero_description: data.find(s => s.id === 'home_hero_description')?.value || 'Discover thoughtfully selected beauty and wellness essentials designed to elevate your natural glow with a cool, frost-fresh touch.',
         home_hero_image_url: data.find(s => s.id === 'home_hero_image_url')?.value || '',
         home_hero_cta_text: data.find(s => s.id === 'home_hero_cta_text')?.value || '',
         home_hero_cta_link: data.find(s => s.id === 'home_hero_cta_link')?.value || '',

@@ -371,7 +371,7 @@ const AdminDashboard: React.FC = () => {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (password === 'DiamondGlow2026') {
+    if (password === 'SnowSnow2026') {
       setIsAuthenticated(true);
       setLoginError('');
     } else {
@@ -586,7 +586,7 @@ const AdminDashboard: React.FC = () => {
             <div className="relative mx-auto w-16 h-16 rounded-full overflow-hidden mb-4 border-2 border-theme-accent/30">
               <img
                 src="/logo-new.jpg"
-                alt="Diamond Glow"
+                alt="Snow Snow"
                 className="w-full h-full object-cover"
               />
             </div>

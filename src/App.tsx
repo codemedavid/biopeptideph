@@ -12,6 +12,7 @@ import Cart from './components/Cart';
 import Checkout from './components/Checkout';
 import FloatingCartButton from './components/FloatingCartButton';
 import Footer from './components/Footer';
+import SnowCanvas from './components/SnowCanvas';
 import AdminDashboard from './components/AdminDashboard';
 import { useMenu } from './hooks/useMenu';
 import { useGroupBuys } from './hooks/useGroupBuys';
@@ -79,7 +80,7 @@ function MainApp() {
     : categoryScoped;
 
   return (
-    <div className="min-h-screen bg-white font-inter flex flex-col">
+    <div className="min-h-screen font-inter flex flex-col">
       <Header
         cartItemsCount={cart.getTotalItems()}
         onCartClick={() => handleViewChange('cart')}
@@ -176,6 +177,7 @@ function App() {
   return (
     <PricingProvider>
       <Router>
+        <SnowCanvas />
         <Routes>
           <Route path="/" element={<MainApp />} />
           <Route path="/journey" element={<PeptideJourney />} />

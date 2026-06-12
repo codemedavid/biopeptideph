@@ -327,7 +327,7 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, clea
       });
 
       const orderDetails = `
-✨DIAMOND GLOW - NEW ORDER
+❄️SNOW SNOW - NEW ORDER
 
 📅 ORDER DATE & TIME
 ${dateTimeStamp}
