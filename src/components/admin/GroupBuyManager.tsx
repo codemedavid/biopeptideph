@@ -7,7 +7,7 @@ import {
 import { supabase } from '../../lib/supabase';
 import { useGroupBuys, type GroupBuyInput } from '../../hooks/useGroupBuys';
 import { useGroupBuyAvailability } from '../../hooks/useGroupBuyAvailability';
-import { downloadGroupBuyReport } from '../../utils/groupBuyReport';
+import { downloadGroupBuyReport, countsForSupplier } from '../../utils/groupBuyReport';
 import type { GroupBuy, GroupBuyStatus } from '../../types';
 
 interface GroupBuyManagerProps {
@@ -60,8 +60,8 @@ const GroupBuyManager: React.FC<GroupBuyManagerProps> = ({ onBack }) => {
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [saving, setSaving] = useState(false);
 
-  // order counts per group buy
-  const [orderCounts, setOrderCounts] = useState<Record<string, number>>({});
+  // order counts per group buy (committed = feeds the supplier report; see countsForSupplier)
+  const [orderCounts, setOrderCounts] = useState<Record<string, { committed: number; cancelled: number }>>({});
   // products (for assignment + per-GB product counts)
   const [allProducts, setAllProducts] = useState<AssignProduct[]>([]);
   const [assignSearch, setAssignSearch] = useState('');
@@ -84,12 +84,20 @@ const GroupBuyManager: React.FC<GroupBuyManagerProps> = ({ onBack }) => {
       .order('name', { ascending: true });
     if (prods) setAllProducts(prods as AssignProduct[]);
 
-    // Order counts per GB (column may not exist before migration)
-    const { data: ords, error } = await supabase.from('orders').select('group_buy_id');
+    // Order counts per GB (column may not exist before migration).
+    // committed = orders that feed the supplier report; cancelled shown separately.
+    const { data: ords, error } = await supabase.from('orders').select('group_buy_id, order_status, payment_status');
     if (!error && ords) {
-      const counts: Record<string, number> = {};
-      for (const o of ords as { group_buy_id: string | null }[]) {
-        if (o.group_buy_id) counts[o.group_buy_id] = (counts[o.group_buy_id] || 0) + 1;
+      const counts: Record<string, { committed: number; cancelled: number }> = {};
+      for (const o of ords as { group_buy_id: string | null; order_status: string | null; payment_status: string }[]) {
+        if (!o.group_buy_id) continue;
+        const bucket = counts[o.group_buy_id] || (counts[o.group_buy_id] = { committed: 0, cancelled: 0 });
+        const status = (o.order_status || '').toLowerCase();
+        if (status === 'cancelled' || status === 'canceled' || status === 'refunded') {
+          bucket.cancelled += 1;
+        } else if (countsForSupplier({ payment_status: o.payment_status, order_status: o.order_status } as any)) {
+          bucket.committed += 1;
+        }
       }
       setOrderCounts(counts);
     }
@@ -273,12 +281,12 @@ const GroupBuyManager: React.FC<GroupBuyManagerProps> = ({ onBack }) => {
                     <div className="flex items-start justify-between mb-3">
                       <div>
                         <div className="flex items-center gap-2 mb-1">
-                          <span className="text-lg font-bold text-gray-900">GB #{gb.gb_number}</span>
+                          <span className="text-lg font-bold text-gray-900">{gb.title}</span>
                           <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide ${STATUS_STYLES[gb.status]}`}>
                             {gb.status}
                           </span>
                         </div>
-                        <p className="text-sm font-medium text-gray-700">{gb.title}</p>
+                        <p className="text-sm font-medium text-gray-500">GB #{gb.gb_number}</p>
                       </div>
                     </div>
 
@@ -290,7 +298,10 @@ const GroupBuyManager: React.FC<GroupBuyManagerProps> = ({ onBack }) => {
                         {gb.start_date ? new Date(gb.start_date).toLocaleDateString() : '—'} → {gb.end_date ? new Date(gb.end_date).toLocaleDateString() : '—'}
                       </span>
                       <span className="flex items-center gap-1"><Tag className="w-3.5 h-3.5" /> {productCounts[gb.id] || 0} products</span>
-                      <span className="flex items-center gap-1"><ShoppingBag className="w-3.5 h-3.5" /> {orderCounts[gb.id] || 0} orders</span>
+                      <span className="flex items-center gap-1"><ShoppingBag className="w-3.5 h-3.5" /> {orderCounts[gb.id]?.committed || 0} orders</span>
+                      {(orderCounts[gb.id]?.cancelled || 0) > 0 && (
+                        <span className="flex items-center gap-1 text-red-500">{orderCounts[gb.id]?.cancelled} cancelled</span>
+                      )}
                     </div>
 
                     <div className="flex flex-wrap gap-2">
