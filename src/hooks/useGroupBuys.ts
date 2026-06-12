@@ -53,6 +53,22 @@ export function useGroupBuys() {
 
   useEffect(() => {
     fetchGroupBuys();
+
+    // Reflect edits (e.g. a title change on a live round) everywhere immediately:
+    // the storefront banner reads from its own useGroupBuys() instance, so without
+    // this it would keep showing the old name until a manual reload.
+    const channel = supabase
+      .channel(`group-buys-${Date.now()}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'group_buys' }, () => fetchGroupBuys())
+      .subscribe();
+
+    const onFocus = () => fetchGroupBuys();
+    window.addEventListener('focus', onFocus);
+
+    return () => {
+      supabase.removeChannel(channel);
+      window.removeEventListener('focus', onFocus);
+    };
   }, [fetchGroupBuys]);
 
   const activeGroupBuy = useMemo(
