@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   ArrowLeft, Plus, Edit, Trash2, Save, X, Package, Play, Square,
   Calendar, ShoppingBag, RefreshCw, AlertTriangle, Tag, FileSpreadsheet,
-  ToggleRight, Eye, EyeOff, CheckCircle2, XCircle,
+  ToggleRight, Eye, EyeOff, CheckCircle2, XCircle, Search, CheckSquare,
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useGroupBuys, type GroupBuyInput } from '../../hooks/useGroupBuys';
@@ -64,6 +64,8 @@ const GroupBuyManager: React.FC<GroupBuyManagerProps> = ({ onBack }) => {
   const [orderCounts, setOrderCounts] = useState<Record<string, number>>({});
   // products (for assignment + per-GB product counts)
   const [allProducts, setAllProducts] = useState<AssignProduct[]>([]);
+  const [assignSearch, setAssignSearch] = useState('');
+  const [assignSelected, setAssignSelected] = useState<Set<string>>(new Set());
 
   const [form, setForm] = useState<GroupBuyInput>({
     gb_number: '1', title: '', description: '', start_date: null, end_date: null, status: 'upcoming',
@@ -187,6 +189,22 @@ const GroupBuyManager: React.FC<GroupBuyManagerProps> = ({ onBack }) => {
     }
   };
 
+  const bulkAssign = async (productIds: string[], groupBuyId: string | null) => {
+    if (productIds.length === 0) return;
+    const ids = new Set(productIds);
+    // optimistic
+    setAllProducts((cur) => cur.map((p) => (ids.has(p.id) ? { ...p, group_buy_id: groupBuyId } : p)));
+    const results = await Promise.all(productIds.map((id) => setProductGroupBuy(id, groupBuyId)));
+    const failed = results.filter((r) => !r.success).length;
+    if (failed > 0) {
+      flash('error', `${failed} product${failed === 1 ? '' : 's'} failed to update`);
+      loadAux(); // revert from source of truth
+    } else {
+      flash('success', `${productIds.length} product${productIds.length === 1 ? '' : 's'} updated`);
+    }
+    setAssignSelected(new Set());
+  };
+
   const Header = (
     <div className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-10">
       <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
@@ -285,7 +303,7 @@ const GroupBuyManager: React.FC<GroupBuyManagerProps> = ({ onBack }) => {
                           <Square className="w-3.5 h-3.5" /> Close
                         </button>
                       )}
-                      <button onClick={() => { setAssignTarget(gb); setView('assign'); }} className="flex items-center gap-1.5 bg-theme-accent/10 hover:bg-theme-accent/20 text-theme-accent px-3 py-1.5 rounded-lg text-xs font-semibold">
+                      <button onClick={() => { setAssignTarget(gb); setAssignSearch(''); setAssignSelected(new Set()); setView('assign'); }} className="flex items-center gap-1.5 bg-theme-accent/10 hover:bg-theme-accent/20 text-theme-accent px-3 py-1.5 rounded-lg text-xs font-semibold">
                         <Package className="w-3.5 h-3.5" /> Assign Products
                       </button>
                       <button onClick={() => { setAvailabilityTarget(gb); setView('availability'); }} className="flex items-center gap-1.5 bg-sky-50 hover:bg-sky-100 text-sky-700 px-3 py-1.5 rounded-lg text-xs font-semibold">
@@ -393,32 +411,110 @@ const GroupBuyManager: React.FC<GroupBuyManagerProps> = ({ onBack }) => {
                   <ArrowLeft className="w-4 h-4" /> Back to list
                 </button>
                 <h2 className="text-lg font-bold text-gray-900">Assign products to GB #{assignTarget.gb_number}</h2>
-                <p className="text-xs text-gray-500">Tap a product to add/remove it from this round. A product belongs to one round at a time.</p>
+                <p className="text-xs text-gray-500">Tick products to multi-select, or tap a row to add/remove it right away. A product belongs to one round at a time.</p>
               </div>
             </div>
 
-            <div className="bg-white rounded-xl shadow-soft border border-gray-100 divide-y divide-gray-100">
-              {allProducts.length === 0 && <p className="p-6 text-sm text-gray-400 text-center">No products found.</p>}
-              {allProducts.map((p) => {
-                const assignedHere = p.group_buy_id === assignTarget.id;
-                const assignedElsewhere = !!p.group_buy_id && !assignedHere;
-                return (
-                  <button key={p.id} onClick={() => toggleAssign(p)}
-                    className="w-full flex items-center gap-3 p-3 hover:bg-gray-50 text-left">
-                    <div className="w-10 h-10 rounded-lg bg-gray-100 overflow-hidden flex items-center justify-center flex-shrink-0">
-                      {p.image_url ? <img src={p.image_url} alt={p.name} className="w-full h-full object-cover" /> : <Package className="w-5 h-5 text-gray-400" />}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-800 truncate">{p.name}</p>
-                      {assignedElsewhere && <p className="text-[11px] text-amber-600">Currently in another round — tap to move here</p>}
-                    </div>
-                    <span className={`text-xs font-semibold px-3 py-1.5 rounded-lg ${assignedHere ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                      {assignedHere ? 'Assigned' : 'Add'}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
+            {(() => {
+              const q = assignSearch.trim().toLowerCase();
+              const filtered = q ? allProducts.filter((p) => p.name.toLowerCase().includes(q)) : allProducts;
+              const allFilteredSelected = filtered.length > 0 && filtered.every((p) => assignSelected.has(p.id));
+              const toggleSelect = (id: string) => setAssignSelected((cur) => {
+                const next = new Set(cur);
+                next.has(id) ? next.delete(id) : next.add(id);
+                return next;
+              });
+              const toggleSelectAll = () => setAssignSelected((cur) => {
+                if (allFilteredSelected) {
+                  const next = new Set(cur);
+                  filtered.forEach((p) => next.delete(p.id));
+                  return next;
+                }
+                const next = new Set(cur);
+                filtered.forEach((p) => next.add(p.id));
+                return next;
+              });
+              const selectedIds = Array.from(assignSelected);
+
+              return (
+                <>
+                  {/* Search */}
+                  <div className="relative mb-3">
+                    <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      value={assignSearch}
+                      onChange={(e) => setAssignSearch(e.target.value)}
+                      placeholder="Search products…"
+                      className="w-full pl-9 pr-9 py-2.5 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-theme-accent/40"
+                    />
+                    {assignSearch && (
+                      <button onClick={() => setAssignSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700">
+                        <X className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Toolbar: select all + bulk actions */}
+                  <div className="flex items-center justify-between gap-3 mb-3">
+                    <button
+                      onClick={toggleSelectAll}
+                      disabled={filtered.length === 0}
+                      className="flex items-center gap-1.5 text-xs font-semibold text-gray-600 hover:text-gray-900 disabled:opacity-40"
+                    >
+                      {allFilteredSelected ? <CheckSquare className="w-4 h-4 text-theme-accent" /> : <Square className="w-4 h-4" />}
+                      {allFilteredSelected ? 'Clear all' : 'Select all'}{q ? ' (matches)' : ''}
+                    </button>
+                    {selectedIds.length > 0 && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-gray-500">{selectedIds.length} selected</span>
+                        <button
+                          onClick={() => bulkAssign(selectedIds, assignTarget.id)}
+                          className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-theme-accent text-white hover:bg-theme-accent/90"
+                        >
+                          Add to round
+                        </button>
+                        <button
+                          onClick={() => bulkAssign(selectedIds.filter((id) => allProducts.find((p) => p.id === id)?.group_buy_id === assignTarget.id), null)}
+                          className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="bg-white rounded-xl shadow-soft border border-gray-100 divide-y divide-gray-100">
+                    {allProducts.length === 0 && <p className="p-6 text-sm text-gray-400 text-center">No products found.</p>}
+                    {allProducts.length > 0 && filtered.length === 0 && <p className="p-6 text-sm text-gray-400 text-center">No products match “{assignSearch}”.</p>}
+                    {filtered.map((p) => {
+                      const assignedHere = p.group_buy_id === assignTarget.id;
+                      const assignedElsewhere = !!p.group_buy_id && !assignedHere;
+                      const checked = assignSelected.has(p.id);
+                      return (
+                        <div key={p.id} className="flex items-center gap-3 p-3 hover:bg-gray-50">
+                          <button onClick={() => toggleSelect(p.id)} aria-label={checked ? 'Deselect' : 'Select'} className="flex-shrink-0">
+                            {checked ? <CheckSquare className="w-5 h-5 text-theme-accent" /> : <Square className="w-5 h-5 text-gray-300" />}
+                          </button>
+                          <button onClick={() => toggleAssign(p)} className="flex-1 flex items-center gap-3 text-left min-w-0">
+                            <div className="w-10 h-10 rounded-lg bg-gray-100 overflow-hidden flex items-center justify-center flex-shrink-0">
+                              {p.image_url ? <img src={p.image_url} alt={p.name} className="w-full h-full object-cover" /> : <Package className="w-5 h-5 text-gray-400" />}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-gray-800 truncate">{p.name}</p>
+                              {assignedElsewhere && <p className="text-[11px] text-amber-600">Currently in another round — tap to move here</p>}
+                            </div>
+                            <span className={`text-xs font-semibold px-3 py-1.5 rounded-lg ${assignedHere ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                              {assignedHere ? 'Assigned' : 'Add'}
+                            </span>
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
+              );
+            })()}
           </div>
         )}
 

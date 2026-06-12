@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import MenuItemCard from './MenuItemCard';
 import ProductDetailModal from './ProductDetailModal';
-import type { Product, ProductVariation, CartItem } from '../types';
+import type { Product, ProductVariation, CartItem, GroupBuy } from '../types';
 import { Search, Filter, Package } from 'lucide-react';
 
 interface MenuProps {
@@ -11,9 +11,13 @@ interface MenuProps {
   updateQuantity: (index: number, quantity: number) => void;
   // Products turned OFF for the active GB when behavior is "disable" (shown but not purchasable).
   unavailableProductIds?: Set<string>;
+  // The currently OPEN group buy, if any. While one is open, products that are
+  // NOT part of it are locked from add-to-cart and steer the user to the round.
+  activeGroupBuy?: GroupBuy | null;
+  onGoToGroupBuy?: () => void;
 }
 
-const Menu: React.FC<MenuProps> = ({ menuItems, addToCart, cartItems, unavailableProductIds }) => {
+const Menu: React.FC<MenuProps> = ({ menuItems, addToCart, cartItems, unavailableProductIds, activeGroupBuy, onGoToGroupBuy }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<'name' | 'price' | 'purity'>('name');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -54,6 +58,12 @@ const Menu: React.FC<MenuProps> = ({ menuItems, addToCart, cartItems, unavailabl
         <ProductDetailModal
           product={selectedProduct}
           unavailable={unavailableProductIds?.has(selectedProduct.id) ?? false}
+          gbLocked={Boolean(activeGroupBuy && selectedProduct.group_buy_id !== activeGroupBuy.id)}
+          gbNumber={activeGroupBuy?.gb_number ?? null}
+          onGoToGroupBuy={() => {
+            setSelectedProduct(null);
+            onGoToGroupBuy?.();
+          }}
           onClose={() => setSelectedProduct(null)}
           onAddToCart={(product, variation, quantity) => {
             addToCart(product, variation, quantity);
@@ -139,6 +149,9 @@ const Menu: React.FC<MenuProps> = ({ menuItems, addToCart, cartItems, unavailabl
                   cartQuantity={getCartQuantity(product.id)}
                   onProductClick={setSelectedProduct}
                   unavailable={unavailableProductIds?.has(product.id) ?? false}
+                  gbLocked={Boolean(activeGroupBuy && product.group_buy_id !== activeGroupBuy.id)}
+                  gbNumber={activeGroupBuy?.gb_number ?? null}
+                  onGoToGroupBuy={onGoToGroupBuy}
                 />
               ))}
             </div>

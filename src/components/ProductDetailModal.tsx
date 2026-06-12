@@ -10,6 +10,11 @@ interface ProductDetailModalProps {
   onAddToCart: (product: Product, variation: ProductVariation | undefined, quantity: number) => void;
   // Turned OFF for the active GB (behavior = "disable"): visible but not purchasable.
   unavailable?: boolean;
+  // A group buy is OPEN and this product is NOT part of it — block add-to-cart
+  // and steer the shopper to the active round instead.
+  gbLocked?: boolean;
+  gbNumber?: number | null;
+  onGoToGroupBuy?: () => void;
 }
 
 // QuantityInput component for handling numeric input with string state
@@ -66,7 +71,7 @@ const QuantityInput: React.FC<{
   );
 };
 
-const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product, onClose, onAddToCart, unavailable = false }) => {
+const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product, onClose, onAddToCart, unavailable = false, gbLocked = false, gbNumber = null, onGoToGroupBuy }) => {
   const { pricingMode, currencySymbol, globalDiscount } = usePricingMode();
 
   // Select first available variation, or first variation if all are out of stock
@@ -335,14 +340,23 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product, onClos
                   </div>
                 </div>
 
+                {/* GB Lock Notice — a group buy is open, so the normal catalog is closed for checkout */}
+                {gbLocked && (
+                  <div className="mb-3 sm:mb-4 bg-theme-accent/10 border border-theme-accent/20 text-theme-accent rounded-lg p-3 text-xs sm:text-sm">
+                    🛒 You can't add this to your cart because Group Buy{gbNumber ? ` #${gbNumber}` : ''} is currently open. Only group buy items can be ordered right now.
+                  </div>
+                )}
+
                 {/* Add to Cart Button */}
                 <button
-                  onClick={() => { if (!unavailable) handleAddToCart(); }}
-                  disabled={unavailable || !hasAnyStock || (selectedVariation && selectedVariation.stock_quantity === 0) || (!selectedVariation && product.stock_quantity === 0)}
+                  onClick={() => { if (gbLocked) { onGoToGroupBuy?.(); return; } if (!unavailable) handleAddToCart(); }}
+                  disabled={!gbLocked && (unavailable || !hasAnyStock || (selectedVariation && selectedVariation.stock_quantity === 0) || (!selectedVariation && product.stock_quantity === 0))}
                   className="w-full bg-theme-accent hover:bg-theme-accent/90 text-white py-2.5 sm:py-3 md:py-4 rounded-lg sm:rounded-xl font-bold text-sm sm:text-base md:text-lg shadow-lg hover:shadow-xl transform hover:scale-[1.02] transition-all flex items-center justify-center gap-1.5 sm:gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                 >
                   <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6" />
-                  {unavailable
+                  {gbLocked
+                    ? `Shop Group Buy${gbNumber ? ` #${gbNumber}` : ''}`
+                    : unavailable
                     ? 'Currently Unavailable'
                     : (!hasAnyStock || (selectedVariation && selectedVariation.stock_quantity === 0) || (!selectedVariation && product.stock_quantity === 0) ? 'Out of Stock' : 'Add to Cart')}
                 </button>

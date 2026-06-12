@@ -52,6 +52,14 @@ function MainApp() {
     setSelectedCategory(categoryId);
   };
 
+  // While a GB is open, narrow the storefront to the round and scroll to it —
+  // used both by the banner and by the "can't add to cart" notice on locked
+  // (non-GB) products.
+  const handleGoToGroupBuy = () => {
+    setGbOnly(true);
+    document.getElementById('product-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
   // Handle pricing mode change from Header
   const handlePricingModeChange = (newMode: PricingMode, hasCartItems: boolean): boolean => {
     if (hasCartItems) {
@@ -131,6 +139,8 @@ function MainApp() {
               cartItems={cart.cartItems}
               updateQuantity={cart.updateQuantity}
               unavailableProductIds={behavior === 'disable' ? unavailableIds : undefined}
+              activeGroupBuy={activeGroupBuy}
+              onGoToGroupBuy={handleGoToGroupBuy}
             />
             <CTASection />
           </>

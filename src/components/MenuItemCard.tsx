@@ -12,6 +12,11 @@ interface MenuItemCardProps {
   onProductClick?: (product: Product) => void;
   // Turned OFF for the active GB (behavior = "disable"): visible but not purchasable.
   unavailable?: boolean;
+  // A group buy is OPEN and this product is NOT part of it — block add-to-cart
+  // and steer the shopper to the active round instead.
+  gbLocked?: boolean;
+  gbNumber?: number | null;
+  onGoToGroupBuy?: () => void;
 }
 
 // QuantityInput component
@@ -65,6 +70,9 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
   cartQuantity = 0,
   onProductClick,
   unavailable = false,
+  gbLocked = false,
+  gbNumber = null,
+  onGoToGroupBuy,
 }) => {
   const { pricingMode, currencySymbol, isInternational, globalDiscount } = usePricingMode();
   const [selectedVariation, setSelectedVariation] = useState<ProductVariation | undefined>(
@@ -260,6 +268,7 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
             <button
               onClick={(e) => {
                 e.stopPropagation();
+                if (gbLocked) { onGoToGroupBuy?.(); return; }
                 if (unavailable) return;
                 if (quantity > availableStock) {
                   alert(`Only ${availableStock} item(s) available in stock.`);
@@ -268,13 +277,24 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
                 }
                 handleAddToCart();
               }}
-              disabled={!hasAnyStock || availableStock === 0 || unavailable}
+              disabled={!gbLocked && (!hasAnyStock || availableStock === 0 || unavailable)}
               className="flex-1 min-w-0 bg-gradient-to-b from-theme-blue to-theme-secondary text-white px-3 py-2 sm:py-2 rounded-xl text-xs sm:text-sm font-semibold shadow-[0_12px_26px_-12px_var(--ice-deep)] hover:-translate-y-0.5 hover:shadow-[var(--glow)] transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 flex items-center justify-center gap-2 group/btn"
             >
               <ShoppingCart className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0 group-hover/btn:scale-110 transition-transform" />
-              <span>{unavailable ? 'Unavailable' : 'Add'}</span>
+              <span>{gbLocked ? 'View Group Buy' : unavailable ? 'Unavailable' : 'Add'}</span>
             </button>
           </div>
+
+          {/* GB Lock Notice — a group buy is open, so the normal catalog is closed for checkout */}
+          {gbLocked && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onGoToGroupBuy?.(); }}
+              className="text-left text-[11px] leading-snug bg-theme-accent/10 border border-theme-accent/20 text-theme-accent rounded-md px-2 py-1.5"
+            >
+              Can't add to cart — Group Buy{gbNumber ? ` #${gbNumber}` : ''} is currently open.{' '}
+              <span className="font-semibold underline">Shop the Group Buy →</span>
+            </button>
+          )}
 
           {/* Cart Status */}
           {cartQuantity > 0 && (
