@@ -18,20 +18,8 @@ const Footer: React.FC = () => {
 
           {/* Brand Section */}
           <div className="flex items-center gap-4">
-            <div className="brand-badge w-12 h-12 rounded-[14px] grid place-items-center flex-none">
-              <svg className="w-6 h-6 relative z-[1] drop-shadow-[0_2px_4px_rgba(0,0,0,0.35)]" viewBox="0 0 24 24" fill="none">
-                <path d="M5 3h14l3 5-10 13L2 8z" fill="url(#dgf)" />
-                <path d="M5 3l4 5h6l4-5" stroke="#fff" strokeOpacity=".5" strokeWidth=".7" />
-                <path d="M2 8h20" stroke="#fff" strokeOpacity=".4" strokeWidth=".7" />
-                <path d="M9 8l3 13 3-13" stroke="#fff" strokeOpacity=".5" strokeWidth=".7" />
-                <defs>
-                  <linearGradient id="dgf" x1="2" y1="3" x2="22" y2="21" gradientUnits="userSpaceOnUse">
-                    <stop stopColor="#ffe1ee" />
-                    <stop offset=".5" stopColor="#fbbdd6" />
-                    <stop offset="1" stopColor="#f774a8" />
-                  </linearGradient>
-                </defs>
-              </svg>
+            <div className="w-12 h-12 rounded-[14px] grid place-items-center flex-none overflow-hidden shadow-[0_6px_16px_-8px_rgba(0,0,0,0.5)]">
+              <img src="/sakura-logo.jpg" alt="Sakura Bloom" className="w-full h-full object-cover" />
             </div>
             <div className="text-left">
               <div className="font-jp font-extrabold text-white text-[22px] tracking-tight">
