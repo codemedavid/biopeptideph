@@ -23,7 +23,7 @@ const Footer: React.FC = () => {
             </div>
             <div className="text-left">
               <div className="font-jp font-extrabold text-white text-[22px] tracking-tight">
-                Fuji Mountain
+                Sakura Bloom
               </div>
               <div className="text-sm text-[var(--accent-soft)] font-semibold tracking-[0.18em] uppercase mt-1">A Cooler Kind of Glow · <span className="font-jp tracking-[0.08em] normal-case">さくら</span></div>
 
@@ -54,7 +54,7 @@ const Footer: React.FC = () => {
           <p className="text-xs text-[#9cc1da] flex items-center justify-center gap-1">
             Made with
             <Heart className="w-3 h-3 text-theme-red fill-theme-red" />
-            © {currentYear} Fuji Mountain. All rights reserved.
+            © {currentYear} Sakura Bloom. All rights reserved.
           </p>
         </div>
       </div>
