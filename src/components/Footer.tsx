@@ -12,6 +12,7 @@ const Footer: React.FC = () => {
   return (
     <footer className="relative overflow-hidden glacier-surface text-white border border-[var(--frost-line)] shadow-[var(--shadow-frost)] rounded-[var(--r-lg)] mx-3 md:mx-7 mb-7 mt-14 pt-16 pb-8">
       <div className="frost-glints" />
+      <div className="foot-seigaiha" aria-hidden="true" />
       <div className="container mx-auto px-4 relative z-[2]">
         <div className="flex flex-col md:flex-row items-center justify-between gap-8 mb-12">
 
@@ -33,10 +34,10 @@ const Footer: React.FC = () => {
               </svg>
             </div>
             <div className="text-left">
-              <div className="font-display font-extrabold text-white text-[22px] tracking-tight">
+              <div className="font-jp font-extrabold text-white text-[22px] tracking-tight">
                 Snow Snow
               </div>
-              <div className="text-sm text-[var(--accent-soft)] font-semibold tracking-[0.18em] uppercase mt-1">A Cooler Kind of Glow</div>
+              <div className="text-sm text-[var(--accent-soft)] font-semibold tracking-[0.18em] uppercase mt-1">A Cooler Kind of Glow · <span className="font-jp tracking-[0.08em] normal-case">さくら</span></div>
 
               <div className="mt-4 flex gap-6 text-sm">
                 <Link to="/" className="text-[#bcdcef] hover:text-white transition-colors">Home</Link>

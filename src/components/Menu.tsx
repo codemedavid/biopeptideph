@@ -75,8 +75,8 @@ const Menu: React.FC<MenuProps> = ({ menuItems, addToCart, cartItems, unavailabl
         <div className="container mx-auto px-4 py-10" ref={productsRef} id="product-section">
           {/* Section heading */}
           <div className="mb-6">
-            <h2 className="font-display font-extrabold text-[28px] sm:text-[30px] tracking-[-0.02em] text-theme-text flex items-center gap-3">
-              <span className="text-theme-accent">🌸</span> The Collection
+            <h2 className="font-jp font-extrabold text-[28px] sm:text-[30px] tracking-[-0.01em] text-theme-text flex items-center gap-3">
+              <span className="text-theme-accent">🌸</span> The Collection <span className="sec-kana">コレクション</span>
             </h2>
           </div>
 

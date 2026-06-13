@@ -97,8 +97,8 @@ const Header: React.FC<HeaderProps> = ({ cartItemsCount, onCartClick, onMenuClic
                 </svg>
               </div>
               <div className="min-w-0">
-                <div className="font-display font-extrabold text-[20px] sm:text-[22px] leading-none tracking-[-0.02em] text-theme-text whitespace-nowrap">Snow Snow</div>
-                <div className="text-[10.5px] tracking-[0.22em] text-theme-text/60 uppercase mt-1.5 font-semibold whitespace-nowrap">A Cooler Kind of Glow</div>
+                <div className="font-jp font-extrabold text-[20px] sm:text-[22px] leading-none tracking-[-0.01em] text-theme-text whitespace-nowrap">Snow Snow</div>
+                <div className="text-[10.5px] tracking-[0.22em] text-theme-text/60 uppercase mt-1.5 font-semibold whitespace-nowrap">A Cooler Kind of Glow · <span className="font-jp font-semibold tracking-[0.08em] normal-case">さくら</span></div>
               </div>
             </button>
 

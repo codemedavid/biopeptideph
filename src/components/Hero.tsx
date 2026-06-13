@@ -81,15 +81,17 @@ const Hero: React.FC<HeroProps> = ({ onShopAll, activeGbNumber }) => {
             </>
           )}
           <div className="frost-glints" />
+          <div className="hero-kanji" aria-hidden="true">雪</div>
 
           {/* LEFT — copy + CTAs */}
           <div className="relative z-[2] flex flex-col justify-center px-8 py-12 sm:px-12 sm:py-[52px]">
+            <div className="hanko" aria-hidden="true"><span>桜</span></div>
             <span className="inline-flex items-center gap-2.5 self-start px-[15px] py-2 rounded-full font-bold text-[12.5px] tracking-[0.14em] uppercase text-[#eaf7ff] bg-white/[0.12] border border-white/[0.28] backdrop-blur-sm">
               <span className="w-2 h-2 rounded-full bg-[var(--accent-soft)] shadow-[0_0_12px_2px_var(--accent-soft)]" />
               {badge}
             </span>
 
-            <h1 className="font-display font-extrabold text-white tracking-[-0.03em] leading-[1.02] text-[clamp(40px,4.6vw,68px)] mt-[22px]">
+            <h1 className="font-jp font-extrabold text-white tracking-[-0.02em] leading-[1.06] text-[clamp(40px,4.6vw,68px)] mt-[22px]">
               A cooler kind<br />of{' '}
               <span className="bg-gradient-to-b from-white via-[#ffd6e6] to-[#ff9ecb] bg-clip-text text-transparent">glow.</span>
             </h1>
@@ -128,7 +130,7 @@ const Hero: React.FC<HeroProps> = ({ onShopAll, activeGbNumber }) => {
                 </span>
               </div>
 
-              <h3 className="font-display font-bold text-[23px] tracking-[-0.02em] text-white mt-4 mb-0.5">Group Buy is open</h3>
+              <h3 className="font-jp font-bold text-[24px] tracking-[-0.01em] text-white mt-4 mb-0.5">Group Buy is open</h3>
               <div className="text-[13.5px] text-[#bcdcef]">Hosted live now · join the live to shop the drops</div>
 
               {/* Live tile */}

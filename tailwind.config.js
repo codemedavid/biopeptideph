@@ -63,6 +63,7 @@ export default {
         body: ['Plus Jakarta Sans', 'system-ui', 'sans-serif'],
         display: ['Sora', 'system-ui', 'sans-serif'],
         inter: ['Plus Jakarta Sans', 'system-ui', 'sans-serif'],
+        jp: ['Shippori Mincho B1', 'Sora', 'serif'],
       },
       backdropBlur: {
         frost: '18px',
