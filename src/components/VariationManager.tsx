@@ -228,6 +228,8 @@ const VariationManager: React.FC<VariationManagerProps> = ({ product, onClose })
                             />
                           </div>
 
+                          {/* TEMP_USD_HIDDEN: USD price field hidden temporarily — restore by removing `false &&` */}
+                          {false && (
                           <div>
                             <label className="block text-sm font-semibold text-gray-700 mb-2">
                               Price USD ($) — auto
@@ -241,6 +243,7 @@ const VariationManager: React.FC<VariationManagerProps> = ({ product, onClose })
                             />
                             <p className="text-[10px] text-blue-600/80 mt-1">Auto from ₱{savedRate} = $1</p>
                           </div>
+                          )}
 
                           <div>
                             <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -384,6 +387,8 @@ const VariationManager: React.FC<VariationManagerProps> = ({ product, onClose })
                     />
                   </div>
 
+                  {/* TEMP_USD_HIDDEN: USD price field hidden temporarily — restore by removing `false &&` */}
+                  {false && (
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
                       Price USD ($) — auto
@@ -397,6 +402,7 @@ const VariationManager: React.FC<VariationManagerProps> = ({ product, onClose })
                     />
                     <p className="text-[10px] text-blue-600/80 mt-1">Auto from ₱{savedRate} = $1</p>
                   </div>
+                  )}
 
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">

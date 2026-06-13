@@ -756,6 +756,8 @@ const AdminDashboard: React.FC = () => {
                           />
                         </div>
                       </div>
+                      {/* TEMP_USD_HIDDEN: USD price field hidden temporarily — restore by removing `false &&` */}
+                      {false && (
                       <div className="bg-blue-50/50 rounded-lg p-2 border border-blue-100">
                         <label className="block text-[10px] md:text-xs font-semibold text-blue-700 mb-1">
                           🌎 International (USD) — auto
@@ -775,6 +777,7 @@ const AdminDashboard: React.FC = () => {
                           Auto from ₱{savedRate} = $1
                         </p>
                       </div>
+                      )}
                     </div>
 
                     {editingProduct && editingProduct.variations && editingProduct.variations.length > 0 && (

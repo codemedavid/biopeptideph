@@ -57,6 +57,8 @@ const Header: React.FC<HeaderProps> = ({ cartItemsCount, onCartClick, onMenuClic
         <span className="text-sm">🇵🇭</span>
         <span>PHP</span>
       </button>
+      {/* TEMP_USD_HIDDEN: USD toggle hidden temporarily — restore by removing `false &&` */}
+      {false && (
       <button
         onClick={() => handlePricingModeClick('international')}
         className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold transition-all ${pricingMode === 'international'
@@ -68,6 +70,7 @@ const Header: React.FC<HeaderProps> = ({ cartItemsCount, onCartClick, onMenuClic
         <span className="text-sm">🌎</span>
         <span>USD</span>
       </button>
+      )}
     </div>
   );
 

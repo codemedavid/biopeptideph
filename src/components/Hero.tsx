@@ -18,6 +18,9 @@ const Hero: React.FC<HeroProps> = ({ onShopAll, activeGbNumber }) => {
 
   // Content Fallbacks (Clinical Futurism Theme)
   const badge = siteSettings?.home_hero_badge || 'Now Open · Research Grade';
+  const titlePrefix = siteSettings?.home_hero_title_prefix || 'A cooler kind of';
+  const titleHighlight = siteSettings?.home_hero_title_highlight || 'glow.';
+  const titleSuffix = siteSettings?.home_hero_title_suffix || '';
   const subtext = siteSettings?.home_hero_subtext || 'Lab-verified research peptides, frozen at purity and shipped cold. Built for researchers who don’t compromise.';
   const heroImage = siteSettings?.home_hero_image_url || '';
   const ctaText = siteSettings?.home_hero_cta_text || '';
@@ -92,8 +95,9 @@ const Hero: React.FC<HeroProps> = ({ onShopAll, activeGbNumber }) => {
             </span>
 
             <h1 className="font-jp font-extrabold text-white tracking-[-0.02em] leading-[1.06] text-[clamp(40px,4.6vw,68px)] mt-[22px]">
-              A cooler kind<br />of{' '}
-              <span className="bg-gradient-to-b from-white via-[#ffd6e6] to-[#ff9ecb] bg-clip-text text-transparent">glow.</span>
+              {titlePrefix}{' '}
+              <span className="bg-gradient-to-b from-white via-[#ffd6e6] to-[#ff9ecb] bg-clip-text text-transparent">{titleHighlight}</span>
+              {titleSuffix ? <> {titleSuffix}</> : null}
             </h1>
 
             <p className="text-[#cfe6f7] text-lg leading-[1.55] max-w-[30ch] mt-[18px]">
