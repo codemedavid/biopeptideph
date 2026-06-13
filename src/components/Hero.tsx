@@ -38,13 +38,14 @@ const Hero: React.FC<HeroProps> = ({ onShopAll, activeGbNumber }) => {
   };
 
   const trustPoints = [
-    { icon: ShieldCheck, label: 'Lab Verified' },
-    { icon: Sparkles, label: 'Research Grade' },
-    { icon: FlaskConical, label: 'Expert Verified' },
+    // TEMP_HIDDEN: trust badges removed — restore by uncommenting
+    // { icon: ShieldCheck, label: 'Lab Verified' },
+    // { icon: Sparkles, label: 'Research Grade' },
+    // { icon: FlaskConical, label: 'Expert Verified' },
   ];
 
   // Frosted trust bar — sits below the hero card
-  const trustBar = (
+  const trustBar = trustPoints.length === 0 ? null : (
     <div className="mx-3 md:mx-7 mt-[18px]">
       <div className="frost-soft rounded-[var(--r-md)] flex items-center justify-center gap-x-8 sm:gap-x-12 gap-y-2 flex-wrap p-4">
         {trustPoints.map(({ icon: Icon, label }) => (

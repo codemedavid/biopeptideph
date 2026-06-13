@@ -143,8 +143,8 @@ const Header: React.FC<HeaderProps> = ({ cartItemsCount, onCartClick, onMenuClic
                 WhatsApp
               </a>
 
-              {/* Currency Toggle */}
-              <CurrencyToggle className="hidden sm:flex flex-shrink-0" />
+              {/* TEMP_USD_HIDDEN: Currency toggle hidden — PHP is the sole currency. Restore by removing `false &&` */}
+              {false && <CurrencyToggle className="hidden sm:flex flex-shrink-0" />}
 
               {/* Cart Button — ice gradient */}
               <button
@@ -217,11 +217,13 @@ const Header: React.FC<HeaderProps> = ({ cartItemsCount, onCartClick, onMenuClic
                   Start Assessment
                 </Link>
                 <div className="pt-4 border-t border-[var(--frost-edge)] flex flex-col gap-3">
-                  {/* Currency Toggle for small screens */}
+                  {/* TEMP_USD_HIDDEN: Currency toggle hidden — PHP is the sole currency. Restore by removing `false &&` */}
+                  {false && (
                   <div className="sm:hidden pl-4 pb-2">
                     <p className="text-xs text-theme-text/60 mb-2 font-medium uppercase tracking-wider">Currency</p>
                     <CurrencyToggle />
                   </div>
+                  )}
                   <a
                     href={whatsappUrl}
                     target="_blank"
