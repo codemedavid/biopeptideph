@@ -73,7 +73,7 @@ const Hero: React.FC<HeroProps> = ({ onShopAll, activeGbNumber }) => {
     <>
       {/* HERO CARD — glacier gradient */}
       <section className="mx-3 md:mx-7 mt-6">
-        <div className="relative overflow-hidden rounded-[32px] glacier-surface border border-[var(--frost-line)] shadow-[var(--shadow-frost)] grid lg:grid-cols-[1.15fr_0.85fr] min-h-[430px]">
+        <div className="relative overflow-hidden rounded-[32px] glacier-surface border border-[var(--frost-line)] shadow-[var(--shadow-frost)] grid min-h-[430px]">
           {/* Optional admin background image, tinted for legibility */}
           {heroImage && (
             <>
@@ -118,48 +118,6 @@ const Hero: React.FC<HeroProps> = ({ onShopAll, activeGbNumber }) => {
                 className="inline-flex items-center gap-2 font-semibold text-[15.5px] text-[#eaf7ff] px-[22px] py-3.5 rounded-full border border-white/[0.32] bg-white/[0.07] hover:bg-white/[0.16] transition-all"
               >
                 Start Assessment
-              </button>
-            </div>
-          </div>
-
-          {/* RIGHT — Group Buy Live promo card */}
-          <div className="relative z-[2] grid place-items-center px-8 pb-10 lg:pb-9 lg:pl-2 lg:pr-11 lg:pt-9">
-            <div className="w-full max-w-[330px] rounded-[24px] p-[26px] bg-white/[0.14] border border-white/[0.28] backdrop-blur-[14px] shadow-[0_24px_50px_-22px_rgba(0,0,0,0.5),0_1px_0_rgba(255,255,255,0.4)_inset] text-[#eaf7ff]">
-              <div className="flex items-center justify-between">
-                <span className="inline-flex items-center gap-[7px] font-display font-bold text-xs tracking-[0.1em] px-3 py-1.5 rounded-full text-white bg-gradient-to-b from-[#ff5470] to-[#e11d48] shadow-[0_6px_16px_-8px_rgba(225,29,72,0.9)]">
-                  <span className="live-dot" />LIVE NOW
-                </span>
-                <span className="inline-flex items-center gap-1.5 text-[12.5px] text-[#bcdcef] font-semibold">
-                  <svg className="w-[15px] h-[15px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z" /><circle cx="12" cy="12" r="3" /></svg>
-                  1.2k watching
-                </span>
-              </div>
-
-              <h3 className="font-jp font-bold text-[24px] tracking-[-0.01em] text-white mt-4 mb-0.5">Group Buy is open</h3>
-              <div className="text-[13.5px] text-[#bcdcef]">Hosted live now · join the live to shop the drops</div>
-
-              {/* Live tile */}
-              <div className="relative mt-[18px] h-[148px] rounded-[16px] overflow-hidden grid place-items-center border border-white/[0.18]" style={{ background: 'radial-gradient(120% 120% at 50% 20%,#8d3a5f,#3a132a 75%)' }}>
-                <div className="frost-glints" />
-                <span className="absolute top-[11px] left-[11px] inline-flex items-center gap-1.5 font-display font-bold text-[10.5px] tracking-[0.08em] px-[9px] py-[5px] rounded-lg text-white bg-[rgba(225,29,72,0.92)]">
-                  <span className="live-dot" />LIVE
-                </span>
-                <button
-                  onClick={handlePrimary}
-                  aria-label="Watch the live"
-                  className="w-[54px] h-[54px] rounded-full grid place-items-center text-[#06283d] bg-white/[0.92] shadow-[0_10px_30px_-8px_rgba(0,0,0,0.5)] hover:scale-105 transition-transform"
-                >
-                  <svg className="w-[22px] h-[22px] ml-[3px]" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
-                </button>
-                <span className="absolute bottom-2.5 left-[11px] text-[11.5px] font-semibold text-[#dceefb] px-[9px] py-1 rounded-md bg-[rgba(8,28,46,0.55)] backdrop-blur-sm">Snow Snow Official</span>
-              </div>
-
-              <button
-                onClick={handlePrimary}
-                className="mt-4 w-full flex items-center justify-center gap-2.5 font-display font-bold text-[15px] py-[13px] rounded-[13px] text-[#06283d] bg-gradient-to-b from-white to-[#ffe1ee] shadow-[0_14px_30px_-12px_rgba(247,116,168,0.8),0_0_0_1px_rgba(255,255,255,0.6)_inset] hover:-translate-y-0.5 transition-all"
-              >
-                Join the Live
-                <ArrowRight className="w-[17px] h-[17px]" />
               </button>
             </div>
           </div>
