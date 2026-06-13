@@ -77,7 +77,7 @@ const Hero: React.FC<HeroProps> = ({ onShopAll, activeGbNumber }) => {
                 className="absolute inset-0 bg-cover bg-center pointer-events-none opacity-40"
                 style={{ backgroundImage: `url(${heroImage})` }}
               />
-              <div className="absolute inset-0 bg-[#0c2c4a]/55 pointer-events-none" />
+              <div className="absolute inset-0 bg-[#5c1f3d]/55 pointer-events-none" />
             </>
           )}
           <div className="frost-glints" />
@@ -91,7 +91,7 @@ const Hero: React.FC<HeroProps> = ({ onShopAll, activeGbNumber }) => {
 
             <h1 className="font-display font-extrabold text-white tracking-[-0.03em] leading-[1.02] text-[clamp(40px,4.6vw,68px)] mt-[22px]">
               A cooler kind<br />of{' '}
-              <span className="bg-gradient-to-b from-white via-[#bfe6ff] to-[#8fd0ff] bg-clip-text text-transparent">glow.</span>
+              <span className="bg-gradient-to-b from-white via-[#ffd6e6] to-[#ff9ecb] bg-clip-text text-transparent">glow.</span>
             </h1>
 
             <p className="text-[#cfe6f7] text-lg leading-[1.55] max-w-[30ch] mt-[18px]">
@@ -101,7 +101,7 @@ const Hero: React.FC<HeroProps> = ({ onShopAll, activeGbNumber }) => {
             <div className="flex items-center gap-3.5 mt-[30px] flex-wrap">
               <button
                 onClick={handlePrimary}
-                className="group inline-flex items-center gap-2.5 font-display font-semibold text-base px-[26px] py-[15px] rounded-full text-[#06283d] bg-gradient-to-b from-white to-[#d7f0ff] shadow-[0_16px_36px_-14px_rgba(56,189,248,0.7),0_0_0_1px_rgba(255,255,255,0.6)_inset] hover:-translate-y-0.5 transition-all"
+                className="group inline-flex items-center gap-2.5 font-display font-semibold text-base px-[26px] py-[15px] rounded-full text-[#06283d] bg-gradient-to-b from-white to-[#ffe1ee] shadow-[0_16px_36px_-14px_rgba(247,116,168,0.7),0_0_0_1px_rgba(255,255,255,0.6)_inset] hover:-translate-y-0.5 transition-all"
               >
                 {primaryLabel}
                 <ArrowRight className="w-[18px] h-[18px] group-hover:translate-x-1 transition-transform" />
@@ -132,7 +132,7 @@ const Hero: React.FC<HeroProps> = ({ onShopAll, activeGbNumber }) => {
               <div className="text-[13.5px] text-[#bcdcef]">Hosted live now · join the live to shop the drops</div>
 
               {/* Live tile */}
-              <div className="relative mt-[18px] h-[148px] rounded-[16px] overflow-hidden grid place-items-center border border-white/[0.18]" style={{ background: 'radial-gradient(120% 120% at 50% 20%,#13456e,#0a2540 75%)' }}>
+              <div className="relative mt-[18px] h-[148px] rounded-[16px] overflow-hidden grid place-items-center border border-white/[0.18]" style={{ background: 'radial-gradient(120% 120% at 50% 20%,#8d3a5f,#3a132a 75%)' }}>
                 <div className="frost-glints" />
                 <span className="absolute top-[11px] left-[11px] inline-flex items-center gap-1.5 font-display font-bold text-[10.5px] tracking-[0.08em] px-[9px] py-[5px] rounded-lg text-white bg-[rgba(225,29,72,0.92)]">
                   <span className="live-dot" />LIVE
@@ -149,7 +149,7 @@ const Hero: React.FC<HeroProps> = ({ onShopAll, activeGbNumber }) => {
 
               <button
                 onClick={handlePrimary}
-                className="mt-4 w-full flex items-center justify-center gap-2.5 font-display font-bold text-[15px] py-[13px] rounded-[13px] text-[#06283d] bg-gradient-to-b from-white to-[#d7f0ff] shadow-[0_14px_30px_-12px_rgba(56,189,248,0.8),0_0_0_1px_rgba(255,255,255,0.6)_inset] hover:-translate-y-0.5 transition-all"
+                className="mt-4 w-full flex items-center justify-center gap-2.5 font-display font-bold text-[15px] py-[13px] rounded-[13px] text-[#06283d] bg-gradient-to-b from-white to-[#ffe1ee] shadow-[0_14px_30px_-12px_rgba(247,116,168,0.8),0_0_0_1px_rgba(255,255,255,0.6)_inset] hover:-translate-y-0.5 transition-all"
               >
                 Join the Live
                 <ArrowRight className="w-[17px] h-[17px]" />

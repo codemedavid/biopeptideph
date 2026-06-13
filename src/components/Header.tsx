@@ -89,9 +89,9 @@ const Header: React.FC<HeaderProps> = ({ cartItemsCount, onCartClick, onMenuClic
                   <path d="M9 8l3 13 3-13" stroke="#fff" strokeOpacity=".5" strokeWidth=".7" />
                   <defs>
                     <linearGradient id="dg" x1="2" y1="3" x2="22" y2="21" gradientUnits="userSpaceOnUse">
-                      <stop stopColor="#bfe6ff" />
-                      <stop offset=".5" stopColor="#7dd3fc" />
-                      <stop offset="1" stopColor="#38bdf8" />
+                      <stop stopColor="#ffe1ee" />
+                      <stop offset=".5" stopColor="#fbbdd6" />
+                      <stop offset="1" stopColor="#f774a8" />
                     </linearGradient>
                   </defs>
                 </svg>
@@ -176,7 +176,7 @@ const Header: React.FC<HeaderProps> = ({ cartItemsCount, onCartClick, onMenuClic
 
       {/* Mobile Navigation Menu */}
       {mobileMenuOpen && (
-        <div className="lg:hidden fixed inset-0 z-40 bg-[#0c2c4a]/40 backdrop-blur-sm" onClick={() => setMobileMenuOpen(false)}>
+        <div className="lg:hidden fixed inset-0 z-40 bg-[#5c1f3d]/40 backdrop-blur-sm" onClick={() => setMobileMenuOpen(false)}>
           <div
             className="absolute top-[78px] right-3 left-3 frost-panel rounded-[var(--r-md)] shadow-xl animate-slideIn"
             onClick={(e) => e.stopPropagation()}

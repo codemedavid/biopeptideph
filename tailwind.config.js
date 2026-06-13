@@ -8,55 +8,55 @@ export default {
     extend: {
       colors: {
         // Snow Snow Branding
-        // Frosted-Ice Palette
+        // Sakura Blossom Palette
         theme: {
-          navy: '#0c2c4a',      // Deep Glacier - Headers, footer, dark sections
-          blue: '#3ea0e0',      // Ice Blue - Buttons, highlights, links
-          lightblue: '#dceeff', // Soft Frost - Section backgrounds, cards
+          navy: '#5c1f3d',      // Deep Plum-Rose - Headers, footer, dark sections
+          blue: '#f48ab0',      // Sakura Pink - Buttons, highlights, links
+          lightblue: '#fbbdd6', // Soft Blossom - Section backgrounds, cards
           white: '#FFFFFF',     // Snow White - Text areas, forms
           red: '#e11d48',       // Warm "live" accent (used intentionally)
         },
         // Semantic mappings (backward compatibility + new structure)
-        'theme-bg': '#e9f6ff',          // Main content background (Frost wash)
-        'theme-navy': '#0c2c4a',        // Dark sections
-        'theme-text': '#0f2c45',        // Glacier ink (high contrast on frost)
+        'theme-bg': '#fff1f6',          // Main content background (Blossom wash)
+        'theme-navy': '#5c1f3d',        // Dark sections
+        'theme-text': '#4a1730',        // Plum ink (high contrast on blossom)
         'theme-text-light': '#FFFFFF',  // White text for dark backgrounds
-        'theme-accent': '#38bdf8',      // Icy cyan accent
-        'theme-secondary': '#1d6fb8',   // Ice deep
-        'theme-soft-blue': '#dceeff',   // Soft Frost
+        'theme-accent': '#f774a8',      // Blossom pink accent
+        'theme-secondary': '#e0588e',   // Sakura deep
+        'theme-soft-blue': '#fbbdd6',   // Soft Blossom
 
         // Mapping standard colors to the new theme for compatibility
         primary: {
-          50: '#f0f9ff',
-          100: '#dceeff',
-          200: '#bae1fd',
-          300: '#7dd3fc',
-          400: '#54bdf5',
-          500: '#3ea0e0', // Main Ice Blue
-          600: '#1d6fb8',
-          700: '#175a96',
-          800: '#13456e',
-          900: '#0c2c4a',
+          50: '#fff1f6',
+          100: '#ffe7f0',
+          200: '#fbbdd6',
+          300: '#f9a9c8',
+          400: '#f774a8',
+          500: '#f48ab0', // Main Sakura Pink
+          600: '#e0588e',
+          700: '#c33f70',
+          800: '#8d3a5f',
+          900: '#5c1f3d',
         },
-        // Ice deep for secondary
+        // Sakura deep for secondary
         secondary: {
-          50: '#eef7ff',
-          100: '#d7ecfd',
-          200: '#b0d8fa',
-          300: '#7dbef3',
-          400: '#4f9fe4',
-          500: '#3ea0e0',
-          600: '#1d6fb8',
-          700: '#175a96',
-          800: '#13456e',
-          900: '#0c2c4a',
+          50: '#fff1f6',
+          100: '#ffe0ec',
+          200: '#fbbdd6',
+          300: '#f79ac0',
+          400: '#ef7aa5',
+          500: '#e0588e',
+          600: '#c33f70',
+          700: '#a23158',
+          800: '#8d3a5f',
+          900: '#5c1f3d',
         },
         accent: {
-          light: '#7dd3fc',
-          DEFAULT: '#38bdf8',
-          dark: '#1d6fb8',
+          light: '#fbbdd6',
+          DEFAULT: '#f774a8',
+          dark: '#e0588e',
           white: '#ffffff',
-          black: '#0c2c4a',
+          black: '#5c1f3d',
         },
       },
       fontFamily: {
@@ -75,9 +75,9 @@ export default {
         'soft': '0 2px 10px rgba(0, 0, 0, 0.03)',
         'medium': '0 4px 15px rgba(0, 0, 0, 0.05)',
         'hover': '0 8px 25px rgba(0, 0, 0, 0.08)',
-        'frost': '0 22px 50px -24px rgba(20, 70, 120, .45), 0 2px 0 rgba(255, 255, 255, .7) inset',
-        'frost-soft': '0 14px 34px -20px rgba(20, 70, 120, .4)',
-        'glow': '0 0 0 1px rgba(255, 255, 255, .6), 0 14px 40px -14px rgba(56, 189, 248, .6)',
+        'frost': '0 22px 50px -24px rgba(140, 40, 90, .4), 0 2px 0 rgba(255, 255, 255, .7) inset',
+        'frost-soft': '0 14px 34px -20px rgba(140, 40, 90, .35)',
+        'glow': '0 0 0 1px rgba(255, 255, 255, .6), 0 14px 40px -14px rgba(247, 116, 168, .6)',
       },
       animation: {
         'fadeIn': 'fadeIn 0.5s ease-out',

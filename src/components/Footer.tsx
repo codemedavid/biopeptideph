@@ -25,9 +25,9 @@ const Footer: React.FC = () => {
                 <path d="M9 8l3 13 3-13" stroke="#fff" strokeOpacity=".5" strokeWidth=".7" />
                 <defs>
                   <linearGradient id="dgf" x1="2" y1="3" x2="22" y2="21" gradientUnits="userSpaceOnUse">
-                    <stop stopColor="#bfe6ff" />
-                    <stop offset=".5" stopColor="#7dd3fc" />
-                    <stop offset="1" stopColor="#38bdf8" />
+                    <stop stopColor="#ffe1ee" />
+                    <stop offset=".5" stopColor="#fbbdd6" />
+                    <stop offset="1" stopColor="#f774a8" />
                   </linearGradient>
                 </defs>
               </svg>

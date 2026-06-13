@@ -76,7 +76,7 @@ const Menu: React.FC<MenuProps> = ({ menuItems, addToCart, cartItems, unavailabl
           {/* Section heading */}
           <div className="mb-6">
             <h2 className="font-display font-extrabold text-[28px] sm:text-[30px] tracking-[-0.02em] text-theme-text flex items-center gap-3">
-              <span className="text-theme-accent">❄</span> The Collection
+              <span className="text-theme-accent">🌸</span> The Collection
             </h2>
           </div>
 
