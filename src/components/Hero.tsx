@@ -16,18 +16,18 @@ const Hero: React.FC<HeroProps> = ({ onShopAll, activeGbNumber }) => {
   const { siteSettings } = useSiteSettings();
   const { activeSlides } = useHeroCarousel();
 
-  // Content Fallbacks (Clinical Futurism Theme)
-  const badge = siteSettings?.home_hero_badge || 'Now Open · Research Grade';
-  const titlePrefix = siteSettings?.home_hero_title_prefix || 'A cooler kind of';
-  const titleHighlight = siteSettings?.home_hero_title_highlight || 'glow.';
-  const titleSuffix = siteSettings?.home_hero_title_suffix || '';
-  const subtext = siteSettings?.home_hero_subtext || 'Lab-verified research peptides, frozen at purity and shipped cold. Built for researchers who don’t compromise.';
+  // Content Fallbacks (Sakura Theme)
+  const badge = siteSettings?.home_hero_badge || 'INSPIRED BY SAKURA • CRAFTED FOR EXCELLENCE';
+  const titlePrefix = siteSettings?.home_hero_title_prefix || 'Sakura';
+  const titleHighlight = siteSettings?.home_hero_title_highlight || 'Wellness';
+  const titleSuffix = siteSettings?.home_hero_title_suffix || 'Collection';
+  const subtext = siteSettings?.home_hero_subtext || 'Discover premium peptides and wellness essentials designed for quality, confidence, and care.';
   const heroImage = siteSettings?.home_hero_image_url || '';
   const ctaText = siteSettings?.home_hero_cta_text || '';
   const ctaLink = siteSettings?.home_hero_cta_link || '';
 
   // Primary CTA: an active GB always wins; otherwise an admin-set CTA; otherwise Explore Products.
-  const primaryLabel = activeGbNumber ? `Explore GB #${activeGbNumber}` : (ctaText || 'Explore Products');
+  const primaryLabel = activeGbNumber ? `Explore GB #${activeGbNumber}` : (ctaText || 'Explore Collection');
   const handlePrimary = () => {
     if (!activeGbNumber && ctaLink) {
       if (/^https?:\/\//.test(ctaLink)) window.open(ctaLink, '_blank');
