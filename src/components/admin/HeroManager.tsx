@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { ArrowLeft, Save, Image as ImageIcon, Eye, Images, Type } from 'lucide-react';
+import { ArrowLeft, Save, Image as ImageIcon, Eye, Images, Type, AlertTriangle } from 'lucide-react';
 import { useSiteSettings } from '../../hooks/useSiteSettings';
+import { useHeroCarousel } from '../../hooks/useHeroCarousel';
 import ImageUpload from '../ImageUpload';
 import HeroCarouselManager from './HeroCarouselManager';
 
@@ -21,8 +22,11 @@ const FIELDS: { key: string; label: string; placeholder: string; textarea?: bool
 
 const HeroManager: React.FC<HeroManagerProps> = ({ onBack }) => {
   const { siteSettings, upsertSiteSetting, loading } = useSiteSettings();
+  const { activeSlides } = useHeroCarousel();
   const [form, setForm] = useState<Record<string, string>>({});
   const [heroImage, setHeroImage] = useState<string>('');
+  // A set background image always wins over the carousel on the homepage.
+  const imageOverridesCarousel = activeSlides.length > 0 && !!heroImage;
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [tab, setTab] = useState<'content' | 'carousel'>('content');
@@ -93,13 +97,36 @@ const HeroManager: React.FC<HeroManagerProps> = ({ onBack }) => {
           {/* Hero image */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Hero Background Image</label>
-            <ImageUpload
-              currentImage={heroImage || null}
-              onImageChange={(url) => setHeroImage(url || '')}
-              folder="menu-images"
-              skipBucketCheck
-            />
-            <p className="text-xs text-gray-400 mt-1">Optional. A brand tint is applied over the image for legibility.</p>
+            {carouselActive ? (
+              <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 flex items-start gap-3">
+                <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+                <div className="text-sm text-amber-800">
+                  <p className="font-semibold">The carousel is currently overriding this image.</p>
+                  <p className="mt-1">
+                    You have {activeSlides.length} active carousel slide{activeSlides.length === 1 ? '' : 's'}, so the
+                    homepage hero shows the <strong>carousel</strong> instead of this background image. To change the
+                    image visitors see, edit it in the{' '}
+                    <button
+                      type="button"
+                      onClick={() => setTab('carousel')}
+                      className="underline font-semibold hover:text-amber-900"
+                    >
+                      Carousel Slides
+                    </button>{' '}
+                    tab. The background image below is only used when there are no active slides.
+                  </p>
+                </div>
+              </div>
+            ) : null}
+            <div className={carouselActive ? 'mt-3 opacity-60' : ''}>
+              <ImageUpload
+                currentImage={heroImage || null}
+                onImageChange={(url) => setHeroImage(url || '')}
+                folder="menu-images"
+                skipBucketCheck
+              />
+              <p className="text-xs text-gray-400 mt-1">Optional. A brand tint is applied over the image for legibility.{carouselActive ? ' Shown only when no carousel slides are active.' : ''}</p>
+            </div>
           </div>
 
           {FIELDS.map((f) => (

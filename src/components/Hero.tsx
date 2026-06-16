@@ -58,9 +58,9 @@ const Hero: React.FC<HeroProps> = ({ onShopAll, activeGbNumber }) => {
     </div>
   );
 
-  // When the admin has active carousel slides, the hero IS the carousel.
-  // Otherwise fall back to the designed frosted-ice hero below.
-  if (activeSlides.length > 0) {
+  // A set background image always wins. Only when no background image is set
+  // and the admin has active carousel slides does the hero become the carousel.
+  if (!heroImage && activeSlides.length > 0) {
     return (
       <div className="relative overflow-hidden">
         <HeroCarousel slides={activeSlides} activeGbNumber={activeGbNumber} onShopAll={onShopAll} />

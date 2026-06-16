@@ -780,12 +780,34 @@ const AdminDashboard: React.FC = () => {
                       )}
                     </div>
 
-                    {editingProduct && editingProduct.variations && editingProduct.variations.length > 0 && (
-                      <p className="text-[10px] md:text-xs text-orange-600 mt-2 flex items-start gap-1 bg-orange-50 p-2 rounded border border-orange-200">
-                        <span>⚠️</span>
-                        <span>Has <strong>{editingProduct.variations.length} variation(s)</strong> - use "Manage Sizes" for those prices.</span>
-                      </p>
-                    )}
+                    {/* Variations: manage size/price options per product */}
+                    <div className="mt-3 p-3 rounded-lg border border-theme-secondary/30 bg-theme-secondary/5">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-xs md:text-sm font-bold text-gray-900 flex items-center gap-1.5">
+                            <Layers className="h-4 w-4 text-theme-secondary" />
+                            Size Variations
+                          </p>
+                          <p className="text-[10px] md:text-xs text-gray-500 mt-0.5">
+                            {editingProduct && editingProduct.variations && editingProduct.variations.length > 0
+                              ? `${editingProduct.variations.length} variation(s) — these prices are what customers see.`
+                              : currentView === 'edit'
+                                ? 'No variations yet. Add sizes like 5mg, 10mg, 20mg.'
+                                : 'Save the product first, then add size variations.'}
+                          </p>
+                        </div>
+                        {currentView === 'edit' && editingProduct && (
+                          <button
+                            type="button"
+                            onClick={() => setManagingVariationsProductId(editingProduct.id)}
+                            className="shrink-0 flex items-center gap-1.5 px-3 py-2 bg-theme-secondary hover:bg-theme-secondary/90 text-white rounded-lg text-xs font-bold transition-all shadow-sm"
+                          >
+                            <Plus className="h-3.5 w-3.5" />
+                            Manage Variations
+                          </button>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
