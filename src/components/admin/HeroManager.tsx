@@ -97,15 +97,15 @@ const HeroManager: React.FC<HeroManagerProps> = ({ onBack }) => {
           {/* Hero image */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Hero Background Image</label>
-            {carouselActive ? (
+            {imageOverridesCarousel ? (
               <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 flex items-start gap-3">
                 <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
                 <div className="text-sm text-amber-800">
-                  <p className="font-semibold">The carousel is currently overriding this image.</p>
+                  <p className="font-semibold">This image is overriding the carousel.</p>
                   <p className="mt-1">
-                    You have {activeSlides.length} active carousel slide{activeSlides.length === 1 ? '' : 's'}, so the
-                    homepage hero shows the <strong>carousel</strong> instead of this background image. To change the
-                    image visitors see, edit it in the{' '}
+                    You have {activeSlides.length} active carousel slide{activeSlides.length === 1 ? '' : 's'}, but the
+                    homepage hero shows this <strong>background image</strong> instead, because a set background image
+                    always takes priority. To show the{' '}
                     <button
                       type="button"
                       onClick={() => setTab('carousel')}
@@ -113,19 +113,19 @@ const HeroManager: React.FC<HeroManagerProps> = ({ onBack }) => {
                     >
                       Carousel Slides
                     </button>{' '}
-                    tab. The background image below is only used when there are no active slides.
+                    instead, clear this background image below.
                   </p>
                 </div>
               </div>
             ) : null}
-            <div className={carouselActive ? 'mt-3 opacity-60' : ''}>
+            <div className={imageOverridesCarousel ? 'mt-3' : ''}>
               <ImageUpload
                 currentImage={heroImage || null}
                 onImageChange={(url) => setHeroImage(url || '')}
                 folder="menu-images"
                 skipBucketCheck
               />
-              <p className="text-xs text-gray-400 mt-1">Optional. A brand tint is applied over the image for legibility.{carouselActive ? ' Shown only when no carousel slides are active.' : ''}</p>
+              <p className="text-xs text-gray-400 mt-1">Optional. A brand tint is applied over the image for legibility.{imageOverridesCarousel ? ' When set, this image is shown instead of the carousel.' : ''}</p>
             </div>
           </div>
 

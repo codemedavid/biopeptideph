@@ -1,0 +1,44 @@
+I have a Vite + React website and I want to add a secure site-wide access code system.
+
+Requirements:
+
+1. Before accessing any page, users must enter an access code.
+2. The access code is managed by an admin and can be changed at any time.
+3. The code must NOT be stored in the React frontend.
+4. Use a secure backend implementation.
+5. Create session-based authentication using HTTP-only cookies.
+6. Sessions should expire after 15 minutes of inactivity.
+7. Every user activity should refresh the session timeout.
+8. When the admin changes the access code, all existing sessions must become invalid immediately and users must re-enter the new code.
+9. Protect all React routes.
+10. If a session expires, redirect the user to the access code page.
+11. Add rate limiting to prevent brute-force attacks.
+12. Store the access code as a hashed value instead of plain text.
+13. Use environment variables for secrets.
+14. Include logout functionality.
+15. Show a clean access-code page UI using React.
+
+Tech stack:
+- Frontend: Vite + React
+- Backend: Node.js + Express
+- Session management: express-session
+- Password hashing: bcrypt
+- Security middleware: helmet
+- Rate limiting: express-rate-limit
+
+Please provide:
+
+- Complete folder structure
+- Backend setup code
+- Session configuration
+- Access code verification endpoint
+- Session validation endpoint
+- Admin endpoint to change the code
+- Logic to invalidate all active sessions when the code changes
+- React pages and components
+- ProtectedRoute component
+- API integration examples
+- Security best practices
+- Step-by-step setup instructions
+
+Generate production-ready code with comments explaining each section.
