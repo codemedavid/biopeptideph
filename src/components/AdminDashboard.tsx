@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Edit, Trash2, Save, X, ArrowLeft, Package, CreditCard, Sparkles, Layers, Shield, RefreshCw, Warehouse, ShoppingCart, MapPin, Check, ClipboardList, FileText, DollarSign, ShoppingBag, BarChart3, Image as ImageIcon, Percent, ScrollText } from 'lucide-react';
+import { Plus, Edit, Trash2, Save, X, ArrowLeft, Package, CreditCard, Sparkles, Layers, Shield, RefreshCw, Warehouse, ShoppingCart, MapPin, Check, ClipboardList, FileText, DollarSign, ShoppingBag, BarChart3, Image as ImageIcon, Percent, ScrollText, KeyRound } from 'lucide-react';
 import type { Product } from '../types';
 import { useMenu } from '../hooks/useMenu';
 import { useCategories } from '../hooks/useCategories';
@@ -21,6 +21,7 @@ import SalesAnalytics from './admin/SalesAnalytics';
 import HeroManager from './admin/HeroManager';
 import DiscountManager from './admin/DiscountManager';
 import TermsManager from './admin/TermsManager';
+import AccessCodePanel from './admin/AccessCodePanel';
 
 
 const AdminDashboard: React.FC = () => {
@@ -30,7 +31,7 @@ const AdminDashboard: React.FC = () => {
   const { products, loading, addProduct, updateProduct, deleteProduct, refreshProducts } = useMenu();
   const { categories } = useCategories();
   const { siteSettings, upsertSiteSetting } = useSiteSettings();
-  const [currentView, setCurrentView] = useState<'dashboard' | 'products' | 'add' | 'edit' | 'categories' | 'payments' | 'inventory' | 'orders' | 'shipping' | 'journey' | 'assessment' | 'guides' | 'group-buys' | 'analytics' | 'hero' | 'discounts' | 'terms'>('dashboard');
+  const [currentView, setCurrentView] = useState<'dashboard' | 'products' | 'add' | 'edit' | 'categories' | 'payments' | 'inventory' | 'orders' | 'shipping' | 'journey' | 'assessment' | 'guides' | 'group-buys' | 'analytics' | 'hero' | 'discounts' | 'terms' | 'access-code'>('dashboard');
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [managingVariationsProductId, setManagingVariationsProductId] = useState<string | null>(null);
@@ -1485,6 +1486,11 @@ const AdminDashboard: React.FC = () => {
     return <TermsManager onBack={() => setCurrentView('dashboard')} />;
   }
 
+  // Site Access Code View
+  if (currentView === 'access-code') {
+    return <AccessCodePanel onBack={() => setCurrentView('dashboard')} />;
+  }
+
 
 
   // Shipping View
@@ -1738,6 +1744,19 @@ const AdminDashboard: React.FC = () => {
               </div>
               <h3 className="text-sm md:text-lg font-bold text-theme-text mb-1 md:mb-2 group-hover:text-slate-700 transition-colors">Terms</h3>
               <p className="text-xs md:text-sm text-gray-500 line-clamp-2">Edit checkout T&amp;C.</p>
+            </button>
+
+            {/* Site Access Code Card */}
+            <button
+              onClick={() => setCurrentView('access-code')}
+              className="bg-white p-4 md:p-6 rounded-xl shadow-soft border border-gray-100 hover:shadow-medium transition-all group text-left relative overflow-hidden"
+            >
+              <div className="absolute top-0 right-0 w-16 h-16 md:w-24 md:h-24 bg-rose-50 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
+              <div className="p-2 md:p-3 bg-rose-50 rounded-lg w-fit mb-3 md:mb-4 group-hover:bg-rose-600 group-hover:text-white transition-colors">
+                <KeyRound className="w-4 h-4 md:w-6 md:h-6 text-rose-600 group-hover:text-white" />
+              </div>
+              <h3 className="text-sm md:text-lg font-bold text-theme-text mb-1 md:mb-2 group-hover:text-rose-600 transition-colors">Access Code</h3>
+              <p className="text-xs md:text-sm text-gray-500 line-clamp-2">Change the site entry code.</p>
             </button>
 
             {/* Payment Methods Card */}

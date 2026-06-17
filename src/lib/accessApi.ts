@@ -42,6 +42,41 @@ export async function verifyCode(code: string): Promise<VerifyResult> {
   }
 }
 
+export type ChangeCodeResult =
+  | { ok: true; codeVersion: number }
+  | { ok: false; reason: 'forbidden' | 'code_too_short' | 'too_many_attempts' | 'error' };
+
+/**
+ * Admin: rotate the site access code. Authorized by the ADMIN_API_KEY secret,
+ * which the admin supplies at call time (it is never stored in the frontend).
+ * On success the backend bumps code_version, logging out every active session.
+ */
+export async function changeAccessCode(
+  adminKey: string,
+  newCode: string
+): Promise<ChangeCodeResult> {
+  try {
+    const res = await fetch(`${BASE}/admin/access-code`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${adminKey}`,
+      },
+      body: JSON.stringify({ newCode }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      return { ok: true, codeVersion: data.codeVersion };
+    }
+    if (res.status === 403) return { ok: false, reason: 'forbidden' };
+    if (res.status === 429) return { ok: false, reason: 'too_many_attempts' };
+    if (res.status === 400) return { ok: false, reason: 'code_too_short' };
+    return { ok: false, reason: 'error' };
+  } catch {
+    return { ok: false, reason: 'error' };
+  }
+}
+
 /** Destroy the current session. */
 export async function logout(): Promise<void> {
   try {
