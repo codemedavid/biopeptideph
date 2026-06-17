@@ -20,7 +20,16 @@ import connectPgSimple from 'connect-pg-simple';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import bcrypt from 'bcryptjs'; // pure-JS, API-compatible with bcrypt; reliable on serverless
+import crypto from 'crypto';
 import { pool, getSettings, updateAccessCode } from './_lib/db.js';
+
+/** Constant-time string comparison (avoids leaking length/contents via timing). */
+function safeEqual(a, b) {
+  const ab = Buffer.from(String(a));
+  const bb = Buffer.from(String(b));
+  if (ab.length !== bb.length) return false;
+  return crypto.timingSafeEqual(ab, bb);
+}
 
 const app = express();
 
@@ -111,15 +120,20 @@ async function requireValidSession(req, res, next) {
   }
 }
 
-/** Bearer-token guard for admin-only actions. */
+/**
+ * Guard for admin-only actions. Authorized by EITHER:
+ *   1. an admin session (set by POST /api/admin/login) — used by the dashboard, OR
+ *   2. a Bearer ADMIN_API_KEY header — kept for curl/automation/CI.
+ */
 function requireAdmin(req, res, next) {
+  if (req.session && req.session.isAdmin) return next();
+
   const expected = process.env.ADMIN_API_KEY;
   const header = req.get('authorization') || '';
   const token = header.startsWith('Bearer ') ? header.slice(7) : '';
-  if (!expected || token !== expected) {
-    return res.status(403).json({ error: 'forbidden' });
-  }
-  return next();
+  if (expected && token && safeEqual(token, expected)) return next();
+
+  return res.status(403).json({ error: 'forbidden' });
 }
 
 // --- Routes -----------------------------------------------------------------
@@ -185,8 +199,52 @@ app.post('/api/logout', (req, res) => {
 });
 
 /**
+ * POST /api/admin/login  { password }
+ * Verifies the dashboard password (ADMIN_PASSWORD env) server-side and marks
+ * the session as admin. This is what lets the dashboard rotate the code without
+ * pasting any secret.
+ */
+app.post('/api/admin/login', adminLimiter, (req, res) => {
+  const password = typeof req.body?.password === 'string' ? req.body.password : '';
+  const expected = process.env.ADMIN_PASSWORD;
+  if (!expected) {
+    console.error('ADMIN_PASSWORD env var is not set');
+    return res.status(500).json({ error: 'not_configured' });
+  }
+  if (!password || !safeEqual(password, expected)) {
+    return res.status(401).json({ error: 'invalid_password' });
+  }
+  // Regenerate on privilege change to prevent session fixation.
+  req.session.regenerate((err) => {
+    if (err) {
+      console.error('admin regenerate error', err);
+      return res.status(500).json({ error: 'server_error' });
+    }
+    req.session.isAdmin = true;
+    req.session.save((saveErr) => {
+      if (saveErr) {
+        console.error('admin session save error', saveErr);
+        return res.status(500).json({ error: 'server_error' });
+      }
+      return res.json({ ok: true });
+    });
+  });
+});
+
+/** GET /api/admin/session — lets the dashboard restore admin state after reload. */
+app.get('/api/admin/session', (req, res) => {
+  res.json({ admin: !!(req.session && req.session.isAdmin) });
+});
+
+/** POST /api/admin/logout — drop admin privileges for this session. */
+app.post('/api/admin/logout', (req, res) => {
+  if (req.session) req.session.isAdmin = false;
+  res.json({ ok: true });
+});
+
+/**
  * POST /api/admin/access-code  { newCode }
- * Header: Authorization: Bearer <ADMIN_API_KEY>
+ * Authorized by an admin session (dashboard) OR Bearer <ADMIN_API_KEY>
  * Hashes and stores the new code and bumps code_version, which instantly
  * invalidates every existing session (they fail requireValidSession next call).
  */

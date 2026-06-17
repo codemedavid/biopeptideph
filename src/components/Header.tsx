@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ShoppingCart, Menu, X, MessageCircle } from 'lucide-react';
+import { ShoppingCart, Menu, X, MessageCircle, LogOut } from 'lucide-react';
 import { usePricingMode } from '../hooks/usePricingMode';
+import { useAccess } from '../context/AccessContext';
 import type { PricingMode } from '../types';
 
 interface HeaderProps {
@@ -14,6 +15,7 @@ interface HeaderProps {
 const Header: React.FC<HeaderProps> = ({ cartItemsCount, onCartClick, onMenuClick, onPricingModeChange }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { pricingMode, setPricingMode, currencySymbol } = usePricingMode();
+  const { logout } = useAccess();
 
   // Contact Links
   const whatsappMessage = encodeURIComponent('Hi! I am interested in your products.');
@@ -148,6 +150,16 @@ const Header: React.FC<HeaderProps> = ({ cartItemsCount, onCartClick, onMenuClic
                 )}
               </button>
 
+              {/* Log Out — ends the site access session */}
+              <button
+                onClick={() => logout()}
+                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/50 border border-[var(--frost-line)] text-[13.5px] font-semibold text-theme-text/70 hover:text-theme-text transition flex-shrink-0"
+                title="Log out"
+              >
+                <LogOut className="w-4 h-4" />
+                <span className="hidden xl:inline">Log out</span>
+              </button>
+
               {/* Mobile Menu Button */}
               <button
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -222,6 +234,16 @@ const Header: React.FC<HeaderProps> = ({ cartItemsCount, onCartClick, onMenuClic
                     <MessageCircle className="w-5 h-5" />
                     <span className="text-sm font-medium">WhatsApp</span>
                   </a>
+                  <button
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      logout();
+                    }}
+                    className="flex items-center gap-3 text-theme-text/75 hover:text-theme-secondary transition-colors pl-4 text-left"
+                  >
+                    <LogOut className="w-5 h-5" />
+                    <span className="text-sm font-medium">Log out</span>
+                  </button>
                 </div>
               </div>
             </nav>

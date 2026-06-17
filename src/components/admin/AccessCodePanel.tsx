@@ -14,7 +14,6 @@ import { ArrowLeft, KeyRound, Loader2, ShieldAlert, CheckCircle2 } from 'lucide-
 import { changeAccessCode } from '../../lib/accessApi';
 
 export default function AccessCodePanel({ onBack }: { onBack: () => void }) {
-  const [adminKey, setAdminKey] = useState('');
   const [newCode, setNewCode] = useState('');
   const [confirmCode, setConfirmCode] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -34,20 +33,15 @@ export default function AccessCodePanel({ onBack }: { onBack: () => void }) {
       setError('The two codes do not match.');
       return;
     }
-    if (!adminKey.trim()) {
-      setError('Enter the admin API key to authorize this change.');
-      return;
-    }
 
     setSubmitting(true);
-    const result = await changeAccessCode(adminKey.trim(), newCode);
+    const result = await changeAccessCode(newCode);
     setSubmitting(false);
 
     if (result.ok) {
       setSuccess(
         `Access code updated. All active sessions have been logged out and must re-enter the new code.`
       );
-      setAdminKey('');
       setNewCode('');
       setConfirmCode('');
       return;
@@ -55,7 +49,7 @@ export default function AccessCodePanel({ onBack }: { onBack: () => void }) {
 
     switch (result.reason) {
       case 'forbidden':
-        setError('Invalid admin API key. Change not authorized.');
+        setError('Your admin session has expired. Please log out and log back in, then try again.');
         break;
       case 'code_too_short':
         setError('New code must be at least 6 characters.');
@@ -102,24 +96,6 @@ export default function AccessCodePanel({ onBack }: { onBack: () => void }) {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Admin API key
-              </label>
-              <input
-                type="password"
-                autoComplete="off"
-                value={adminKey}
-                onChange={(e) => setAdminKey(e.target.value)}
-                placeholder="ADMIN_API_KEY (authorizes the change)"
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-rose-400"
-                disabled={submitting}
-              />
-              <p className="mt-1 text-xs text-gray-400">
-                The server-side secret. Not stored — sent once to authorize this change.
-              </p>
-            </div>
-
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 New access code

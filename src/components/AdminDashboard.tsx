@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, Edit, Trash2, Save, X, ArrowLeft, Package, CreditCard, Sparkles, Layers, Shield, RefreshCw, Warehouse, ShoppingCart, MapPin, Check, ClipboardList, FileText, DollarSign, ShoppingBag, BarChart3, Image as ImageIcon, Percent, ScrollText, KeyRound } from 'lucide-react';
 import type { Product } from '../types';
 import { useMenu } from '../hooks/useMenu';
@@ -22,6 +22,7 @@ import HeroManager from './admin/HeroManager';
 import DiscountManager from './admin/DiscountManager';
 import TermsManager from './admin/TermsManager';
 import AccessCodePanel from './admin/AccessCodePanel';
+import { adminLogin, adminLogout, checkAdminSession } from '../lib/accessApi';
 
 
 const AdminDashboard: React.FC = () => {
@@ -370,21 +371,40 @@ const AdminDashboard: React.FC = () => {
   const availableProducts = products.filter(p => p.available).length;
 
 
-  const handleLogin = (e: React.FormEvent) => {
+  // Authenticate against the backend so the password is verified server-side
+  // (not in the bundle) and an admin session cookie is established — that
+  // session is what authorizes rotating the site access code.
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (password === 'SnowSnow2026') {
+    setLoginError('');
+    const result = await adminLogin(password);
+    if (result.ok) {
       setIsAuthenticated(true);
-      setLoginError('');
+      setPassword('');
+      return;
+    }
+    if (result.reason === 'not_configured') {
+      setLoginError('Admin login is not configured (set ADMIN_PASSWORD on the server).');
+    } else if (result.reason === 'too_many_attempts') {
+      setLoginError('Too many attempts. Please wait a few minutes.');
     } else {
       setLoginError('Invalid password');
     }
   };
 
   const handleLogout = () => {
+    adminLogout(); // clear the server-side admin session too
     setIsAuthenticated(false);
     setPassword('');
     setCurrentView('dashboard');
   };
+
+  // Restore admin state on reload if the session cookie is still valid.
+  useEffect(() => {
+    checkAdminSession().then((isAdmin) => {
+      if (isAdmin) setIsAuthenticated(true);
+    });
+  }, []);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
