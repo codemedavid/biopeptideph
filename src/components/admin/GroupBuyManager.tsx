@@ -5,6 +5,7 @@ import {
   ToggleRight, Eye, EyeOff, CheckCircle2, XCircle, Search, CheckSquare,
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { listOrders } from '../../lib/adminOrdersApi';
 import { useGroupBuys, type GroupBuyInput } from '../../hooks/useGroupBuys';
 import { useGroupBuyAvailability } from '../../hooks/useGroupBuyAvailability';
 import { downloadGroupBuyReport, countsForSupplier } from '../../utils/groupBuyReport';
@@ -86,8 +87,8 @@ const GroupBuyManager: React.FC<GroupBuyManagerProps> = ({ onBack }) => {
 
     // Order counts per GB (column may not exist before migration).
     // committed = orders that feed the supplier report; cancelled shown separately.
-    const { data: ords, error } = await supabase.from('orders').select('group_buy_id, order_status, payment_status');
-    if (!error && ords) {
+    const ords = await listOrders().catch(() => [] as any[]);
+    if (ords.length) {
       const counts: Record<string, { committed: number; cancelled: number }> = {};
       for (const o of ords as { group_buy_id: string | null; order_status: string | null; payment_status: string }[]) {
         if (!o.group_buy_id) continue;
@@ -154,8 +155,9 @@ const GroupBuyManager: React.FC<GroupBuyManagerProps> = ({ onBack }) => {
   };
 
   const handleDownloadReport = async (gb: GroupBuy) => {
-    const { data, error } = await supabase.from('orders').select('*').eq('group_buy_id', gb.id);
-    if (error) { flash('error', 'Could not load orders for the report.'); return; }
+    let data: any[];
+    try { data = await listOrders({ groupBuyId: gb.id }); }
+    catch { flash('error', 'Could not load orders for the report.'); return; }
     if (!data || data.length === 0) { flash('error', 'No orders for this group buy yet.'); return; }
     try {
       await downloadGroupBuyReport(gb, data as any);

@@ -33,7 +33,13 @@ export async function verifyCode(code: string): Promise<VerifyResult> {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ code }),
     });
-    if (res.ok) return { ok: true };
+    if (res.ok) {
+      // Only accept the API's genuine JSON success. A 2xx that isn't
+      // { authenticated: true } (e.g. an HTML SPA-fallback page from a misrouted
+      // /api) must NOT be treated as a valid session.
+      const data = await res.json().catch(() => null);
+      return data?.authenticated === true ? { ok: true } : { ok: false, reason: 'error' };
+    }
     if (res.status === 429) return { ok: false, reason: 'too_many_attempts' };
     if (res.status === 401) return { ok: false, reason: 'invalid_code' };
     return { ok: false, reason: 'error' };
@@ -55,10 +61,25 @@ export async function adminLogin(password: string): Promise<AdminLoginResult> {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ password }),
     });
-    if (res.ok) return { ok: true };
+    if (res.ok) {
+      // Defense in depth: a 2xx is only a real login if the body is the API's
+      // JSON { ok: true }. An HTML SPA-fallback page (misrouted /api, a bad
+      // rewrite, or local dev with no backend) returns 2xx too — never let that
+      // grant admin access without a verified password.
+      const data = await res.json().catch(() => null);
+      return data?.ok === true ? { ok: true } : { ok: false, reason: 'error' };
+    }
     if (res.status === 401) return { ok: false, reason: 'invalid_password' };
     if (res.status === 429) return { ok: false, reason: 'too_many_attempts' };
-    if (res.status === 500) return { ok: false, reason: 'not_configured' };
+    if (res.status === 500) {
+      // Distinguish "env var truly missing" from a generic server/DB error so
+      // the UI doesn't tell the user to set ADMIN_PASSWORD when it's already set.
+      const reason = await res
+        .json()
+        .then((b) => (b?.error === 'not_configured' ? 'not_configured' : 'error'))
+        .catch(() => 'error');
+      return { ok: false, reason } as AdminLoginResult;
+    }
     return { ok: false, reason: 'error' };
   } catch {
     return { ok: false, reason: 'error' };

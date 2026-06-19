@@ -3,11 +3,18 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "engines": {
+    "node": ">=20.6"
+  },
   "scripts": {
     "dev": "vite",
+    "dev:api": "node --env-file=.env scripts/dev-api.mjs",
+    "dev:full": "trap 'kill 0' EXIT; node --env-file=.env scripts/dev-api.mjs & vite",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
+    "test": "node --test tests/*.test.mjs",
+    "e2e": "node scripts/e2e-admin.mjs",
     "set-access-code": "node scripts/set-access-code.js"
   },
   "dependencies": {

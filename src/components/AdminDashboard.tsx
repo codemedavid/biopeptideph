@@ -27,6 +27,12 @@ import { adminLogin, adminLogout, checkAdminSession } from '../lib/accessApi';
 
 const AdminDashboard: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  // True until the initial checkAdminSession() resolves, so we show a spinner
+  // instead of flashing the login form for someone who is actually signed in.
+  const [checkingAuth, setCheckingAuth] = useState(true);
+  // True while a login request is in flight — disables the form to stop
+  // double-submits (which otherwise burn the 20/15min admin rate limit).
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState('');
   const { products, loading, addProduct, updateProduct, deleteProduct, refreshProducts } = useMenu();
@@ -376,34 +382,60 @@ const AdminDashboard: React.FC = () => {
   // session is what authorizes rotating the site access code.
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isLoggingIn) return; // guard against double-submit
     setLoginError('');
-    const result = await adminLogin(password);
-    if (result.ok) {
-      setIsAuthenticated(true);
-      setPassword('');
-      return;
-    }
-    if (result.reason === 'not_configured') {
-      setLoginError('Admin login is not configured (set ADMIN_PASSWORD on the server).');
-    } else if (result.reason === 'too_many_attempts') {
-      setLoginError('Too many attempts. Please wait a few minutes.');
-    } else {
-      setLoginError('Invalid password');
+    setIsLoggingIn(true);
+    try {
+      const result = await adminLogin(password);
+      if (result.ok) {
+        setIsAuthenticated(true);
+        setPassword('');
+        return;
+      }
+      if (result.reason === 'not_configured') {
+        setLoginError('Admin login is not configured (set ADMIN_PASSWORD on the server).');
+      } else if (result.reason === 'too_many_attempts') {
+        setLoginError('Too many attempts. Please wait a few minutes.');
+      } else if (result.reason === 'error') {
+        setLoginError('Server error — please try again in a moment.');
+      } else {
+        setLoginError('Invalid password');
+      }
+    } finally {
+      setIsLoggingIn(false);
     }
   };
 
-  const handleLogout = () => {
-    adminLogout(); // clear the server-side admin session too
+  const handleLogout = async () => {
+    await adminLogout(); // destroy the server-side admin session too
     setIsAuthenticated(false);
     setPassword('');
     setCurrentView('dashboard');
   };
 
-  // Restore admin state on reload if the session cookie is still valid.
+  // Restore admin state on reload if the session cookie is still valid, and
+  // re-check when the tab regains focus: the 15-min idle admin session may have
+  // expired in the background, in which case we drop back to the login screen
+  // instead of showing a dead dashboard whose actions silently 401/403.
   useEffect(() => {
-    checkAdminSession().then((isAdmin) => {
-      if (isAdmin) setIsAuthenticated(true);
-    });
+    let active = true;
+    const sync = () =>
+      checkAdminSession().then((isAdmin) => {
+        if (!active) return;
+        setIsAuthenticated(isAdmin);
+        setCheckingAuth(false);
+      });
+    sync();
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') sync();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', onVisible);
+    return () => {
+      active = false;
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', onVisible);
+    };
   }, []);
 
   const handleRefresh = async () => {
@@ -598,6 +630,16 @@ const AdminDashboard: React.FC = () => {
     }
   };
 
+  // While the initial admin-session check runs, show a spinner rather than
+  // flashing the login form (which reads as "logged out" even when you aren't).
+  if (checkingAuth) {
+    return (
+      <div className="min-h-screen bg-theme-bg flex items-center justify-center px-4">
+        <div className="w-12 h-12 border-4 border-gray-200 border-t-theme-accent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
   // Login Screen
   if (!isAuthenticated) {
     return (
@@ -606,8 +648,8 @@ const AdminDashboard: React.FC = () => {
           <div className="text-center mb-6">
             <div className="relative mx-auto w-16 h-16 rounded-full overflow-hidden mb-4 border-2 border-theme-accent/30">
               <img
-                src="/sakura-logo.jpg"
-                alt="Sakura Bloom"
+                src="/logo-new.jpg"
+                alt="DiamondGlow"
                 className="w-full h-full object-cover"
               />
             </div>
@@ -619,24 +661,32 @@ const AdminDashboard: React.FC = () => {
 
           <form onSubmit={handleLogin}>
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Password</label>
+              <label htmlFor="admin-password" className="block text-sm font-medium text-gray-700 mb-2">Password</label>
               <input
+                id="admin-password"
                 type="password"
+                autoComplete="current-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-theme-accent focus:border-theme-accent transition-colors"
+                disabled={isLoggingIn}
+                className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-theme-accent focus:border-theme-accent transition-colors disabled:opacity-60"
                 placeholder="Enter admin password"
                 required
               />
               {loginError && (
-                <p className="text-red-500 text-sm mt-2 flex items-center gap-1">
+                <p role="alert" aria-live="assertive" className="text-red-500 text-sm mt-2 flex items-center gap-1">
                   ❌ {loginError}
                 </p>
               )}
             </div>
 
-            <button type="submit" className="w-full bg-theme-accent hover:bg-theme-accent/90 text-white py-3 rounded-lg font-semibold transition-all">
-              Access Dashboard
+            <button
+              type="submit"
+              disabled={isLoggingIn || !password}
+              className="w-full bg-theme-accent hover:bg-theme-accent/90 text-white py-3 rounded-lg font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              {isLoggingIn && <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />}
+              {isLoggingIn ? 'Signing in…' : 'Access Dashboard'}
             </button>
           </form>
         </div>

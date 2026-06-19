@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
+import { listAssessmentResponses } from '../../lib/adminOrdersApi';
 import {
     Download,
     Plus,
@@ -20,12 +21,7 @@ const AssessmentManager: React.FC<AssessmentManagerProps> = ({ onBack }) => {
 
     const handleExport = async () => {
         try {
-            const { data, error } = await supabase
-                .from('assessment_responses')
-                .select('*')
-                .order('created_at', { ascending: false });
-
-            if (error) throw error;
+            const data = await listAssessmentResponses();
             if (!data || data.length === 0) {
                 alert('No data to export');
                 return;
@@ -138,12 +134,7 @@ const ResponsesView = () => {
 
     const fetchResponses = async () => {
         try {
-            const { data, error } = await supabase
-                .from('assessment_responses')
-                .select('*')
-                .order('created_at', { ascending: false });
-
-            if (error) throw error;
+            const data = await listAssessmentResponses();
             setResponses(data || []);
             setFilterStats({
                 total: data?.length || 0,

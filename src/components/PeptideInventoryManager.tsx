@@ -4,6 +4,7 @@ import type { Product } from '../types';
 import { useMenu } from '../hooks/useMenu';
 import { useCategories } from '../hooks/useCategories';
 import { supabase } from '../lib/supabase';
+import { listOrders } from '../lib/adminOrdersApi';
 
 interface PeptideInventoryManagerProps {
   onBack: () => void;
@@ -36,14 +37,13 @@ const PeptideInventoryManager: React.FC<PeptideInventoryManagerProps> = ({ onBac
 
   const loadOrders = async () => {
     try {
-      const { data, error } = await supabase
-        .from('orders')
-        .select('total_price, shipping_fee, order_items, order_status')
-        .in('order_status', ['confirmed', 'processing', 'shipped', 'delivered'])
-        .eq('payment_status', 'paid');
-
-      if (error) throw error;
-      setOrders(data || []);
+      const all = await listOrders();
+      const data = all.filter(
+        (o: any) =>
+          ['confirmed', 'processing', 'shipped', 'delivered'].includes(o.order_status) &&
+          o.payment_status === 'paid'
+      );
+      setOrders(data);
     } catch (error) {
       console.error('Error loading orders for sales:', error);
       setOrders([]);

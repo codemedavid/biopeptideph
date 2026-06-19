@@ -3,7 +3,7 @@ import {
   ArrowLeft, RefreshCw, TrendingUp, ShoppingCart, Users, DollarSign,
   Package, BarChart3, CreditCard,
 } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
+import { listOrders } from '../../lib/adminOrdersApi';
 
 interface AnalyticsManagerProps {
   onBack: () => void;
@@ -44,8 +44,12 @@ const SalesAnalytics: React.FC<AnalyticsManagerProps> = ({ onBack }) => {
 
   const fetchOrders = async () => {
     setLoading(true);
-    const { data } = await supabase.from('orders').select('*').order('created_at', { ascending: false });
-    setOrders((data as AOrder[]) || []);
+    try {
+      const data = await listOrders();
+      setOrders((data as AOrder[]) || []);
+    } catch {
+      setOrders([]);
+    }
     setLoading(false);
   };
 

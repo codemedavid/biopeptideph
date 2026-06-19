@@ -255,6 +255,10 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, clea
 
       // --- Persist the order ----------------------------------------------------
       const baseRow: Record<string, unknown> = {
+        // Generate the id client-side so we don't need to read the row back after
+        // insert (the new RLS lets the public anon key INSERT orders but not SELECT
+        // them). orders.id is a uuid column, so a client uuid is valid.
+        id: crypto.randomUUID(),
         customer_name: fullName,
         customer_email: email,
         customer_phone: phone,
@@ -287,13 +291,16 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, clea
         ...(activeGroupBuy ? { group_buy_id: activeGroupBuy.id, group_buy_number: activeGroupBuy.gb_number } : {}),
       };
 
-      let insertRes = await supabase.from('orders').insert([enhancedRow]).select().single();
-      if (insertRes.error && isMissingColumnError(insertRes.error)) {
+      // Insert WITHOUT reading the row back: under the new RLS the public anon key
+      // may INSERT orders but not SELECT them, so .select() would fail. The id was
+      // generated client-side (baseRow.id), so we don't need the returned row.
+      let { error: orderError } = await supabase.from('orders').insert([enhancedRow]);
+      if (orderError && isMissingColumnError(orderError)) {
         console.warn('ℹ️ Orders table is missing newer columns — run the Phase 1 migration to persist T&C consent. Saving base order for now.');
-        insertRes = await supabase.from('orders').insert([baseRow]).select().single();
+        ({ error: orderError } = await supabase.from('orders').insert([baseRow]));
       }
 
-      const { data: orderData, error: orderError } = insertRes;
+      const orderData = { id: baseRow.id as string };
 
       if (orderError) {
         console.error('❌ Error saving order:', orderError);

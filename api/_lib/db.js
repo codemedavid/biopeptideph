@@ -22,6 +22,22 @@ function createPool() {
   if (!connectionString) {
     throw new Error('Missing DATABASE_URL environment variable');
   }
+  // The DIRECT Supabase host (db.<ref>.supabase.co:5432) is IPv6-only. Vercel
+  // serverless functions are IPv4-only, so the direct host fails there with
+  // ENOTFOUND / connection errors — which makes every DB query (the access gate
+  // AND the admin session write on login) 500. Warn loudly: use the Transaction
+  // POOLER string instead (aws-0-<region>.pooler.supabase.com:6543).
+  try {
+    const host = new URL(connectionString).hostname;
+    if (/^db\..*\.supabase\.co$/.test(host)) {
+      console.warn(
+        `[db] DATABASE_URL uses the DIRECT host "${host}" (IPv6-only). This will fail on Vercel/IPv4. ` +
+          'Use the Supabase "Transaction" pooler string (aws-0-<region>.pooler.supabase.com:6543).'
+      );
+    }
+  } catch {
+    /* ignore URL parse issues; the Pool will surface a real error */
+  }
   return new Pool({
     connectionString,
     // Supabase serves a valid cert but the chain isn't in Node's default store
@@ -70,3 +86,76 @@ export async function updateAccessCode(newHash) {
   );
   return rows[0].code_version;
 }
+
+// --- Admin data access (orders / assessment PII) ----------------------------
+// Kept here (not inline in route handlers) so the Express app can be built with a
+// swappable `db` object — the real one (pgDb) in production, a fake one in tests.
+
+/** All orders, newest first; optionally scoped to one group buy. */
+async function listOrders({ groupBuyId } = {}) {
+  const { rows } = groupBuyId
+    ? await pool.query(
+        'SELECT * FROM orders WHERE group_buy_id = $1 ORDER BY created_at DESC',
+        [groupBuyId]
+      )
+    : await pool.query('SELECT * FROM orders ORDER BY created_at DESC');
+  return rows;
+}
+
+/** Update whitelisted fields on one order; returns the number of rows changed. */
+async function updateOrder(id, patch) {
+  const allowed = ['order_status', 'payment_status'];
+  const sets = [];
+  const vals = [];
+  let i = 1;
+  for (const key of allowed) {
+    if (typeof patch?.[key] === 'string') {
+      sets.push(`${key} = $${i++}`);
+      vals.push(patch[key]);
+    }
+  }
+  if (sets.length === 0) return 0; // nothing to update (route validates first)
+  sets.push('updated_at = now()');
+  vals.push(id);
+  const { rowCount } = await pool.query(
+    `UPDATE orders SET ${sets.join(', ')} WHERE id = $${i}`,
+    vals
+  );
+  return rowCount;
+}
+
+async function deleteOrder(id) {
+  await pool.query('DELETE FROM orders WHERE id = $1', [id]);
+}
+
+async function bulkDeleteOrders(ids) {
+  await pool.query('DELETE FROM orders WHERE id = ANY($1::uuid[])', [ids]);
+}
+
+async function listAssessmentResponses() {
+  const { rows } = await pool.query(
+    'SELECT * FROM assessment_responses ORDER BY created_at DESC'
+  );
+  return rows;
+}
+
+/** Liveness probe used by GET /api/health. Throws if the DB is unreachable. */
+async function ping() {
+  await pool.query('SELECT 1');
+}
+
+/**
+ * The production data layer (real Postgres). The Express app (api/_lib/app.js)
+ * takes this as its `db` dependency; tests pass a fake implementing the same
+ * shape, so the auth/session/route logic can be verified without a database.
+ */
+export const pgDb = {
+  getSettings,
+  updateAccessCode,
+  listOrders,
+  updateOrder,
+  deleteOrder,
+  bulkDeleteOrders,
+  listAssessmentResponses,
+  ping,
+};

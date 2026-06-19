@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { ArrowLeft, Package, CheckCircle, XCircle, Clock, Truck, AlertCircle, Search, RefreshCw, Eye, MessageCircle, Image as ImageIcon, Trash2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { listOrders, updateOrder, deleteOrder, bulkDeleteOrders } from '../lib/adminOrdersApi';
 import { useMenu } from '../hooks/useMenu';
 import { useSiteSettings } from '../hooks/useSiteSettings';
 
@@ -77,12 +78,7 @@ const OrdersManager: React.FC<OrdersManagerProps> = ({ onBack }) => {
   const loadOrders = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('orders')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
+      const data = await listOrders();
       setOrders(data || []);
     } catch (error) {
       console.error('Error loading orders:', error);
@@ -180,17 +176,8 @@ const OrdersManager: React.FC<OrdersManagerProps> = ({ onBack }) => {
         }
       }
 
-      // Update order status
-      const { error: updateError } = await supabase
-        .from('orders')
-        .update({
-          order_status: 'confirmed',
-          payment_status: 'paid',
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', order.id);
-
-      if (updateError) throw updateError;
+      // Update order status (via the admin API; orders are no longer anon-writable)
+      await updateOrder(order.id, { order_status: 'confirmed', payment_status: 'paid' });
 
       // Refresh orders and products
       await loadOrders();
@@ -212,15 +199,7 @@ const OrdersManager: React.FC<OrdersManagerProps> = ({ onBack }) => {
   const handleUpdateOrderStatus = async (orderId: string, newStatus: string) => {
     try {
       setIsProcessing(true);
-      const { error } = await supabase
-        .from('orders')
-        .update({
-          order_status: newStatus,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', orderId);
-
-      if (error) throw error;
+      await updateOrder(orderId, { order_status: newStatus });
       await loadOrders();
       if (selectedOrder?.id === orderId) {
         setSelectedOrder({ ...selectedOrder, order_status: newStatus });
@@ -239,8 +218,7 @@ const OrdersManager: React.FC<OrdersManagerProps> = ({ onBack }) => {
     }
     try {
       setIsDeleting(true);
-      const { error } = await supabase.from('orders').delete().eq('id', order.id);
-      if (error) throw error;
+      await deleteOrder(order.id);
       setSelectedIds(prev => {
         const next = new Set(prev);
         next.delete(order.id);
@@ -262,8 +240,7 @@ const OrdersManager: React.FC<OrdersManagerProps> = ({ onBack }) => {
     if (bulkConfirmText !== 'DELETE') return;
     try {
       setIsDeleting(true);
-      const { error } = await supabase.from('orders').delete().in('id', ids);
-      if (error) throw error;
+      await bulkDeleteOrders(ids);
       setSelectedIds(new Set());
       setBulkConfirmText('');
       setShowBulkConfirm(false);
