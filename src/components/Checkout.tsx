@@ -334,7 +334,7 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, clea
       });
 
       const orderDetails = `
-❄️SNOW SNOW - NEW ORDER
+🌸 SAKU FUJI - NEW ORDER
 
 📅 ORDER DATE & TIME
 ${dateTimeStamp}
@@ -380,7 +380,7 @@ ${paymentProof}
 (Please also attach the screenshot image)
 
 📱 CONTACT METHOD
-WhatsApp: https://api.whatsapp.com/send?phone=639273823885
+WhatsApp: https://api.whatsapp.com/send?phone=639458990239
 
 📋 ORDER ID: ${orderData.id}
 
@@ -406,7 +406,7 @@ Please confirm this order. Thank you!
 
       // Open contact method based on selection
       const contactUrl = contactMethod === 'whatsapp'
-        ? `https://api.whatsapp.com/send?phone=639273823885&text=${encodeURIComponent(orderDetails)}`
+        ? `https://api.whatsapp.com/send?phone=639458990239&text=${encodeURIComponent(orderDetails)}`
         : null;
 
       if (contactUrl) {
@@ -467,7 +467,7 @@ Please confirm this order. Thank you!
 
   const handleOpenContact = () => {
     const contactUrl = contactMethod === 'whatsapp'
-      ? `https://api.whatsapp.com/send?phone=639273823885&text=${encodeURIComponent(orderMessage)}`
+      ? `https://api.whatsapp.com/send?phone=639458990239&text=${encodeURIComponent(orderMessage)}`
       : null;
 
     if (contactUrl) {
@@ -1073,7 +1073,7 @@ Please confirm this order. Thank you!
                   <MessageCircle className="w-6 h-6 text-theme-secondary" />
                   <div className="text-left">
                     <p className="font-semibold text-gray-900">WhatsApp</p>
-                    <p className="text-sm text-gray-500">09273823885</p>
+                    <p className="text-sm text-gray-500">09458990239</p>
                   </div>
                 </div>
                 {contactMethod === 'whatsapp' && (

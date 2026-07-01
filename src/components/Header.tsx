@@ -19,7 +19,7 @@ const Header: React.FC<HeaderProps> = ({ cartItemsCount, onCartClick, onMenuClic
 
   // Contact Links
   const whatsappMessage = encodeURIComponent('Hi! I am interested in your products.');
-  const whatsappUrl = `https://api.whatsapp.com/send?phone=639273823885&text=${whatsappMessage}`;
+  const whatsappUrl = `https://api.whatsapp.com/send?phone=639458990239&text=${whatsappMessage}`;
 
   const handlePricingModeClick = (newMode: PricingMode) => {
     if (newMode === pricingMode) return;
@@ -87,10 +87,10 @@ const Header: React.FC<HeaderProps> = ({ cartItemsCount, onCartClick, onMenuClic
               className="flex items-center gap-3.5 hover:opacity-90 transition-all flex-shrink-0 text-left min-w-0"
             >
               <div className="w-[46px] h-[46px] sm:w-[54px] sm:h-[54px] rounded-[15px] flex-none overflow-hidden shadow-[0_6px_16px_-8px_rgba(247,116,168,0.6)]">
-                <img src="/sakura-logo.jpg" alt="Sakura Bloom" className="w-full h-full object-cover" />
+                <img src="/sakura-logo.jpg" alt="Saku Fuji" className="w-full h-full object-cover" />
               </div>
               <div className="min-w-0">
-                <div className="font-jp font-extrabold text-[20px] sm:text-[22px] leading-none tracking-[-0.01em] text-theme-text whitespace-nowrap">Sakura Bloom</div>
+                <div className="font-jp font-extrabold text-[20px] sm:text-[22px] leading-none tracking-[-0.01em] text-theme-text whitespace-nowrap">Saku Fuji</div>
                 <div className="text-[10.5px] tracking-[0.22em] text-theme-text/60 uppercase mt-1.5 font-semibold whitespace-nowrap">A Cooler Kind of Glow · <span className="font-jp font-semibold tracking-[0.08em] normal-case">さくら</span></div>
               </div>
             </button>

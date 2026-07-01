@@ -7,7 +7,7 @@ const Footer: React.FC = () => {
 
   // Contact Links
   const whatsappMessage = encodeURIComponent('Hi! I would like to inquire about your products.');
-  const whatsappUrl = `https://api.whatsapp.com/send?phone=639273823885&text=${whatsappMessage}`;
+  const whatsappUrl = `https://api.whatsapp.com/send?phone=639458990239&text=${whatsappMessage}`;
 
   return (
     <footer className="relative overflow-hidden glacier-surface text-white border border-[var(--frost-line)] shadow-[var(--shadow-frost)] rounded-[var(--r-lg)] mx-3 md:mx-7 mb-7 mt-14 pt-16 pb-8">
@@ -19,11 +19,11 @@ const Footer: React.FC = () => {
           {/* Brand Section */}
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-[14px] grid place-items-center flex-none overflow-hidden shadow-[0_6px_16px_-8px_rgba(0,0,0,0.5)]">
-              <img src="/sakura-logo.jpg" alt="Sakura Bloom" className="w-full h-full object-cover" />
+              <img src="/sakura-logo.jpg" alt="Saku Fuji" className="w-full h-full object-cover" />
             </div>
             <div className="text-left">
               <div className="font-jp font-extrabold text-white text-[22px] tracking-tight">
-                Sakura Bloom
+                Saku Fuji
               </div>
               <div className="text-sm text-[var(--accent-soft)] font-semibold tracking-[0.18em] uppercase mt-1">A Cooler Kind of Glow · <span className="font-jp tracking-[0.08em] normal-case">さくら</span></div>
 
@@ -54,7 +54,7 @@ const Footer: React.FC = () => {
           <p className="text-xs text-[#9cc1da] flex items-center justify-center gap-1">
             Made with
             <Heart className="w-3 h-3 text-theme-red fill-theme-red" />
-            © {currentYear} Sakura Bloom. All rights reserved.
+            © {currentYear} Saku Fuji. All rights reserved.
           </p>
         </div>
       </div>

@@ -18,7 +18,7 @@ const Hero: React.FC<HeroProps> = ({ onShopAll, activeGbNumber }) => {
 
   // Content Fallbacks (Sakura Theme)
   const badge = siteSettings?.home_hero_badge || 'INSPIRED BY SAKURA • CRAFTED FOR EXCELLENCE';
-  const titlePrefix = siteSettings?.home_hero_title_prefix || 'Sakura';
+  const titlePrefix = siteSettings?.home_hero_title_prefix || 'Saku Fuji';
   const titleHighlight = siteSettings?.home_hero_title_highlight || 'Wellness';
   const titleSuffix = siteSettings?.home_hero_title_suffix || 'Collection';
   const subtext = siteSettings?.home_hero_subtext || 'Discover premium peptides and wellness essentials designed for quality, confidence, and care.';

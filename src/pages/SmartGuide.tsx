@@ -150,7 +150,7 @@ const SmartGuide: React.FC = () => {
                     {/* Footer Note */}
                     <div className="text-center pt-8 pb-4">
                         <p className="text-sm text-gray-400">
-                            Need more help? <a href="https://api.whatsapp.com/send?phone=639273823885" className="text-theme-accent font-medium hover:underline">Chat with us</a>
+                            Need more help? <a href="https://api.whatsapp.com/send?phone=639458990239" className="text-theme-accent font-medium hover:underline">Chat with us</a>
                         </p>
                     </div>
                 </div>

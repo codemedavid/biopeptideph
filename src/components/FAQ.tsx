@@ -37,7 +37,7 @@ const FAQ: React.FC = () => {
         ? faqs.filter(faq => faq.category === activeCategory)
         : faqs;
 
-    const whatsappUrl = `https://api.whatsapp.com/send?phone=639273823885&text=${encodeURIComponent('Hi! I have a question about your products.')}`;
+    const whatsappUrl = `https://api.whatsapp.com/send?phone=639458990239&text=${encodeURIComponent('Hi! I have a question about your products.')}`;
 
     if (loading) {
         return (
