@@ -40,19 +40,26 @@ export interface ReportOrder {
 
 type Row = (string | number)[];
 
-// An order "counts" toward the supplier/inventory numbers only if it is a
-// committed sale: never if cancelled, and otherwise only when it is paid or the
-// admin has moved it past the initial "new" state (confirmed/processing/etc.).
-// A brand-new, still-unpaid order is NOT ordered from the supplier yet, and
-// cancelled orders must never inflate the quantities. (See report Orders sheet:
-// every order is still listed — the "Counted" column shows which ones were
-// included in the Summary/Totals.)
+// A group buy's headline numbers are supplier DEMAND: every order a customer
+// actually placed counts toward the quantities/totals, even a brand-new unpaid
+// one, because that is what the supplier order is sized against. The only orders
+// that must never inflate demand are cancelled/refunded ones. (See the Orders
+// sheet: every order is still listed — the "Counted" column shows which ones fed
+// the Summary/Totals.)
+const CANCELLED_STATUSES = new Set(['cancelled', 'canceled', 'refunded']);
+
+export function countsAsPlaced(o: ReportOrder): boolean {
+  return !CANCELLED_STATUSES.has((o.order_status || '').toLowerCase());
+}
+
+// An order is "committed" (a firm sale, reported alongside demand) when it is
+// paid or the admin has moved it past the initial "new" state
+// (confirmed/processing/etc.). Cancelled/refunded is never committed.
 const COMMITTED_STATUSES = new Set(['confirmed', 'processing', 'shipped', 'delivered', 'completed']);
 
 export function countsForSupplier(o: ReportOrder): boolean {
-  const status = (o.order_status || '').toLowerCase();
-  if (status === 'cancelled' || status === 'canceled' || status === 'refunded') return false;
-  return o.payment_status === 'paid' || COMMITTED_STATUSES.has(status);
+  if (!countsAsPlaced(o)) return false;
+  return o.payment_status === 'paid' || COMMITTED_STATUSES.has((o.order_status || '').toLowerCase());
 }
 
 function slugify(s: string): string {
@@ -81,7 +88,10 @@ export function prepareGroupBuyReport(gb: GroupBuy, orders: ReportOrder[]): {
   for (const o of orders) {
     const orderNo = o.id.slice(0, 8).toUpperCase();
     const orderStatus = o.order_status || '';
-    const counted = countsForSupplier(o) ? 'Yes' : 'No';
+    // "Counted" = fed the Summary/Totals demand numbers (every placed order;
+    // only cancelled/refunded are 'No'). Commit state is visible in the adjacent
+    // Order Status / Payment Status columns.
+    const counted = countsAsPlaced(o) ? 'Yes' : 'No';
     if (!o.order_items || o.order_items.length === 0) {
       orderRows.push([orderNo, o.customer_name, o.customer_phone || '', '(no items)', '', 0, 0, 0, o.currency || 'PHP', orderStatus, o.payment_status, counted, o.shipping_location || '', shippingText(o)]);
       continue;
@@ -94,35 +104,46 @@ export function prepareGroupBuyReport(gb: GroupBuy, orders: ReportOrder[]): {
     }
   }
 
-  // Only committed orders feed the supplier quantities, totals, and customer count.
-  const countedOrders = orders.filter(countsForSupplier);
-  const excludedCount = orders.length - countedOrders.length;
+  // Demand = every placed (non-cancelled) order. Committed = the paid/confirmed
+  // subset, reported alongside so finance numbers stay visible.
+  const placedOrders = orders.filter(countsAsPlaced);
+  const committedOrders = orders.filter(countsForSupplier);
+  const cancelledCount = orders.length - placedOrders.length;
 
   // ---- Product Summary: total qty needed per product/variation ----
-  const summary = new Map<string, { product: string; variation: string; qty: number; orders: Set<string> }>();
-  for (const o of countedOrders) {
+  // qty = demand (all placed orders); committedQty = paid/confirmed subset.
+  const summary = new Map<string, { product: string; variation: string; qty: number; committedQty: number; orders: Set<string> }>();
+  for (const o of placedOrders) {
+    const isCommitted = countsForSupplier(o);
     for (const it of o.order_items || []) {
       const key = `${it.product_name}||${it.variation_name || ''}`;
-      const entry = summary.get(key) || { product: it.product_name, variation: it.variation_name || '', qty: 0, orders: new Set<string>() };
+      const entry = summary.get(key) || { product: it.product_name, variation: it.variation_name || '', qty: 0, committedQty: 0, orders: new Set<string>() };
       entry.qty += it.quantity;
+      if (isCommitted) entry.committedQty += it.quantity;
       entry.orders.add(o.id);
       summary.set(key, entry);
     }
   }
-  const summaryRows: Row[] = [['Product', 'Variation', 'Total Qty Needed', 'Orders']];
+  const summaryRows: Row[] = [['Product', 'Variation', 'Total Qty Needed', 'Committed Qty', 'Orders']];
   Array.from(summary.values())
     .sort((a, b) => b.qty - a.qty)
-    .forEach((e) => summaryRows.push([e.product, e.variation, e.qty, e.orders.size]));
+    .forEach((e) => summaryRows.push([e.product, e.variation, e.qty, e.committedQty, e.orders.size]));
 
-  // ---- Totals ---- (committed orders only — cancelled/unpaid excluded)
-  const totalItems = countedOrders.reduce((s, o) => s + (o.order_items || []).reduce((a, it) => a + it.quantity, 0), 0);
-  const customers = new Set(countedOrders.map((o) => (o.customer_email || o.customer_phone || o.customer_name || '').toLowerCase())).size;
+  // ---- Totals ---- headline = demand (placed); committed reported alongside.
+  const countItems = (list: ReportOrder[]) =>
+    list.reduce((s, o) => s + (o.order_items || []).reduce((a, it) => a + it.quantity, 0), 0);
+  const totalItems = countItems(placedOrders);
+  const committedItems = countItems(committedOrders);
+  const customers = new Set(placedOrders.map((o) => (o.customer_email || o.customer_phone || o.customer_name || '').toLowerCase())).size;
   const salesByCurrency = new Map<string, number>();
-  const paidByCurrency = new Map<string, number>();
-  for (const o of countedOrders) {
+  const committedByCurrency = new Map<string, number>();
+  for (const o of placedOrders) {
     const cur = o.currency || 'PHP';
     salesByCurrency.set(cur, (salesByCurrency.get(cur) || 0) + (o.total_price || 0));
-    if (o.payment_status === 'paid') paidByCurrency.set(cur, (paidByCurrency.get(cur) || 0) + (o.total_price || 0));
+  }
+  for (const o of committedOrders) {
+    const cur = o.currency || 'PHP';
+    committedByCurrency.set(cur, (committedByCurrency.get(cur) || 0) + (o.total_price || 0));
   }
   const totalsRows: Row[] = [
     ['Group Buy Report'],
@@ -132,17 +153,19 @@ export function prepareGroupBuyReport(gb: GroupBuy, orders: ReportOrder[]): {
     ['Start Date', gb.start_date ? new Date(gb.start_date).toLocaleString() : '—'],
     ['End Date', gb.end_date ? new Date(gb.end_date).toLocaleString() : '—'],
     [],
-    ['Note', 'Counts below include committed orders only (paid or confirmed+). Cancelled/unpaid-new orders are listed in the Orders sheet but excluded here.'],
-    ['Counted Orders', countedOrders.length],
-    ['Excluded Orders', excludedCount],
+    ['Note', 'Headline counts = every order placed (supplier demand). "Committed" rows count only paid or confirmed+ orders. Cancelled/refunded orders are listed in the Orders sheet but excluded from all counts.'],
+    ['Placed Orders', placedOrders.length],
+    ['Cancelled Orders', cancelledCount],
     ['Total Customers', customers],
     ['Total Items', totalItems],
+    ['Committed Orders', committedOrders.length],
+    ['Committed Items', committedItems],
     [],
     ['Total Sales (by currency)'],
   ];
   Array.from(salesByCurrency.entries()).forEach(([cur, amt]) => totalsRows.push([cur, amt]));
-  totalsRows.push([], ['Paid Sales (by currency)']);
-  Array.from(paidByCurrency.entries()).forEach(([cur, amt]) => totalsRows.push([cur, amt]));
+  totalsRows.push([], ['Committed Sales (by currency)']);
+  Array.from(committedByCurrency.entries()).forEach(([cur, amt]) => totalsRows.push([cur, amt]));
 
   return { orderRows, summaryRows, totalsRows, filename: `GB-${gb.gb_number}-${slugify(gb.title)}-report.xlsx` };
 }
