@@ -19,7 +19,7 @@ const Header: React.FC<HeaderProps> = ({ cartItemsCount, onCartClick, onMenuClic
 
   // Contact Links
   const whatsappMessage = encodeURIComponent('Hi! I am interested in your products.');
-  const whatsappUrl = `https://api.whatsapp.com/send?phone=639458990239&text=${whatsappMessage}`;
+  const whatsappUrl = `https://api.whatsapp.com/send?phone=639273823893&text=${whatsappMessage}`;
 
   const handlePricingModeClick = (newMode: PricingMode) => {
     if (newMode === pricingMode) return;
