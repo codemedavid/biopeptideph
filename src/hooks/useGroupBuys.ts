@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import type { GroupBuy, GroupBuyStatus } from '../types';
+import { pickAttributionGroupBuy } from '../utils/groupBuyAttribution';
 
 export interface GroupBuyInput {
   gb_number: string;
@@ -75,6 +76,10 @@ export function useGroupBuys() {
     () => groupBuys.find((g) => g.status === 'active') || null,
     [groupBuys]
   );
+
+  // The round an incoming order is stamped with — NOT the same as activeGroupBuy.
+  // See src/utils/groupBuyAttribution.ts for why the fallback exists.
+  const attributionGroupBuy = useMemo(() => pickAttributionGroupBuy(groupBuys), [groupBuys]);
 
   // gb_number is free text, but suggest the next sequential number for the common
   // case where rounds are still labelled "1", "2", "3"… (ignores non-numeric labels).
@@ -156,6 +161,7 @@ export function useGroupBuys() {
   return {
     groupBuys,
     activeGroupBuy,
+    attributionGroupBuy,
     nextGbNumber,
     available,
     loading,

@@ -56,12 +56,46 @@ async function listOrders({ groupBuyId } = {}) {
   return data || [];
 }
 
+/**
+ * orders.group_buy_number is a denormalised snapshot of group_buys.gb_number.
+ * Whenever group_buy_id changes it must be rewritten from the source of truth,
+ * otherwise the Orders tab labels the round with a stale name (this drifted once
+ * already: 88 orders read "MiniGB4" after that round was renamed "GB4").
+ */
+async function gbNumberFor(groupBuyId) {
+  if (!groupBuyId) return null;
+  const { data, error } = await supabase
+    .from('group_buys')
+    .select('gb_number')
+    .eq('id', groupBuyId)
+    .single();
+  if (error) throw error;
+  return data?.gb_number ?? null;
+}
+
 /** Update already-whitelisted fields; returns the number of rows changed. */
 async function updateOrder(id, patch) {
+  const next = { ...patch, updated_at: new Date().toISOString() };
+  if ('group_buy_id' in patch) next.group_buy_number = await gbNumberFor(patch.group_buy_id);
   const { data, error } = await supabase
     .from('orders')
-    .update({ ...patch, updated_at: new Date().toISOString() })
+    .update(next)
     .eq('id', id)
+    .select('id');
+  if (error) throw error;
+  return data ? data.length : 0;
+}
+
+/** Re-attribute many orders to one group buy (or clear it with null). */
+async function bulkAssignGroupBuy(ids, groupBuyId) {
+  const { data, error } = await supabase
+    .from('orders')
+    .update({
+      group_buy_id: groupBuyId,
+      group_buy_number: await gbNumberFor(groupBuyId),
+      updated_at: new Date().toISOString(),
+    })
+    .in('id', ids)
     .select('id');
   if (error) throw error;
   return data ? data.length : 0;
@@ -97,6 +131,7 @@ export const supabaseDb = {
   updateAccessCode,
   listOrders,
   updateOrder,
+  bulkAssignGroupBuy,
   deleteOrder,
   bulkDeleteOrders,
   listAssessmentResponses,

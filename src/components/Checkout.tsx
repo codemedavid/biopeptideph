@@ -14,6 +14,13 @@ interface CheckoutProps {
   onBack: () => void;
   clearCart: () => void;
   activeGroupBuy?: GroupBuy | null;
+  /**
+   * The round this order is recorded against. Falls back to the most recent
+   * round when none is `active`, so orders placed in the gap between rounds are
+   * never saved unattributed (they used to be, and were then missing from the
+   * per-GB supplier report). See `attributionGroupBuy` in useGroupBuys.
+   */
+  attributionGroupBuy?: GroupBuy | null;
 }
 
 // Saved customer details for one-click repeat checkout (feature #10).
@@ -50,7 +57,7 @@ function isMissingColumnError(err: { code?: string; message?: string } | null | 
   return m.includes('column') && (m.includes('does not exist') || m.includes('schema cache') || m.includes('could not find'));
 }
 
-const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, clearCart, activeGroupBuy }) => {
+const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, clearCart, activeGroupBuy, attributionGroupBuy }) => {
   const { paymentMethods } = usePaymentMethods();
   const { locations: shippingLocations, getShippingFee } = useShippingLocations();
   const { siteSettings } = useSiteSettings();
@@ -288,7 +295,15 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, clea
         ...baseRow,
         terms_accepted: true,
         terms_accepted_at: new Date().toISOString(),
-        ...(activeGroupBuy ? { group_buy_id: activeGroupBuy.id, group_buy_number: activeGroupBuy.gb_number } : {}),
+        // Attribute to the CURRENT round when one is open, otherwise to the most
+        // recent round — never to nothing. An order saved with group_buy_id = null
+        // is silently absent from every per-GB supplier report, which is how 59
+        // between-rounds orders went missing before. Admin can reassign the round
+        // from the Orders tab if the fallback picked the wrong one.
+        ...(() => {
+          const gb = attributionGroupBuy ?? activeGroupBuy;
+          return gb ? { group_buy_id: gb.id, group_buy_number: gb.gb_number } : {};
+        })(),
       };
 
       // Insert WITHOUT reading the row back: under the new RLS the public anon key

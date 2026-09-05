@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { ArrowLeft, Package, CheckCircle, XCircle, Clock, Truck, AlertCircle, Search, RefreshCw, Eye, MessageCircle, Image as ImageIcon, Trash2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { listOrders, updateOrder, deleteOrder, bulkDeleteOrders } from '../lib/adminOrdersApi';
+import { listOrders, updateOrder, deleteOrder, bulkDeleteOrders, bulkAssignGroupBuy } from '../lib/adminOrdersApi';
+import { useGroupBuys } from '../hooks/useGroupBuys';
 import { useMenu } from '../hooks/useMenu';
 import { useSiteSettings } from '../hooks/useSiteSettings';
 
@@ -65,6 +66,11 @@ const OrdersManager: React.FC<OrdersManagerProps> = ({ onBack }) => {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkConfirmText, setBulkConfirmText] = useState('');
   const [showBulkConfirm, setShowBulkConfirm] = useState(false);
+  // Re-attributing selected orders to a round. Needed because checkout falls back
+  // to the newest round when none is active, which can pick the wrong one.
+  const { groupBuys } = useGroupBuys();
+  const [assignTarget, setAssignTarget] = useState<string>('');
+  const [isAssigning, setIsAssigning] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const { refreshProducts } = useMenu();
   const { siteSettings } = useSiteSettings();
@@ -231,6 +237,27 @@ const OrdersManager: React.FC<OrdersManagerProps> = ({ onBack }) => {
       alert(`Failed to delete order: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsDeleting(false);
+    }
+  };
+
+  const handleBulkAssign = async () => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0 || !assignTarget) return;
+    const target = groupBuys.find((g) => g.id === assignTarget);
+    const label = target ? `GB #${target.gb_number}` : 'no group buy';
+    if (!window.confirm(`Move ${ids.length} order${ids.length === 1 ? '' : 's'} to ${label}? This changes the supplier report for both rounds.`)) return;
+    try {
+      setIsAssigning(true);
+      const updated = await bulkAssignGroupBuy(ids, assignTarget || null);
+      setSelectedIds(new Set());
+      setAssignTarget('');
+      await loadOrders();
+      alert(`Moved ${updated} order${updated === 1 ? '' : 's'} to ${label}.`);
+    } catch (error) {
+      console.error('Error assigning group buy:', error);
+      alert(`Failed to reassign orders: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsAssigning(false);
     }
   };
 
@@ -525,8 +552,28 @@ const OrdersManager: React.FC<OrdersManagerProps> = ({ onBack }) => {
               />
               Select all visible ({filteredOrders.length})
             </label>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-2 md:gap-3">
               <span className="text-xs md:text-sm text-gray-600">{selectedIds.size} selected</span>
+              {/* Re-attribute to the correct round — fixes orders taken between rounds. */}
+              <select
+                value={assignTarget}
+                onChange={(e) => setAssignTarget(e.target.value)}
+                disabled={selectedIds.size === 0 || isAssigning}
+                className="py-1.5 md:py-2 px-2 md:px-3 text-xs md:text-sm border-2 border-gray-200 rounded-lg focus:border-theme-accent focus:outline-none focus:ring-2 focus:ring-theme-accent/20 bg-white disabled:opacity-40"
+                title="Move the selected orders to a Group Buy"
+              >
+                <option value="">Move to Group Buy…</option>
+                {groupBuys.map((g) => (
+                  <option key={g.id} value={g.id}>GB #{g.gb_number} — {g.title}</option>
+                ))}
+              </select>
+              <button
+                onClick={handleBulkAssign}
+                disabled={selectedIds.size === 0 || !assignTarget || isAssigning}
+                className="px-3 md:px-4 py-1.5 md:py-2 bg-theme-accent hover:opacity-90 text-white rounded-lg transition-opacity font-medium text-xs md:text-sm disabled:opacity-40 disabled:cursor-not-allowed shadow-md"
+              >
+                {isAssigning ? 'Moving…' : 'Move'}
+              </button>
               <button
                 onClick={() => setShowBulkConfirm(true)}
                 disabled={selectedIds.size === 0 || isDeleting}

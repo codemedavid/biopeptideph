@@ -38,10 +38,10 @@ export async function listOrders(opts?: { groupBuyId?: string }): Promise<any[]>
   return data.orders ?? [];
 }
 
-/** Update whitelisted fields (order_status / payment_status) on one order. */
+/** Update whitelisted fields (order_status / payment_status / group_buy_id). */
 export async function updateOrder(
   id: string,
-  patch: { order_status?: string; payment_status?: string }
+  patch: { order_status?: string; payment_status?: string; group_buy_id?: string | null }
 ): Promise<void> {
   await request(`/admin/orders/${encodeURIComponent(id)}`, {
     method: 'PATCH',
@@ -62,6 +62,19 @@ export async function bulkDeleteOrders(ids: string[]): Promise<void> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ ids }),
   });
+}
+
+/**
+ * Re-attribute many orders to one group buy (pass null to unassign).
+ * Resolves to the number of orders actually updated.
+ */
+export async function bulkAssignGroupBuy(ids: string[], groupBuyId: string | null): Promise<number> {
+  const data = (await request('/admin/orders/bulk-assign-group-buy', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ids, group_buy_id: groupBuyId }),
+  })) as { updated?: number };
+  return data.updated ?? 0;
 }
 
 /** All assessment responses (PII), newest first. */

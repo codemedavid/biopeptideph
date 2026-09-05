@@ -182,11 +182,15 @@ export function createApp({ db } = {}) {
 
   app.patch('/api/admin/orders/:id', adminLimiter, requireAdmin, async (req, res) => {
     try {
-      const ALLOWED = ['order_status', 'payment_status'];
+      // group_buy_id is included so the admin can re-attribute an order to the
+      // right round (the checkout fallback attributes to the newest round when
+      // none is active, which is occasionally the wrong one). null clears it.
+      const ALLOWED = ['order_status', 'payment_status', 'group_buy_id'];
       const patch = {};
       for (const key of ALLOWED) {
         if (typeof req.body?.[key] === 'string') patch[key] = req.body[key];
       }
+      if (req.body?.group_buy_id === null) patch.group_buy_id = null;
       if (Object.keys(patch).length === 0) return res.status(400).json({ error: 'no_fields' });
       const changed = await db.updateOrder(req.params.id, patch);
       if (changed === 0) return res.status(404).json({ error: 'not_found' });
@@ -217,6 +221,24 @@ export function createApp({ db } = {}) {
       return res.json({ ok: true });
     } catch (err) {
       console.error('bulk delete orders error', err?.message || err);
+      return res.status(500).json({ error: 'server_error' });
+    }
+  });
+
+  // Re-attribute many orders to one group buy at once. Used by the Orders tab to
+  // fix rounds in bulk (e.g. orders taken in the gap between two rounds).
+  app.post('/api/admin/orders/bulk-assign-group-buy', adminLimiter, requireAdmin, async (req, res) => {
+    try {
+      const ids = Array.isArray(req.body?.ids)
+        ? req.body.ids.filter((x) => typeof x === 'string')
+        : [];
+      if (ids.length === 0) return res.status(400).json({ error: 'no_ids' });
+      const groupBuyId =
+        typeof req.body?.group_buy_id === 'string' ? req.body.group_buy_id : null;
+      const updated = await db.bulkAssignGroupBuy(ids, groupBuyId);
+      return res.json({ ok: true, updated });
+    } catch (err) {
+      console.error('bulk assign group buy error', err?.message || err);
       return res.status(500).json({ error: 'server_error' });
     }
   });

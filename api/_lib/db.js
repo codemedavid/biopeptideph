@@ -114,12 +114,33 @@ async function updateOrder(id, patch) {
       vals.push(patch[key]);
     }
   }
+  // Re-attributing an order to another round must also refresh the denormalised
+  // group_buy_number snapshot, or the Orders tab shows a stale round name.
+  if ('group_buy_id' in (patch || {})) {
+    const p = i++;
+    sets.push(`group_buy_id = $${p}::uuid`);
+    sets.push(`group_buy_number = (SELECT gb_number FROM group_buys WHERE id = $${p}::uuid)`);
+    vals.push(patch.group_buy_id);
+  }
   if (sets.length === 0) return 0; // nothing to update (route validates first)
   sets.push('updated_at = now()');
   vals.push(id);
   const { rowCount } = await pool.query(
     `UPDATE orders SET ${sets.join(', ')} WHERE id = $${i}`,
     vals
+  );
+  return rowCount;
+}
+
+/** Re-attribute many orders to one group buy (or clear it with null). */
+async function bulkAssignGroupBuy(ids, groupBuyId) {
+  const { rowCount } = await pool.query(
+    `UPDATE orders
+        SET group_buy_id = $1::uuid,
+            group_buy_number = (SELECT gb_number FROM group_buys WHERE id = $1::uuid),
+            updated_at = now()
+      WHERE id = ANY($2::uuid[])`,
+    [groupBuyId, ids]
   );
   return rowCount;
 }
@@ -154,6 +175,7 @@ export const pgDb = {
   updateAccessCode,
   listOrders,
   updateOrder,
+  bulkAssignGroupBuy,
   deleteOrder,
   bulkDeleteOrders,
   listAssessmentResponses,
