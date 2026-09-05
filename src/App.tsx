@@ -11,6 +11,7 @@ import Menu from './components/Menu';
 import Cart from './components/Cart';
 import Checkout from './components/Checkout';
 import FloatingCartButton from './components/FloatingCartButton';
+import GroupBuyCountdown from './components/GroupBuyCountdown';
 import Footer from './components/Footer';
 import SnowCanvas from './components/SnowCanvas';
 import AdminDashboard from './components/AdminDashboard';
@@ -32,7 +33,7 @@ const EMPTY_IDS: Set<string> = new Set();
 function MainApp() {
   const { menuItems } = useMenu();
   const { globalDiscount } = usePricingMode();
-  const { activeGroupBuy } = useGroupBuys();
+  const { activeGroupBuy, attributionGroupBuy } = useGroupBuys();
   // Per-GB product availability (for the active round): hide or disable OFF products.
   const { unavailableIds, behavior } = useGroupBuyAvailability(activeGroupBuy?.id);
   const cart = useCart(menuItems, globalDiscount, unavailableIds);
@@ -115,21 +116,24 @@ function MainApp() {
             />
             {activeGroupBuy && (
               <div className="bg-theme-accent/10 border-y border-theme-accent/20">
-                <div className="container mx-auto px-4 py-3 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-center">
-                  <span className="text-sm font-semibold text-theme-accent">
-                    🛒 Group Buy #{activeGroupBuy.gb_number} — {activeGroupBuy.title} is now OPEN
-                  </span>
-                  {activeGroupBuy.end_date && (
-                    <span className="text-xs text-gray-600">
-                      closes {new Date(activeGroupBuy.end_date).toLocaleDateString()}
+                <div className="container mx-auto px-4 py-4 flex flex-col items-center gap-3">
+                  <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-center">
+                    <span className="text-sm font-semibold text-theme-accent">
+                      🛒 Group Buy #{activeGroupBuy.gb_number} — {activeGroupBuy.title} is now OPEN
                     </span>
-                  )}
-                  <button
-                    onClick={() => setGbOnly((v) => !v)}
-                    className="text-xs font-semibold underline text-theme-accent hover:text-theme-accent/80"
-                  >
-                    {gbOnly ? 'View all products' : `View GB #${activeGroupBuy.gb_number} only`}
-                  </button>
+                    <button
+                      onClick={() => setGbOnly((v) => !v)}
+                      className="text-xs font-semibold underline text-theme-accent hover:text-theme-accent/80"
+                    >
+                      {gbOnly ? 'View all products' : `View GB #${activeGroupBuy.gb_number} only`}
+                    </button>
+                  </div>
+                  {/* Owns its own 1s tick — keep it a leaf so the product grid
+                      below is not re-rendered every second. */}
+                  <GroupBuyCountdown
+                    endDate={activeGroupBuy.end_date}
+                    gbNumber={activeGroupBuy.gb_number}
+                  />
                 </div>
               </div>
             )}
@@ -165,6 +169,7 @@ function MainApp() {
             onBack={() => handleViewChange('cart')}
             clearCart={cart.clearCart}
             activeGroupBuy={activeGroupBuy}
+            attributionGroupBuy={attributionGroupBuy}
           />
         )}
       </main>
