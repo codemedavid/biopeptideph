@@ -1,10 +1,9 @@
-import React from 'react';
 import { Clock, Flame } from 'lucide-react';
 
 import { useCountdown } from '../hooks/useCountdown';
 import { formatUnit } from '../utils/countdown';
 
-type GroupBuyCountdownProps = {
+type Props = {
   /** group_buys.end_date — renders nothing when the round has no deadline. */
   endDate: string | null;
   gbNumber?: string | number | null;
@@ -24,7 +23,7 @@ const SOON_MS = 24 * 60 * 60 * 1000; // final day
  * the admin closes rounds by hand, so end_date passing does not mean ordering
  * has stopped — orders still count until the round's status flips.
  */
-const GroupBuyCountdown: React.FC<GroupBuyCountdownProps> = ({ endDate, gbNumber }) => {
+export default function GroupBuyCountdown({ endDate, gbNumber }: Props) {
   const remaining = useCountdown(endDate);
 
   // No deadline set on this round: the banner stands on its own.
@@ -100,6 +99,4 @@ const GroupBuyCountdown: React.FC<GroupBuyCountdownProps> = ({ endDate, gbNumber
       <span className="sr-only">{roundLabel} ordering closes on {absoluteDeadline}.</span>
     </div>
   );
-};
-
-export default GroupBuyCountdown;
+}
