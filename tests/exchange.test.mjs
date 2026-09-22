@@ -21,9 +21,12 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   DEFAULT_USD_PHP_RATE,
+  feeInCurrency,
   normalizeRate,
   phpPriceUpdateFromUsd,
   phpToUsd,
+  resolveRate,
+  usdPriceUpdateFromPhp,
   usdToPhp,
 } from '../src/lib/exchange.ts';
 
@@ -144,4 +147,81 @@ test('normalizeRate accepts saved string rates and rejects unusable ones', () =>
 
 test('the fallback rate is a usable positive rate', () => {
   assert.equal(normalizeRate(DEFAULT_USD_PHP_RATE), DEFAULT_USD_PHP_RATE);
+});
+
+// --- resolveRate: the guard every call site must share -----------------------
+//
+// site_settings values arrive as text and are parsed with parseFloat, so a
+// malformed row yields NaN. `siteSettings?.usd_php_rate ?? DEFAULT` does NOT
+// catch NaN — `??` only catches null/undefined — which is how a NaN rate used
+// to reach the checkout total.
+
+test('resolveRate falls back to the default for any unusable saved rate', () => {
+  for (const bad of [NaN, 0, -64, null, undefined, '', 'abc', Infinity]) {
+    assert.equal(resolveRate(bad), DEFAULT_USD_PHP_RATE, `rate=${String(bad)}`);
+  }
+});
+
+test('resolveRate keeps a usable saved rate, including one stored as text', () => {
+  assert.equal(resolveRate(58), 58);
+  assert.equal(resolveRate('58.5'), 58.5);
+});
+
+// --- feeInCurrency: the checkout shipping fee -------------------------------
+
+test('a PHP cart shows the peso shipping fee untouched', () => {
+  assert.equal(feeInCurrency({ php: 150, usd: 3 }, 'PHP', 64), 150);
+  assert.equal(feeInCurrency({ php: 150 }, 'PHP', 64), 150);
+});
+
+test('a USD cart prefers an explicitly set USD fee', () => {
+  assert.equal(feeInCurrency({ php: 150, usd: 3 }, 'USD', 64), 3);
+});
+
+test('a USD cart converts the peso fee when no USD fee is set', () => {
+  assert.equal(feeInCurrency({ php: 150, usd: 0 }, 'USD', 64), 2.34);
+  assert.equal(feeInCurrency({ php: 150 }, 'USD', 64), 2.34);
+  assert.equal(feeInCurrency({ php: 150, usd: null }, 'USD', 64), 2.34);
+});
+
+test('a broken saved rate never produces a NaN or Infinity shipping fee', () => {
+  // This is the regression: the old checkout divided by the raw saved rate.
+  for (const bad of [NaN, 0, null, undefined, 'abc']) {
+    const fee = feeInCurrency({ php: 150 }, 'USD', bad);
+    assert.ok(Number.isFinite(fee), `rate=${String(bad)} produced ${fee}`);
+    assert.equal(fee, phpToUsd(150, DEFAULT_USD_PHP_RATE));
+  }
+});
+
+test('a free or missing shipping fee stays zero rather than becoming NaN', () => {
+  assert.equal(feeInCurrency({ php: 0 }, 'PHP', 64), 0);
+  assert.equal(feeInCurrency({ php: 0 }, 'USD', 64), 0);
+  assert.equal(feeInCurrency({ php: null }, 'PHP', 64), 0);
+  assert.equal(feeInCurrency({ php: undefined }, 'USD', 64), 0);
+  assert.equal(feeInCurrency({ php: NaN }, 'PHP', 64), 0);
+});
+
+// --- usdPriceUpdateFromPhp: the PHP -> USD bulk tool ------------------------
+//
+// PHP is the source of truth here, so a differing USD price is simply
+// re-derived — there is no round-trip to protect. The only rule is that a row
+// with no usable peso price must be SKIPPED, not stamped with $0: a stored 0
+// is not null, so `international_price ?? base_price` would price the product
+// at $0.00 for international shoppers.
+
+test('a peso price re-derives the USD price', () => {
+  assert.equal(usdPriceUpdateFromPhp(1499, 64), 23.42);
+  assert.equal(usdPriceUpdateFromPhp(1280, 64), 20);
+});
+
+test('a product with no usable peso price is skipped, never priced at $0', () => {
+  for (const php of [null, undefined, 0, -100, NaN, 'abc']) {
+    assert.equal(usdPriceUpdateFromPhp(php, 64), null, `php=${String(php)}`);
+  }
+});
+
+test('an unusable rate skips the row rather than pricing it at $0', () => {
+  for (const rate of [0, -64, NaN, null, undefined]) {
+    assert.equal(usdPriceUpdateFromPhp(1499, rate), null, `rate=${String(rate)}`);
+  }
 });
