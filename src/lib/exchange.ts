@@ -7,7 +7,7 @@
 // currencies can never drift out of sync — the admin only ever enters the PHP
 // price plus the one exchange rate, never a per-product USD figure.
 
-import { round2 } from './pricing';
+import { round2 } from './pricing.ts';
 
 // Fallback used only when no rate has been saved yet.
 export const DEFAULT_USD_PHP_RATE = 56;
@@ -32,4 +32,34 @@ export function usdToPhp(usd: number | null | undefined, rate: number): number {
   const value = Number(usd);
   if (!r || !Number.isFinite(value) || value <= 0) return 0;
   return round2(value * r);
+}
+
+/**
+ * The PHP price a bulk "USD -> PHP" apply should write for one row, or `null`
+ * when the row must be left alone.
+ *
+ * USD prices are stored rounded to two decimals, so multiplying one back by the
+ * rate does not return the peso price it came from (₱1,499 -> $23.42 -> ₱1,498.88).
+ * Writing that back unconditionally shaved centavos off every admin-entered
+ * price on every apply. So a peso price that already round-trips to the stored
+ * USD price at this rate is treated as consistent and skipped; only a USD price
+ * that genuinely disagrees — because the admin edited it, or because the rate
+ * changed — re-derives the peso price.
+ *
+ * Rows with no usable USD price or no usable rate are skipped rather than
+ * written as ₱0, which would put the product on sale for free.
+ */
+export function phpPriceUpdateFromUsd(
+  usd: number | null | undefined,
+  currentPhp: number | null | undefined,
+  rate: number
+): number | null {
+  const nextPhp = usdToPhp(usd, rate);
+  if (nextPhp <= 0) return null;
+
+  const current = Number(currentPhp);
+  const isCurrentUsable = Number.isFinite(current) && current > 0;
+  if (isCurrentUsable && phpToUsd(current, rate) === round2(Number(usd))) return null;
+
+  return nextPhp;
 }
