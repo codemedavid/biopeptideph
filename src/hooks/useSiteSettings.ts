@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { SiteSettings, SiteSetting } from '../types';
+import { DEFAULT_USD_PHP_RATE } from '../lib/exchange';
+import { parseNumericSetting, DEFAULT_ADMIN_FEE_PHP, DEFAULT_ADMIN_FEE_USD } from '../lib/settings';
 
 export const useSiteSettings = () => {
   const [siteSettings, setSiteSettings] = useState<SiteSettings | null>(null);
@@ -26,9 +28,12 @@ export const useSiteSettings = () => {
         site_description: data.find(s => s.id === 'site_description')?.value || '',
         currency: data.find(s => s.id === 'currency')?.value || 'PHP',
         currency_code: data.find(s => s.id === 'currency_code')?.value || 'PHP',
-        usd_php_rate: parseFloat(data.find(s => s.id === 'usd_php_rate')?.value || '56'),
-        admin_fee_php: parseFloat(data.find(s => s.id === 'admin_fee_php')?.value || '150'),
-        admin_fee_usd: parseFloat(data.find(s => s.id === 'admin_fee_usd')?.value || '3'),
+        // Parsed through parseNumericSetting so a malformed row falls back
+        // instead of becoming NaN — `NaN ?? fallback` is NaN, so a bad value
+        // here used to reach the checkout total as "$NaN".
+        usd_php_rate: parseNumericSetting(data.find(s => s.id === 'usd_php_rate')?.value, DEFAULT_USD_PHP_RATE),
+        admin_fee_php: parseNumericSetting(data.find(s => s.id === 'admin_fee_php')?.value, DEFAULT_ADMIN_FEE_PHP),
+        admin_fee_usd: parseNumericSetting(data.find(s => s.id === 'admin_fee_usd')?.value, DEFAULT_ADMIN_FEE_USD),
 
         // Courier Delay settings
         jnt_delay_active: data.find(s => s.id === 'jnt_delay_active')?.value === 'true',
@@ -51,7 +56,7 @@ export const useSiteSettings = () => {
         // Global Discount
         global_discount_active: data.find(s => s.id === 'global_discount_active')?.value === 'true',
         global_discount_type: (data.find(s => s.id === 'global_discount_type')?.value === 'fixed' ? 'fixed' : 'percentage'),
-        global_discount_value: parseFloat(data.find(s => s.id === 'global_discount_value')?.value || '0'),
+        global_discount_value: parseNumericSetting(data.find(s => s.id === 'global_discount_value')?.value, 0),
         global_discount_start: data.find(s => s.id === 'global_discount_start')?.value || '',
         global_discount_end: data.find(s => s.id === 'global_discount_end')?.value || '',
 

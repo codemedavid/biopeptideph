@@ -7,6 +7,8 @@ import { usePaymentMethods } from '../hooks/usePaymentMethods';
 import { useShippingLocations } from '../hooks/useShippingLocations';
 import { useSiteSettings } from '../hooks/useSiteSettings';
 import { usePricingMode } from '../hooks/usePricingMode';
+import { feeInCurrency } from '../lib/exchange';
+import { DEFAULT_ADMIN_FEE_PHP, DEFAULT_ADMIN_FEE_USD } from '../lib/settings';
 
 interface CheckoutProps {
   cartItems: CartItem[];
@@ -110,16 +112,12 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, clea
     }
   }, [paymentMethods, selectedPaymentMethod]);
 
-  // Calculate shipping fee based on location and currency
-  const getLocationFee = (loc: { fee: number; fee_usd?: number }) => {
-    if (cartCurrency === 'USD') {
-      // Use fee_usd if set, otherwise convert from PHP using exchange rate
-      if (loc.fee_usd && loc.fee_usd > 0) return loc.fee_usd;
-      const rate = siteSettings?.usd_php_rate ?? 56;
-      return Math.round((loc.fee / rate) * 100) / 100;
-    }
-    return loc.fee;
-  };
+  // Calculate shipping fee based on location and currency. feeInCurrency()
+  // resolves the rate rather than dividing by the raw saved value: `?? DEFAULT`
+  // does not catch a NaN rate, which used to render the fee and the grand total
+  // as "$NaN" (and a saved rate of 0 as "$Infinity").
+  const getLocationFee = (loc: { fee: number; fee_usd?: number }) =>
+    feeInCurrency({ php: loc.fee, usd: loc.fee_usd }, cartCurrency, siteSettings?.usd_php_rate);
 
   const shippingFee = useMemo(() => {
     if (!shippingLocation) return 0;
@@ -130,8 +128,8 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, clea
   }, [shippingLocation, courier, cartCurrency, shippingLocations, siteSettings]);
 
   const adminFee = cartCurrency === 'USD'
-    ? (siteSettings?.admin_fee_usd ?? 3)
-    : (siteSettings?.admin_fee_php ?? 150);
+    ? (siteSettings?.admin_fee_usd ?? DEFAULT_ADMIN_FEE_USD)
+    : (siteSettings?.admin_fee_php ?? DEFAULT_ADMIN_FEE_PHP);
   const finalTotal = totalPrice + shippingFee + adminFee;
 
   const isDetailsValid =

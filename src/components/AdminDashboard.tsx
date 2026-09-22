@@ -5,7 +5,7 @@ import { useMenu } from '../hooks/useMenu';
 import { useCategories } from '../hooks/useCategories';
 import { useSiteSettings } from '../hooks/useSiteSettings';
 import { supabase } from '../lib/supabase';
-import { phpToUsd, phpPriceUpdateFromUsd, normalizeRate, DEFAULT_USD_PHP_RATE } from '../lib/exchange';
+import { phpToUsd, phpPriceUpdateFromUsd, usdPriceUpdateFromPhp, normalizeRate, DEFAULT_USD_PHP_RATE } from '../lib/exchange';
 import ImageUpload from './ImageUpload';
 import CategoryManager from './CategoryManager';
 import PaymentMethodManager from './PaymentMethodManager';
@@ -482,12 +482,16 @@ const AdminDashboard: React.FC = () => {
 
       let productUpdates = 0;
       let productFailures = 0;
+      let productsSkipped = 0;
       let variationUpdates = 0;
       let variationFailures = 0;
+      let variationsSkipped = 0;
 
       for (const product of allProducts || []) {
-        const phpPrice = product.national_price ?? product.base_price;
-        const usdPrice = phpToUsd(phpPrice, rate);
+        // Skipped rather than written as $0: a stored 0 is not null, so
+        // `international_price ?? base_price` would offer it free abroad.
+        const usdPrice = usdPriceUpdateFromPhp(product.national_price ?? product.base_price, rate);
+        if (usdPrice === null) { productsSkipped++; continue; }
 
         const { error: prodErr } = await supabase
           .from('products')
@@ -498,8 +502,8 @@ const AdminDashboard: React.FC = () => {
       }
 
       for (const variation of allVariations || []) {
-        const varPhpPrice = variation.national_price ?? variation.price;
-        const varUsdPrice = phpToUsd(varPhpPrice, rate);
+        const varUsdPrice = usdPriceUpdateFromPhp(variation.national_price ?? variation.price, rate);
+        if (varUsdPrice === null) { variationsSkipped++; continue; }
 
         const { error: varErr } = await supabase
           .from('product_variations')
@@ -515,7 +519,11 @@ const AdminDashboard: React.FC = () => {
         `Exchange rate applied successfully!\n\n` +
         `Rate: ₱${rate} = $1 USD\n` +
         `Products updated: ${productUpdates}${productFailures ? ` (${productFailures} failed)` : ''}\n` +
-        `Variations updated: ${variationUpdates}${variationFailures ? ` (${variationFailures} failed)` : ''}`
+        `Variations updated: ${variationUpdates}${variationFailures ? ` (${variationFailures} failed)` : ''}` +
+        (productsSkipped || variationsSkipped
+          ? `\n\n${productsSkipped} product(s) and ${variationsSkipped} variation(s) have no PHP ` +
+            `price yet, so they were skipped rather than priced at $0.`
+          : '')
       );
     } catch (error) {
       console.error('Error applying exchange rate:', error);
@@ -555,10 +563,10 @@ const AdminDashboard: React.FC = () => {
       // -> ₱1,498.88). phpPriceUpdateFromUsd() skips those rows.
       const { data: allProducts, error: prodFetchErr } = await supabase
         .from('products')
-        .select('id, international_price, national_price, price');
+        .select('id, international_price, national_price, base_price');
       const { data: allVariations, error: varFetchErr } = await supabase
         .from('product_variations')
-        .select('id, international_price, national_price, base_price');
+        .select('id, international_price, national_price, price');
 
       if (prodFetchErr || varFetchErr) {
         throw prodFetchErr || varFetchErr;
@@ -566,8 +574,10 @@ const AdminDashboard: React.FC = () => {
 
       let productUpdates = 0;
       let productFailures = 0;
+      let productsUnchanged = 0;
       let variationUpdates = 0;
       let variationFailures = 0;
+      let variationsUnchanged = 0;
 
       for (const product of allProducts || []) {
         const currentPhp = product.national_price ?? product.base_price;
@@ -588,10 +598,8 @@ const AdminDashboard: React.FC = () => {
         if (varPhpPrice === null) { variationsUnchanged++; continue; }
 
         const { error: varErr } = await supabase
-      let productsUnchanged = 0;
           .from('product_variations')
           .update({ national_price: varPhpPrice, price: varPhpPrice })
-      let variationsUnchanged = 0;
           .eq('id', variation.id);
 
         if (varErr) variationFailures++; else variationUpdates++;

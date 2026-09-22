@@ -63,3 +63,55 @@ export function phpPriceUpdateFromUsd(
 
   return nextPhp;
 }
+
+/**
+ * The exchange rate to actually convert with: the saved one when it is usable,
+ * otherwise the fallback.
+ *
+ * Every call site needs this, and `savedRate ?? DEFAULT_USD_PHP_RATE` is not
+ * it — `??` catches null and undefined but not NaN, which is exactly what a
+ * malformed `site_settings` row parses to.
+ */
+export function resolveRate(rate: unknown): number {
+  return normalizeRate(rate) ?? DEFAULT_USD_PHP_RATE;
+}
+
+/**
+ * A shipping fee shown in the cart's currency.
+ *
+ * An explicitly set USD fee always wins; otherwise the peso fee is converted at
+ * the resolved rate. A fee that cannot be read is free rather than NaN.
+ */
+export function feeInCurrency(
+  fee: { php: number | null | undefined; usd?: number | null },
+  currency: 'PHP' | 'USD',
+  rate: unknown
+): number {
+  if (currency === 'PHP') {
+    const php = Number(fee.php);
+    return Number.isFinite(php) && php > 0 ? round2(php) : 0;
+  }
+
+  const usd = Number(fee.usd);
+  if (Number.isFinite(usd) && usd > 0) return round2(usd);
+
+  return phpToUsd(fee.php, resolveRate(rate));
+}
+
+/**
+ * The USD price a bulk "PHP -> USD" apply should write for one row, or `null`
+ * when the row must be skipped.
+ *
+ * PHP is the source of truth in this direction, so a differing USD price is
+ * simply re-derived — there is no round-trip to protect, unlike
+ * phpPriceUpdateFromUsd(). The one rule is that a row with no usable peso price
+ * must be skipped rather than stamped with 0: a stored 0 is not null, so
+ * `international_price ?? base_price` would offer the product at $0.00.
+ */
+export function usdPriceUpdateFromPhp(
+  php: number | null | undefined,
+  rate: number
+): number | null {
+  const usd = phpToUsd(php, rate);
+  return usd > 0 ? usd : null;
+}
