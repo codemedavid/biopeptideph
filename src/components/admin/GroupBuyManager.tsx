@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  ArrowLeft, Plus, Edit, Trash2, Save, X, Package, Play, Square,
+  ArrowLeft, Plus, Edit, Trash2, Save, X, Package, Square,
   Calendar, ShoppingBag, RefreshCw, AlertTriangle, Tag, FileSpreadsheet,
   ToggleRight, Eye, EyeOff, CheckCircle2, XCircle, Search, CheckSquare,
 } from 'lucide-react';
@@ -8,6 +8,7 @@ import { supabase } from '../../lib/supabase';
 import { listOrders } from '../../lib/adminOrdersApi';
 import { useGroupBuys, type GroupBuyInput } from '../../hooks/useGroupBuys';
 import { useGroupBuyAvailability } from '../../hooks/useGroupBuyAvailability';
+import GroupBuyKitPanel from './GroupBuyKitPanel';
 import { downloadGroupBuyReport, countsForSupplier } from '../../utils/groupBuyReport';
 import type { GroupBuy, GroupBuyStatus } from '../../types';
 
@@ -40,7 +41,26 @@ const STATUS_STYLES: Record<GroupBuyStatus, string> = {
   active: 'bg-green-100 text-green-700',
   upcoming: 'bg-amber-100 text-amber-700',
   closed: 'bg-gray-200 text-gray-600',
+  bunuan_open: 'bg-purple-100 text-purple-700',
+  bunuan_closed: 'bg-purple-50 text-purple-500',
+  completed: 'bg-blue-100 text-blue-700',
 };
+
+// Plain-English names for the phase controls. Stored values stay short and
+// machine-ish; only the admin-facing labels spell out what each phase does.
+const STATUS_LABELS: Record<GroupBuyStatus, string> = {
+  upcoming: 'Draft',
+  active: 'Normal Ordering Open',
+  closed: 'Normal Ordering Closed',
+  bunuan_open: 'Bunuan Open',
+  bunuan_closed: 'Bunuan Closed',
+  completed: 'Completed',
+};
+
+// The lifecycle in order, for the phase picker.
+const STATUS_FLOW: GroupBuyStatus[] = [
+  'upcoming', 'active', 'closed', 'bunuan_open', 'bunuan_closed', 'completed',
+];
 
 const GroupBuyManager: React.FC<GroupBuyManagerProps> = ({ onBack }) => {
   const {
@@ -48,7 +68,8 @@ const GroupBuyManager: React.FC<GroupBuyManagerProps> = ({ onBack }) => {
     createGroupBuy, updateGroupBuy, setStatus, deleteGroupBuy, setProductGroupBuy,
   } = useGroupBuys();
 
-  const [view, setView] = useState<'list' | 'form' | 'assign' | 'availability'>('list');
+  const [view, setView] = useState<'list' | 'form' | 'assign' | 'availability' | 'kits'>('list');
+  const [kitsTarget, setKitsTarget] = useState<GroupBuy | null>(null);
   const [editing, setEditing] = useState<GroupBuy | null>(null);
   const [assignTarget, setAssignTarget] = useState<GroupBuy | null>(null);
   const [availabilityTarget, setAvailabilityTarget] = useState<GroupBuy | null>(null);
@@ -307,15 +328,25 @@ const GroupBuyManager: React.FC<GroupBuyManagerProps> = ({ onBack }) => {
                     </div>
 
                     <div className="flex flex-wrap gap-2">
-                      {gb.status !== 'active' ? (
-                        <button onClick={() => handleStatus(gb, 'active')} className="flex items-center gap-1.5 bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold">
-                          <Play className="w-3.5 h-3.5" /> Open
-                        </button>
-                      ) : (
-                        <button onClick={() => handleStatus(gb, 'closed')} className="flex items-center gap-1.5 bg-gray-700 hover:bg-gray-800 text-white px-3 py-1.5 rounded-lg text-xs font-semibold">
-                          <Square className="w-3.5 h-3.5" /> Close
-                        </button>
-                      )}
+                      {/* Phase picker. The round's phase is the ONE switch that
+                          decides which rules apply — MOQ while ordering is open,
+                          the Bunuan remainder once it moves to Bunuan Open — so
+                          it is a single explicit control rather than an
+                          Open/Close toggle that cannot express six states. */}
+                      <label className="sr-only" htmlFor={`phase-${gb.id}`}>Phase for GB {gb.gb_number}</label>
+                      <select
+                        id={`phase-${gb.id}`}
+                        value={gb.status}
+                        onChange={(e) => handleStatus(gb, e.target.value as GroupBuyStatus)}
+                        className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-theme-accent"
+                      >
+                        {STATUS_FLOW.map((s) => (
+                          <option key={s} value={s}>{STATUS_LABELS[s]}</option>
+                        ))}
+                      </select>
+                      <button onClick={() => { setKitsTarget(gb); setView('kits'); }} className="flex items-center gap-1.5 bg-purple-50 hover:bg-purple-100 text-purple-700 px-3 py-1.5 rounded-lg text-xs font-semibold">
+                        <Package className="w-3.5 h-3.5" /> Kits &amp; MOQ
+                      </button>
                       <button onClick={() => { setAssignTarget(gb); setAssignSearch(''); setAssignSelected(new Set()); setView('assign'); }} className="flex items-center gap-1.5 bg-theme-accent/10 hover:bg-theme-accent/20 text-theme-accent px-3 py-1.5 rounded-lg text-xs font-semibold">
                         <Package className="w-3.5 h-3.5" /> Assign Products
                       </button>
@@ -360,9 +391,9 @@ const GroupBuyManager: React.FC<GroupBuyManagerProps> = ({ onBack }) => {
                   <select value={form.status}
                     onChange={(e) => setForm((f) => ({ ...f, status: e.target.value as GroupBuyStatus }))}
                     className="input-field">
-                    <option value="upcoming">Upcoming</option>
-                    <option value="active">Active</option>
-                    <option value="closed">Closed</option>
+                    {STATUS_FLOW.map((s) => (
+                      <option key={s} value={s}>{STATUS_LABELS[s]}</option>
+                    ))}
                   </select>
                 </div>
               </div>
@@ -532,6 +563,10 @@ const GroupBuyManager: React.FC<GroupBuyManagerProps> = ({ onBack }) => {
         )}
 
         {/* ---- PRODUCT AVAILABILITY (per GB) ---- */}
+        {view === 'kits' && kitsTarget && (
+          <GroupBuyKitPanel groupBuy={kitsTarget} onBack={() => setView('list')} />
+        )}
+
         {view === 'availability' && availabilityTarget && (
           <div className="max-w-3xl mx-auto">
             <div className="mb-4">

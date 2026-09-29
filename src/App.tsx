@@ -18,6 +18,9 @@ import AdminDashboard from './components/AdminDashboard';
 import { useMenu } from './hooks/useMenu';
 import { useGroupBuys } from './hooks/useGroupBuys';
 import { useGroupBuyAvailability } from './hooks/useGroupBuyAvailability';
+import { useKitStatus } from './hooks/useKitStatus';
+import BunuanPanel from './components/BunuanPanel';
+import type { GroupBuyPhase } from './lib/kitRules';
 import PeptideJourney from './pages/PeptideJourney';
 import AssessmentWizardV2 from './pages/AssessmentWizardV2';
 import AssessmentResults from './pages/AssessmentResults';
@@ -33,10 +36,26 @@ const EMPTY_IDS: Set<string> = new Set();
 function MainApp() {
   const { menuItems } = useMenu();
   const { globalDiscount } = usePricingMode();
-  const { activeGroupBuy, attributionGroupBuy } = useGroupBuys();
+  const { activeGroupBuy, orderingGroupBuy, attributionGroupBuy } = useGroupBuys();
   // Per-GB product availability (for the active round): hide or disable OFF products.
   const { unavailableIds, behavior } = useGroupBuyAvailability(activeGroupBuy?.id);
-  const cart = useCart(menuItems, globalDiscount, unavailableIds);
+
+  // MOQ + kit state for whichever round is taking orders (normal or Bunuan).
+  const { incompleteRows, getKitState, getMoq, available: kitRulesLive } =
+    useKitStatus(orderingGroupBuy?.id);
+
+  const isBunuan = orderingGroupBuy?.status === 'bunuan_open';
+  const phase = (orderingGroupBuy?.status ?? 'closed') as GroupBuyPhase;
+
+  // Withheld until the MOQ migrations are applied, so the storefront behaves
+  // exactly as it did before rather than enforcing rules the server cannot yet
+  // back up. Once live, the cart, cards and checkout all read the same numbers.
+  const kitOptions = React.useMemo(
+    () => (kitRulesLive ? { phase, getKitState, getMoq } : null),
+    [kitRulesLive, phase, getKitState, getMoq],
+  );
+
+  const cart = useCart(menuItems, globalDiscount, unavailableIds, kitOptions);
   const [currentView, setCurrentView] = React.useState<'menu' | 'cart' | 'checkout'>('menu');
   const [selectedCategory, setSelectedCategory] = React.useState<string>('all');
   // When a GB is active, "Explore GB #N" narrows the storefront to that round's
@@ -137,15 +156,33 @@ function MainApp() {
                 </div>
               </div>
             )}
-            <Menu
-              menuItems={filteredProducts}
-              addToCart={cart.addToCart}
-              cartItems={cart.cartItems}
-              updateQuantity={cart.updateQuantity}
-              unavailableProductIds={behavior === 'disable' ? unavailableIds : undefined}
-              activeGroupBuy={activeGroupBuy}
-              onGoToGroupBuy={handleGoToGroupBuy}
-            />
+            {/* During Bunuan the catalog is replaced, not filtered: the page
+                answers "which kits are short?", so showing the full store
+                alongside it would only invite orders the server will refuse. */}
+            {isBunuan ? (
+              <BunuanPanel
+                incompleteRows={incompleteRows}
+                menuItems={menuItems}
+                cartItems={cart.cartItems}
+                addToCart={cart.addToCart}
+                getKitState={getKitState}
+                getMoq={getMoq}
+                groupBuy={orderingGroupBuy}
+              />
+            ) : (
+              <Menu
+                menuItems={filteredProducts}
+                addToCart={cart.addToCart}
+                cartItems={cart.cartItems}
+                updateQuantity={cart.updateQuantity}
+                unavailableProductIds={behavior === 'disable' ? unavailableIds : undefined}
+                activeGroupBuy={activeGroupBuy}
+                onGoToGroupBuy={handleGoToGroupBuy}
+                phase={kitOptions ? phase : undefined}
+                getKitState={kitOptions ? getKitState : undefined}
+                getMoq={kitOptions ? getMoq : undefined}
+              />
+            )}
             <CTASection />
           </>
         )}
@@ -159,6 +196,8 @@ function MainApp() {
             getTotalPrice={cart.getTotalPrice}
             onContinueShopping={() => handleViewChange('menu')}
             onCheckout={() => handleViewChange('checkout')}
+            validation={kitOptions ? cart.validation : undefined}
+            maxQuantityForProduct={kitOptions ? cart.maxQuantityForProduct : undefined}
           />
         )}
 

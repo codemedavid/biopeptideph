@@ -10,7 +10,7 @@
 import { round2 } from './pricing.ts';
 
 // Fallback used only when no rate has been saved yet.
-export const DEFAULT_USD_PHP_RATE = 56;
+export const DEFAULT_USD_PHP_RATE = 64;
 
 /** Coerce the saved rate (string|number|null) into a positive number, or null. */
 export function normalizeRate(rate: unknown): number | null {

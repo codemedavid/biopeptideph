@@ -26,3 +26,9 @@ dist-ssr
 
 # Local .env backups (contain secrets)
 .env.bak-*
+
+# Database exports and downloaded customer files
+migration-backups/
+
+# Local throwaway PostgreSQL used by npm run test:db
+.tmp/

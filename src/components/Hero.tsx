@@ -5,6 +5,7 @@ import { ArrowRight, ShieldCheck, Sparkles, FlaskConical } from 'lucide-react';
 import { useSiteSettings } from '../hooks/useSiteSettings';
 import { useHeroCarousel } from '../hooks/useHeroCarousel';
 import HeroCarousel from './HeroCarousel';
+import { imageUrl } from '../lib/imageDelivery';
 
 type HeroProps = {
   onShopAll?: () => void;
@@ -79,7 +80,7 @@ const Hero: React.FC<HeroProps> = ({ onShopAll, activeGbNumber }) => {
             <>
               <div
                 className="absolute inset-0 bg-cover bg-center pointer-events-none opacity-40"
-                style={{ backgroundImage: `url(${heroImage})` }}
+                style={{ backgroundImage: `url(${imageUrl(heroImage, 1600)})` }}
               />
               <div className="absolute inset-0 bg-[#5c1f3d]/55 pointer-events-none" />
             </>

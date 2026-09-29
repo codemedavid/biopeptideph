@@ -16,6 +16,7 @@ import rateLimit from 'express-rate-limit';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import { cookieSession } from './cookieSession.js';
+import { imageAssets, mediaHandler } from './media.js';
 
 /**
  * Constant-time string comparison. Both sides are SHA-256'd to a fixed 32-byte
@@ -28,7 +29,7 @@ export function safeEqual(a, b) {
   return crypto.timingSafeEqual(ah, bh);
 }
 
-export function createApp({ db } = {}) {
+export function createApp({ db, mediaAssets = imageAssets } = {}) {
   if (!db) throw new Error('createApp requires a `db` data layer');
   // SESSION_SECRET signs the session cookie. Fail fast with a clear message if
   // it's missing instead of letting requests fail opaquely.
@@ -101,6 +102,8 @@ export function createApp({ db } = {}) {
   }
 
   // --- Routes ---------------------------------------------------------------
+
+  app.get('/api/media/:id', rateLimit({ windowMs: 60000, max: 300, standardHeaders: true, legacyHeaders: false }), mediaHandler({ assets: mediaAssets, requireValidSession, requireAdmin }));
 
   app.post('/api/access/verify', verifyLimiter, async (req, res) => {
     try {

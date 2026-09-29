@@ -59,6 +59,27 @@ function isMissingColumnError(err: { code?: string; message?: string } | null | 
   return m.includes('column') && (m.includes('does not exist') || m.includes('schema cache') || m.includes('could not find'));
 }
 
+// True when place_group_buy_order has not been deployed yet, so checkout can
+// fall back to the legacy client-side insert and the store keeps taking orders
+// between deploying this code and applying the MOQ migrations.
+function isMissingFunctionError(err: { code?: string; message?: string } | null | undefined): boolean {
+  if (!err) return false;
+  if (err.code === '42883' || err.code === 'PGRST202') return true;
+  const m = (err.message || '').toLowerCase();
+  return m.includes('function') && (m.includes('does not exist') || m.includes('could not find') || m.includes('schema cache'));
+}
+
+// Rejections the customer fixes in the CART, not on the checkout form. These
+// send them back a step instead of leaving them staring at a dead button.
+const CART_FIXABLE_CODES = new Set([
+  'BELOW_MOQ',
+  'BUNUAN_EXCEEDS_REMAINING',
+  'BUNUAN_UNAVAILABLE',
+  'NOT_IN_BUNUAN',
+  'UNAVAILABLE',
+  'INSUFFICIENT_STOCK',
+]);
+
 const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, clearCart, activeGroupBuy, attributionGroupBuy }) => {
   const { paymentMethods } = usePaymentMethods();
   const { locations: shippingLocations, getShippingFee } = useShippingLocations();
@@ -287,6 +308,12 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, clea
         currency: cartCurrency,
       };
 
+      // The round this order belongs to: the CURRENT one when a round is open,
+      // otherwise the most recent one. Used both for attribution on the row and
+      // for the GB label in the message the customer sends us, so the DB and
+      // the WhatsApp message can never disagree about the round.
+      const orderGroupBuy = attributionGroupBuy ?? activeGroupBuy;
+
       // Newer columns (feature #8). Sent if present; on a "missing column" error we
       // retry with the base row so the store keeps working before the migration.
       const enhancedRow = {
@@ -298,22 +325,61 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, clea
         // is silently absent from every per-GB supplier report, which is how 59
         // between-rounds orders went missing before. Admin can reassign the round
         // from the Orders tab if the fallback picked the wrong one.
-        ...(() => {
-          const gb = attributionGroupBuy ?? activeGroupBuy;
-          return gb ? { group_buy_id: gb.id, group_buy_number: gb.gb_number } : {};
-        })(),
+        ...(orderGroupBuy
+          ? { group_buy_id: orderGroupBuy.id, group_buy_number: orderGroupBuy.gb_number }
+          : {}),
       };
 
       // Insert WITHOUT reading the row back: under the new RLS the public anon key
       // may INSERT orders but not SELECT them, so .select() would fail. The id was
       // generated client-side (baseRow.id), so we don't need the returned row.
-      let { error: orderError } = await supabase.from('orders').insert([enhancedRow]);
-      if (orderError && isMissingColumnError(orderError)) {
-        console.warn('ℹ️ Orders table is missing newer columns — run the Phase 1 migration to persist T&C consent. Saving base order for now.');
-        ({ error: orderError } = await supabase.from('orders').insert([baseRow]));
+      // --- Create the order -----------------------------------------------
+      // place_group_buy_order validates MOQ, the Bunuan remainder, availability
+      // and stock AND inserts the row in ONE transaction. Both halves happening
+      // together is what makes the rules unbypassable: there is no window
+      // between "checked" and "written" for a competing checkout to slip
+      // through, and a modified client cannot skip the check by inserting
+      // directly. The round is derived server-side, so an order can never be
+      // validated against one round and recorded against another.
+      let orderId = baseRow.id as string;
+      // The short per-round order number (GB14-007). Only the RPC can tell us:
+      // the anon key may INSERT orders but not read them back, so the legacy
+      // insert path below leaves this null and the message falls back to the id.
+      let orderCode: string | null = null;
+      let orderError: { code?: string; message?: string } | null = null;
+
+      const { data: placed, error: placeError } = await supabase.rpc('place_group_buy_order', {
+        p_items: rpcItems,
+        p_pricing_mode: cartPricingMode,
+        p_order: enhancedRow,
+      });
+
+      if (placeError && !isMissingFunctionError(placeError)) {
+        orderError = placeError;
+      } else if (!placeError && placed) {
+        if (!placed.ok) {
+          // A rule rejected the order. The message comes from the server, so it
+          // always describes what was actually enforced rather than a guess.
+          alert(placed.message || 'Sorry, your order could not be placed. Please review your cart.');
+          setSubmitting(false);
+          if (placed.code && CART_FIXABLE_CODES.has(placed.code)) onBack();
+          return;
+        }
+        orderId = placed.order_id as string;
+        orderCode = (placed.gb_order_code as string | null) ?? null;
+      } else {
+        // The RPC is not deployed yet — fall back to the legacy direct insert so
+        // the live store keeps taking orders between deploying this code and
+        // applying the migrations.
+        console.warn('ℹ️ place_group_buy_order is not deployed — using the legacy insert path. MOQ and Bunuan are NOT enforced until the MOQ migrations are applied.');
+        ({ error: orderError } = await supabase.from('orders').insert([enhancedRow]));
+        if (orderError && isMissingColumnError(orderError)) {
+          console.warn('ℹ️ Orders table is missing newer columns — run the Phase 1 migration to persist T&C consent. Saving base order for now.');
+          ({ error: orderError } = await supabase.from('orders').insert([baseRow]));
+        }
       }
 
-      const orderData = { id: baseRow.id as string };
+      const orderData = { id: orderId };
 
       if (orderError) {
         console.error('❌ Error saving order:', orderError);
@@ -348,7 +414,7 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, clea
 
       const orderDetails = `
 🌸 SAKU FUJI - NEW ORDER
-
+${orderGroupBuy ? `🛒 GROUP BUY: GB${orderGroupBuy.gb_number}${orderGroupBuy.title ? ` — ${orderGroupBuy.title}` : ''}\n` : ''}
 📅 ORDER DATE & TIME
 ${dateTimeStamp}
 
@@ -395,7 +461,7 @@ ${paymentProof}
 📱 CONTACT METHOD
 WhatsApp: https://api.whatsapp.com/send?phone=639273823893
 
-📋 ORDER ID: ${orderData.id}
+${orderCode ? `📋 ORDER NO: ${orderCode}\n🆔 Reference: ${orderData.id}` : `📋 ORDER ID: ${orderData.id}`}
 
 Please confirm this order. Thank you!
       `.trim();

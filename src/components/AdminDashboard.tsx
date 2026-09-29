@@ -64,6 +64,22 @@ const AdminDashboard: React.FC = () => {
     />
   ) : null;
 
+  // MOQ quick-fill buttons. Picking one COPIES its number onto the product —
+  // products never reference a preset, so editing "MOQ 3" later cannot silently
+  // change the minimum on every product using it, possibly mid-round.
+  const [moqPresets, setMoqPresets] = useState<{ id: string; label: string; value: number }[]>([]);
+
+  useEffect(() => {
+    supabase
+      .from('moq_presets')
+      .select('id, label, value')
+      .eq('is_active', true)
+      .order('sort_order')
+      .then(({ data }) => setMoqPresets(data || []));
+    // No error branch: presets are a convenience. Before the MOQ migration is
+    // applied the list is simply empty and the admin types the number instead.
+  }, []);
+
   const [formData, setFormData] = useState<Partial<Product>>({
     name: '',
     description: '',
@@ -77,6 +93,10 @@ const AdminDashboard: React.FC = () => {
     sequence: '',
     storage_conditions: 'Store at -20°C',
     stock_quantity: 0,
+    // null = no minimum / not kit-tracked. Left unset by default so adding a
+    // product never silently imposes a rule the admin did not choose.
+    min_order_quantity: null,
+    kit_size: null,
     image_url: null,
     discount_active: false,
     inclusions: null
@@ -100,6 +120,8 @@ const AdminDashboard: React.FC = () => {
       sequence: '',
       storage_conditions: 'Store at -20°C',
       stock_quantity: 0,
+      min_order_quantity: null,
+      kit_size: null,
       image_url: null,
       discount_active: false,
       inclusions: null
@@ -237,6 +259,8 @@ const AdminDashboard: React.FC = () => {
           'sequence',
           'storage_conditions',
           'stock_quantity',
+          'min_order_quantity',
+          'kit_size',
           'available',
           'featured',
           'image_url',
@@ -1038,6 +1062,97 @@ const AdminDashboard: React.FC = () => {
                     />
                   </div>
 
+                  {/* --- MOQ --------------------------------------------------
+                      The smallest quantity ONE customer may order during normal
+                      ordering. Enforced by the database at checkout, not just
+                      here, so it cannot be bypassed from the browser. */}
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">
+                      Minimum Order Quantity
+                    </label>
+                    {moqPresets.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 mb-1.5">
+                        {moqPresets.map((preset) => {
+                          const isActive = (formData.min_order_quantity ?? 1) === preset.value;
+                          return (
+                            <button
+                              key={preset.id}
+                              type="button"
+                              onClick={() =>
+                                setFormData({
+                                  ...formData,
+                                  // "No MOQ" is stored as null rather than 1 so
+                                  // the field reads as deliberately unset.
+                                  min_order_quantity: preset.value <= 1 ? null : preset.value,
+                                })
+                              }
+                              className={`px-2 py-1 rounded-md text-[11px] font-semibold border transition-colors ${
+                                isActive
+                                  ? 'bg-theme-accent text-white border-theme-accent'
+                                  : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                              }`}
+                            >
+                              {preset.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                    <input
+                      type="number"
+                      min={1}
+                      value={formData.min_order_quantity ?? ''}
+                      onChange={(e) => {
+                        const raw = e.target.value.trim();
+                        setFormData({
+                          ...formData,
+                          min_order_quantity: raw === '' ? null : Math.max(1, Number(raw)),
+                        });
+                      }}
+                      className="input-field text-sm"
+                      placeholder="No minimum"
+                    />
+                    <p className="mt-1 text-[11px] text-gray-500">
+                      Per customer, per order. Leave blank for no minimum.
+                    </p>
+                  </div>
+
+                  {/* --- Kit size ---------------------------------------------
+                      How many units make ONE complete kit across the whole
+                      round. Not a per-customer rule — it decides when a kit is
+                      full and how many vials Bunuan still needs. */}
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">
+                      Kit Size
+                    </label>
+                    <input
+                      type="number"
+                      min={1}
+                      value={formData.kit_size ?? ''}
+                      onChange={(e) => {
+                        const raw = e.target.value.trim();
+                        setFormData({
+                          ...formData,
+                          kit_size: raw === '' ? null : Math.max(1, Number(raw)),
+                        });
+                      }}
+                      className="input-field text-sm"
+                      placeholder="Not kit-tracked"
+                    />
+                    <p className="mt-1 text-[11px] text-gray-500">
+                      Vials per complete kit, counted across the whole round.
+                      Leave blank to keep this product out of Bunuan.
+                    </p>
+                    {/* MOQ above kit size is legal — one order simply fills a
+                        kit and starts the next — but it is usually a typo. */}
+                    {(formData.min_order_quantity ?? 0) > (formData.kit_size ?? Infinity) && (
+                      <p className="mt-1 text-[11px] font-medium text-amber-600">
+                        Heads up: the minimum order ({formData.min_order_quantity}) is larger than
+                        the kit size ({formData.kit_size}), so a single order will fill a whole kit.
+                      </p>
+                    )}
+                  </div>
+
                   <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4 pt-0 sm:pt-6">
                     <label className="flex items-center gap-1.5 cursor-pointer">
                       <input
@@ -1233,7 +1348,7 @@ const AdminDashboard: React.FC = () => {
                           min="1"
                           value={exchangeRate}
                           onChange={(e) => setExchangeRate(e.target.value)}
-                          placeholder={siteSettings?.usd_php_rate?.toString() || '56'}
+                          placeholder={siteSettings?.usd_php_rate?.toString() || String(DEFAULT_USD_PHP_RATE)}
                           className="w-full pl-7 pr-3 py-2.5 border border-blue-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
                         />
                         <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs">= $1</span>

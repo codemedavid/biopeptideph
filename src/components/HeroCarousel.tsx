@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, ArrowRight } from 'lucide-react';
 import type { HeroSlide } from '../types';
+import { imageUrl } from '../lib/imageDelivery';
 
 interface HeroCarouselProps {
   slides: HeroSlide[];
@@ -92,7 +93,7 @@ const HeroCarousel: React.FC<HeroCarouselProps> = ({ slides, activeGbNumber, onS
           >
             {/* Image — object-cover prevents distortion; fixed container prevents layout shift */}
             <img
-              src={slide.image_url}
+              src={imageUrl(slide.image_url, 1600)}
               alt={slide.title || 'Hero slide'}
               className="absolute inset-0 w-full h-full object-cover"
               loading={i === 0 ? 'eager' : 'lazy'}

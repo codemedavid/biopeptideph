@@ -36,6 +36,8 @@ export interface ReportOrder {
   shipping_fee?: number | null;
   order_items: ReportOrderItem[];
   created_at?: string;
+  /** Short per-round order number, e.g. "GB14-007" (added 20260922000004). */
+  gb_order_code?: string | null;
 }
 
 type Row = (string | number)[];
@@ -86,7 +88,10 @@ export function prepareGroupBuyReport(gb: GroupBuy, orders: ReportOrder[]): {
     ['Order #', 'Customer Name', 'Phone', 'Product', 'Variation', 'Quantity', 'Unit Price', 'Line Total', 'Currency', 'Order Status', 'Payment Status', 'Counted', 'Shipping Location', 'Shipping Details'],
   ];
   for (const o of orders) {
-    const orderNo = o.id.slice(0, 8).toUpperCase();
+    // The per-round number is what the customer and the supplier thread both
+    // quote. The uuid stub is the fallback for orders placed before that column
+    // existed, or for one that is not attributed to any round.
+    const orderNo = o.gb_order_code || o.id.slice(0, 8).toUpperCase();
     const orderStatus = o.order_status || '';
     // "Counted" = fed the Summary/Totals demand numbers (every placed order;
     // only cancelled/refunded are 'No'). Commit state is visible in the adjacent

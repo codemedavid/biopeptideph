@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import MenuItemCard from './MenuItemCard';
 import ProductDetailModal from './ProductDetailModal';
 import type { Product, ProductVariation, CartItem, GroupBuy } from '../types';
+import type { GroupBuyPhase, KitState } from '../lib/kitRules';
 import { Search, Filter, Package } from 'lucide-react';
 
 interface MenuProps {
@@ -15,9 +16,24 @@ interface MenuProps {
   // NOT part of it are locked from add-to-cart and steer the user to the round.
   activeGroupBuy?: GroupBuy | null;
   onGoToGroupBuy?: () => void;
+  // MOQ + kit context for the current round. Omitted, the grid behaves exactly
+  // as it did before MOQ existed.
+  phase?: GroupBuyPhase;
+  getKitState?: (productId: string) => KitState;
+  getMoq?: (productId: string) => number;
 }
 
-const Menu: React.FC<MenuProps> = ({ menuItems, addToCart, cartItems, unavailableProductIds, activeGroupBuy, onGoToGroupBuy }) => {
+const Menu: React.FC<MenuProps> = ({
+  menuItems,
+  addToCart,
+  cartItems,
+  unavailableProductIds,
+  activeGroupBuy,
+  onGoToGroupBuy,
+  phase,
+  getKitState,
+  getMoq,
+}) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<'name' | 'price' | 'purity'>('name');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -152,6 +168,11 @@ const Menu: React.FC<MenuProps> = ({ menuItems, addToCart, cartItems, unavailabl
                   gbLocked={Boolean(activeGroupBuy && product.group_buy_id !== activeGroupBuy.id)}
                   gbNumber={activeGroupBuy?.gb_number ?? null}
                   onGoToGroupBuy={onGoToGroupBuy}
+                  kit={
+                    phase && getKitState && getMoq
+                      ? { phase, state: getKitState(product.id), moq: getMoq(product.id) }
+                      : undefined
+                  }
                 />
               ))}
             </div>

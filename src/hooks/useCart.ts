@@ -1,6 +1,13 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import type { CartItem, CartItemRef, Product, ProductVariation, PricingMode } from '../types';
 import { computeEffectivePrice, round2, type GlobalDiscount } from '../lib/pricing';
+import {
+  computeKitState,
+  validateCart,
+  type CartVerdict,
+  type GroupBuyPhase,
+  type KitState,
+} from '../lib/kitRules';
 
 const CART_KEY = 'peptide_cart';
 const PRICING_MODE_KEY = 'peptide_pricing_mode';
@@ -109,13 +116,29 @@ function placeholderProduct(ref: CartItemRef): Product {
  * `menuItems` updates (useMenu's realtime subscription), totals recompute with
  * no stale cache — that is the cart-price fix.
  *
+ * MOQ and Bunuan limits are resolved the same way prices are — live, never
+ * persisted — so a cart built while a round was open re-validates itself the
+ * moment that round closes or a Bunuan slot is taken by someone else.
+ *
  * @param menuItems live products from useMenu()
  * @param globalDiscount optional sitewide discount (wired in Phase 4)
+ * @param unavailableProductIds products turned OFF for the active round
+ * @param kitOptions MOQ/Bunuan context; omitted (or before the migrations are
+ *   applied) the cart behaves exactly as it did before this feature existed
  */
+export interface CartKitOptions {
+  phase: GroupBuyPhase;
+  getKitState: (productId: string) => KitState;
+  getMoq: (productId: string) => number;
+}
+
+const UNTRACKED_KIT: KitState = computeKitState({ kitSize: null, eligibleQty: 0 });
+
 export function useCart(
   menuItems: Product[] = [],
   globalDiscount?: GlobalDiscount | null,
   unavailableProductIds?: Set<string>,
+  kitOptions?: CartKitOptions | null,
 ) {
   const [refs, setRefs] = useState<CartItemRef[]>(() => loadRefsFromStorage());
 
@@ -178,6 +201,60 @@ export function useCart(
       };
     });
   }, [refs, menuItems, globalDiscount, unavailableProductIds]);
+
+  /**
+   * MOQ / Bunuan verdict per PRODUCT (not per line).
+   *
+   * Quantities are summed across lines first, because a cart can hold the same
+   * product twice via two variations. Checking lines separately would fail a
+   * legitimate 2 + 2 against MOQ 3, and would let 1 + 1 slip past a Bunuan cap
+   * of 1. place_group_buy_order aggregates the same way, so the message the
+   * customer sees here is the one the server would give.
+   */
+  const validation = useMemo<CartVerdict>(() => {
+    if (!kitOptions) return { canCheckout: cartItems.length > 0, byProduct: {} };
+
+    const totals = new Map<string, { name: string; quantity: number }>();
+    for (const item of cartItems) {
+      const existing = totals.get(item.product.id);
+      if (existing) existing.quantity += item.quantity;
+      else totals.set(item.product.id, { name: item.product.name, quantity: item.quantity });
+    }
+
+    const lines = Array.from(totals.entries()).map(([productId, { name, quantity }]) => ({
+      productId,
+      productName: name,
+      quantity,
+      moq: kitOptions.getMoq(productId),
+      kitState: kitOptions.getKitState(productId),
+    }));
+
+    return validateCart(lines, kitOptions.phase);
+  }, [cartItems, kitOptions]);
+
+  /**
+   * The largest quantity this product may reach, or null when unbounded.
+   * During Bunuan that is the kit's exact shortfall; otherwise stock is the
+   * only ceiling and the existing stock rules still own it.
+   */
+  const maxQuantityForProduct = useCallback(
+    (productId: string): number | null => {
+      if (!kitOptions || kitOptions.phase !== 'bunuan_open') return null;
+      return kitOptions.getKitState(productId).bunuanAvailable;
+    },
+    [kitOptions],
+  );
+
+  /** The MOQ floor for a product in the current round (1 = no minimum). */
+  const moqForProduct = useCallback(
+    (productId: string): number => (kitOptions ? kitOptions.getMoq(productId) : 1),
+    [kitOptions],
+  );
+
+  const kitStateForProduct = useCallback(
+    (productId: string): KitState => (kitOptions ? kitOptions.getKitState(productId) : UNTRACKED_KIT),
+    [kitOptions],
+  );
 
   const addToCart = useCallback((product: Product, variation?: ProductVariation, quantity: number = 1) => {
     const pricingMode = getCurrentPricingMode();
@@ -289,11 +366,36 @@ export function useCart(
         newQuantity = availableStock;
       }
 
+      // During Bunuan the kit's shortfall is a hard ceiling, and it is usually
+      // lower than stock. Clamp against the total already in the cart for this
+      // product so two variation lines cannot add up past the remainder.
+      const bunuanMax = kitOptions?.phase === 'bunuan_open'
+        ? kitOptions.getKitState(ref.product_id).bunuanAvailable
+        : null;
+
+      if (bunuanMax !== null) {
+        const otherLines = current.reduce(
+          (sum, r, i) => (i !== index && r.product_id === ref.product_id ? sum + r.quantity : sum),
+          0,
+        );
+        const allowed = Math.max(0, bunuanMax - otherLines);
+        if (newQuantity > allowed) {
+          alert(
+            allowed > 0
+              ? `Only ${allowed} left to complete this kit.`
+              : 'This kit is already complete.',
+          );
+          newQuantity = allowed;
+        }
+      }
+
+      if (newQuantity <= 0) return current.filter((_, i) => i !== index);
+
       const updated = [...current];
       updated[index] = { ...ref, quantity: newQuantity };
       return updated;
     });
-  }, [menuItems]);
+  }, [menuItems, kitOptions]);
 
   const clearCart = useCallback(() => {
     setRefs([]);
@@ -332,5 +434,10 @@ export function useCart(
     getTotalItems,
     updateCartPricingMode,
     getCartPricingMode,
+    // MOQ / Bunuan (empty + permissive when kitOptions is absent)
+    validation,
+    maxQuantityForProduct,
+    moqForProduct,
+    kitStateForProduct,
   };
 }

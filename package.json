@@ -15,7 +15,8 @@
     "preview": "vite preview",
     "test": "node --experimental-strip-types --test tests/*.test.mjs",
     "e2e": "node scripts/e2e-admin.mjs",
-    "set-access-code": "node scripts/set-access-code.js"
+    "set-access-code": "node scripts/set-access-code.js",
+    "test:db": "node scripts/db-test.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.56.1",
@@ -39,6 +40,7 @@
     "@types/react-router-dom": "^5.3.3",
     "@vitejs/plugin-react": "^4.3.1",
     "autoprefixer": "^10.4.18",
+    "embedded-postgres": "^18.4.0-beta.17",
     "eslint": "^9.9.1",
     "eslint-plugin-react-hooks": "^5.1.0-rc.0",
     "eslint-plugin-react-refresh": "^0.4.11",

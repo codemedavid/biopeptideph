@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Trash2, ShoppingBag, ArrowLeft, CreditCard, Plus, Minus, Sparkles, Heart } from 'lucide-react';
 import type { CartItem } from '../types';
+import type { CartVerdict } from '../lib/kitRules';
 import { usePricingMode } from '../hooks/usePricingMode';
+import { imageUrl } from '../lib/imageDelivery';
 
 interface CartProps {
   cartItems: CartItem[];
@@ -11,6 +13,14 @@ interface CartProps {
   getTotalPrice: () => number;
   onContinueShopping: () => void;
   onCheckout: () => void;
+  /**
+   * MOQ / Bunuan verdicts keyed by product_id. Omitted (or before the MOQ
+   * migrations are applied) the cart gates on availability alone, exactly as
+   * it did before this feature.
+   */
+  validation?: CartVerdict;
+  /** Bunuan ceiling for a product, or null when only stock limits it. */
+  maxQuantityForProduct?: (productId: string) => number | null;
 }
 
 // CartQuantityInput moved to top
@@ -77,6 +87,8 @@ const Cart: React.FC<CartProps> = ({
   getTotalPrice,
   onContinueShopping,
   onCheckout,
+  validation,
+  maxQuantityForProduct,
 }) => {
   const { currencySymbol, pricingMode, isInternational } = usePricingMode();
 
@@ -116,6 +128,15 @@ const Cart: React.FC<CartProps> = ({
   // Shipping fee will be discussed via chat
   const finalTotal = totalPrice;
   const hasUnavailable = cartItems.some(item => item.available === false);
+
+  // MOQ / Bunuan blocks checkout too. Verdicts are keyed by product because a
+  // cart can hold the same product on two variation lines and the rule applies
+  // to their combined quantity — the same way the server aggregates it.
+  const kitBlocked = validation ? !validation.canCheckout : false;
+  const blockedProducts = validation
+    ? Object.entries(validation.byProduct).filter(([, v]) => !v.ok)
+    : [];
+  const canCheckout = !hasUnavailable && !kitBlocked;
 
   return (
     <div className="min-h-screen bg-white py-6 md:py-8">
@@ -166,7 +187,9 @@ const Cart: React.FC<CartProps> = ({
                   <div className="w-20 h-20 md:w-24 md:h-24 bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg flex-shrink-0 flex items-center justify-center overflow-hidden shadow-md border border-gray-300">
                     {item.product.image_url ? (
                       <img
-                        src={item.product.image_url}
+                        src={imageUrl(item.product.image_url, 320)}
+                        loading="lazy"
+                        decoding="async"
                         alt={item.product.name}
                         className="w-full h-full object-cover"
                       />
@@ -196,6 +219,14 @@ const Cart: React.FC<CartProps> = ({
                             </span>
                           </div>
                         ) : null}
+                        {/* MOQ / Bunuan problem for THIS product. Sits beside
+                            the line it belongs to so a multi-product cart
+                            points at the item that actually needs fixing. */}
+                        {validation?.byProduct[item.product.id]?.ok === false && (
+                          <p className="mt-1 text-[10px] md:text-xs font-semibold text-amber-700">
+                            ⚠️ {validation.byProduct[item.product.id].message}
+                          </p>
+                        )}
                         {item.available === false && (
                           <p className="mt-1 text-[10px] md:text-xs font-semibold text-red-600">
                             ⚠️ No longer available — please remove to continue.
@@ -229,7 +260,11 @@ const Cart: React.FC<CartProps> = ({
                           value={item.quantity}
                           max={(() => {
                             const availableStock = item.variation ? item.variation.stock_quantity : item.product.stock_quantity;
-                            return availableStock > 0 ? availableStock : 999;
+                            const stockCap = availableStock > 0 ? availableStock : 999;
+                            // During Bunuan the kit shortfall is usually the
+                            // tighter of the two limits.
+                            const bunuanCap = maxQuantityForProduct?.(item.product.id) ?? null;
+                            return bunuanCap === null ? stockCap : Math.min(stockCap, bunuanCap);
                           })()}
                           onChange={(val) => updateQuantity(index, val)}
                           disabled={(() => {
@@ -248,6 +283,11 @@ const Cart: React.FC<CartProps> = ({
                         <button
                           onClick={() => {
                             const availableStock = item.variation ? item.variation.stock_quantity : item.product.stock_quantity;
+                            const bunuanCap = maxQuantityForProduct?.(item.product.id) ?? null;
+                            if (bunuanCap !== null && item.quantity >= bunuanCap) {
+                              alert(`Only ${bunuanCap} left to complete this kit.`);
+                              return;
+                            }
                             if (item.quantity >= availableStock) {
                               alert(`Only ${availableStock} item(s) available in stock.`);
                               return;
@@ -256,6 +296,8 @@ const Cart: React.FC<CartProps> = ({
                           }}
                           disabled={(() => {
                             const availableStock = item.variation ? item.variation.stock_quantity : item.product.stock_quantity;
+                            const bunuanCap = maxQuantityForProduct?.(item.product.id) ?? null;
+                            if (bunuanCap !== null && item.quantity >= bunuanCap) return true;
                             return item.quantity >= availableStock;
                           })()}
                           className="p-1.5 md:p-2 hover:bg-gray-50 transition-colors rounded-r-lg disabled:opacity-50 disabled:cursor-not-allowed"
@@ -311,6 +353,17 @@ const Cart: React.FC<CartProps> = ({
                 </div>
               </div>
 
+              {/* Every blocking problem at once, so the customer fixes the cart
+                  in one pass instead of discovering them one reload at a time. */}
+              {blockedProducts.length > 0 && (
+                <ul className="mb-3 space-y-1 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2">
+                  {blockedProducts.map(([productId, verdict]) => (
+                    <li key={productId} className="text-xs font-medium text-amber-800">
+                      {verdict.message}
+                    </li>
+                  ))}
+                </ul>
+              )}
               {hasUnavailable && (
                 <p className="text-xs text-red-600 font-medium mb-2 text-center">
                   Remove unavailable items to proceed to checkout.
@@ -318,7 +371,7 @@ const Cart: React.FC<CartProps> = ({
               )}
               <button
                 onClick={onCheckout}
-                disabled={hasUnavailable}
+                disabled={!canCheckout}
                 className="w-full bg-theme-accent hover:bg-theme-accent/90 text-white py-3 md:py-4 rounded-lg font-semibold text-sm md:text-base shadow-lg hover:shadow-xl transform hover:scale-105 transition-all mb-3 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
               >
                 <CreditCard className="w-5 h-5" />

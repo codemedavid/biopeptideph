@@ -121,3 +121,31 @@ test('countsForSupplier still gates paid/confirmed only', () => {
   assert.equal(countsForSupplier(newPending), false);
   assert.equal(countsForSupplier(cancelled), false);
 });
+
+// --- Order # column --------------------------------------------------------
+// The Orders sheet is what the supplier thread and the customer both quote back,
+// so it must carry the short per-round number once the order has one, and must
+// still produce something usable for history that predates that column.
+
+test('Orders sheet uses the per-round order number when the order has one', () => {
+  // Arrange
+  const orders = [order({ id: 'aabbccdd-1111-2222-3333-444455556666', gb_order_code: 'GB7-014' })];
+
+  // Act
+  const { orderRows } = prepareGroupBuyReport(GB, orders);
+
+  // Assert
+  assert.equal(orderRows[0][0], 'Order #');
+  assert.equal(orderRows[1][0], 'GB7-014');
+});
+
+test('Orders sheet falls back to the id stub for an order with no number', () => {
+  // Arrange
+  const orders = [order({ id: 'aabbccdd-1111-2222-3333-444455556666' })];
+
+  // Act
+  const { orderRows } = prepareGroupBuyReport(GB, orders);
+
+  // Assert
+  assert.equal(orderRows[1][0], 'AABBCCDD');
+});

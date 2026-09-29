@@ -30,6 +30,13 @@ export interface Product {
   available: boolean;
   featured: boolean;
 
+  // MOQ + kit tracking — see supabase/migrations/*_add_moq_and_kits.sql
+  // min_order_quantity: smallest quantity ONE customer may order (null/1 = none).
+  // kit_size: how many units make a complete kit across the whole round.
+  //   null = not kit-tracked, so the product never appears in Bunuan.
+  min_order_quantity?: number | null;
+  kit_size?: number | null;
+
   // Images and metadata
   image_url: string | null;
   safety_sheet_url: string | null;
@@ -89,7 +96,21 @@ export interface SiteSetting {
 }
 
 // Group Buy ("round") — see supabase/migrations/*_add_group_buys.sql
-export type GroupBuyStatus = 'upcoming' | 'active' | 'closed';
+//
+// The lifecycle, in order. Only 'active' and 'bunuan_open' accept new orders:
+//   upcoming      Draft — not customer-visible
+//   active        Normal Ordering Open  — MOQ enforced
+//   closed        Normal Ordering Closed — kit shortfalls now known
+//   bunuan_open   Bunuan Open — MOQ suspended, only the shortfall is sellable
+//   bunuan_closed Bunuan Closed
+//   completed     Handed to the supplier
+export type GroupBuyStatus =
+  | 'upcoming'
+  | 'active'
+  | 'closed'
+  | 'bunuan_open'
+  | 'bunuan_closed'
+  | 'completed';
 
 export interface GroupBuy {
   id: string;

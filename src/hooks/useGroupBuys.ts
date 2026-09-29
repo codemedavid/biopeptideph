@@ -77,6 +77,19 @@ export function useGroupBuys() {
     [groupBuys]
   );
 
+  // The round currently ACCEPTING ORDERS — 'active' (normal ordering) or
+  // 'bunuan_open'. Distinct from activeGroupBuy, which is only the normal
+  // ordering round: during Bunuan there is no 'active' round, but the store is
+  // still open for the exact vials needed to finish incomplete kits.
+  // place_group_buy_order derives the same round server-side, so the two agree.
+  const orderingGroupBuy = useMemo(
+    () => groupBuys.find((g) => g.status === 'active' || g.status === 'bunuan_open') || null,
+    [groupBuys]
+  );
+
+  /** Which rules apply right now: MOQ, Bunuan, or neither. */
+  const phase: GroupBuyStatus = orderingGroupBuy?.status ?? 'closed';
+
   // The round an incoming order is stamped with — NOT the same as activeGroupBuy.
   // See src/utils/groupBuyAttribution.ts for why the fallback exists.
   const attributionGroupBuy = useMemo(() => pickAttributionGroupBuy(groupBuys), [groupBuys]);
@@ -161,6 +174,8 @@ export function useGroupBuys() {
   return {
     groupBuys,
     activeGroupBuy,
+    orderingGroupBuy,
+    phase,
     attributionGroupBuy,
     nextGbNumber,
     available,

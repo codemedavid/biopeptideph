@@ -1,0 +1,68 @@
+-- ============================================================================
+-- FINAL STEP: make MOQ and Bunuan genuinely unbypassable.
+--
+-- db/orders_rls.sql let the public anon key INSERT into `orders` so the browser
+-- could create an order at checkout. That is exactly the hole this closes: a
+-- modified client could insert ANY order — below MOQ, past the Bunuan
+-- remainder, in a closed round — because the browser was doing the writing.
+--
+-- After this, the only way to create an order is place_group_buy_order(), which
+-- validates and inserts inside ONE transaction. Rules stop being advisory.
+--
+-- ⚠️ SEQUENCING — apply this LAST, ONLY AFTER all of:
+--   1. Migrations 20260922000000–20260922000003 are applied
+--   2. The new app code is DEPLOYED (Checkout calls place_group_buy_order)
+--   3. You have placed ONE REAL TEST ORDER through the deployed site and seen
+--      it appear in the Orders tab
+--
+--   Applying this before (2) breaks checkout completely: the deployed code
+--   would fall back to a direct insert that RLS now denies. There is no partial
+--   failure mode here — orders either all work or all fail, so verify first.
+--
+-- Idempotent: safe to re-run.
+-- ============================================================================
+
+-- RLS is already enabled by db/orders_rls.sql; repeated for standalone safety.
+alter table public.orders enable row level security;
+
+-- Remove the blanket insert grant. No INSERT policy for anon => direct inserts
+-- are denied. place_group_buy_order is SECURITY DEFINER, so it writes as its
+-- owner and bypasses RLS — the function keeps working, the bypass does not.
+drop policy if exists "orders public insert" on public.orders;
+
+-- Still nothing else: no SELECT/UPDATE/DELETE policy means anon cannot read,
+-- change or remove orders. Admin access continues through the Express API on
+-- the service-role connection, which bypasses RLS.
+
+-- ============================================================================
+-- VERIFY (run immediately after applying — before walking away):
+--
+--   -- 1. No insert policy remains:
+--   select polname, polcmd from pg_policy
+--     where polrelid = 'public.orders'::regclass;
+--   --    Expect: no row with polcmd = 'a' (INSERT).
+--
+--   -- 2. A direct anon insert must now FAIL:
+--   --   curl -X POST "$SUPABASE_URL/rest/v1/orders" \
+--   --     -H "apikey: $ANON" -H "authorization: Bearer $ANON" \
+--   --     -H "content-type: application/json" \
+--   --     -d '{"customer_name":"x","customer_email":"x@example.com",
+--   --          "customer_phone":"0","shipping_address":"x","shipping_city":"x",
+--   --          "shipping_state":"x","shipping_zip_code":"x",
+--   --          "order_items":[],"total_price":0}'
+--   --   Expect: 401/403 (new row violates row-level security policy).
+--
+--   -- 3. A REAL checkout on the live site must still succeed. Do this now.
+--
+--   -- 4. Below-MOQ must be refused even when called directly:
+--   select place_group_buy_order(
+--     '[{"product_id":"<uuid-with-moq-3>","quantity":1}]'::jsonb, 'national',
+--     '{"customer_name":"Test","customer_email":"t@example.com",
+--       "customer_phone":"09270000000"}'::jsonb);
+--   --   Expect: ok:false, code:BELOW_MOQ
+--
+-- ROLLBACK (restores the pre-MOQ behavior; checkout works but MOQ and Bunuan
+-- become advisory again, enforced only by the UI):
+--   create policy "orders public insert"
+--     on public.orders for insert to anon, authenticated with check (true);
+-- ============================================================================

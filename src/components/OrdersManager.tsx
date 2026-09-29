@@ -47,6 +47,8 @@ interface Order {
   currency?: 'PHP' | 'USD';
   group_buy_id?: string | null;
   group_buy_number?: string | null;
+  /** Short per-round order number, e.g. "GB14-007". Null on unattributed orders. */
+  gb_order_code?: string | null;
 }
 
 interface OrdersManagerProps {
@@ -327,6 +329,9 @@ const OrdersManager: React.FC<OrdersManagerProps> = ({ onBack }) => {
         o.customer_name.toLowerCase().includes(query) ||
         o.customer_email.toLowerCase().includes(query) ||
         o.customer_phone.includes(query) ||
+        // The short number is what a customer quotes, so it has to be findable
+        // here — searching the raw uuid only helps when they paste the whole one.
+        (o.gb_order_code || '').toLowerCase().includes(query) ||
         o.id.toLowerCase().includes(query)
       );
     }
@@ -716,9 +721,9 @@ const OrderCard: React.FC<OrderCardProps> = ({ order, onView, onDelete, isSelect
               </span>
             )}
             {/* Group Buy Badge */}
-            {order.group_buy_number ? (
+            {order.gb_order_code || order.group_buy_number ? (
               <span className="px-2 md:px-3 py-0.5 md:py-1 rounded-full text-[10px] md:text-xs font-semibold bg-theme-accent/10 text-theme-accent border border-theme-accent/20">
-                GB #{order.group_buy_number}
+                {order.gb_order_code || `GB #${order.group_buy_number}`}
               </span>
             ) : null}
           </div>
