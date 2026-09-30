@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { computeKitState, effectiveMoq, type KitState } from '../lib/kitRules';
+import { computeKitState, effectiveMoq, kitKey, type KitState } from '../lib/kitRules';
 
 /**
  * Live MOQ + kit state for one Group Buy round.
@@ -28,6 +28,9 @@ export interface KitStatusRow {
   bunuan_needed: number;
   bunuan_available: number;
   is_complete: boolean;
+  /** null for a product without variations; otherwise one row per strength. */
+  variation_id: string | null;
+  variation_name: string | null;
 }
 
 // Matches the guard used by useGroupBuys / useGroupBuyAvailability so the app
@@ -95,11 +98,11 @@ export function useKitStatus(groupBuyId?: string | null) {
     };
   }, [groupBuyId, fetchRows]);
 
-  /** product_id -> KitState, in the shape kitRules works with. */
+  /** kitKey(product, variation) -> KitState, in the shape kitRules works with. */
   const kitStates = useMemo(() => {
     const map = new Map<string, KitState>();
     for (const row of rows) {
-      map.set(row.product_id, {
+      map.set(kitKey(row.product_id, row.variation_id), {
         kitSize: row.kit_size,
         eligibleQty: row.eligible_qty,
         completeKits: row.complete_kits,
@@ -112,28 +115,38 @@ export function useKitStatus(groupBuyId?: string | null) {
     return map;
   }, [rows]);
 
-  /** product_id -> effective MOQ for this round. */
+  /** kitKey(product, variation) -> effective MOQ for this round. */
   const moqs = useMemo(() => {
     const map = new Map<string, number>();
-    for (const row of rows) map.set(row.product_id, effectiveMoq(row.effective_moq));
+    for (const row of rows) map.set(kitKey(row.product_id, row.variation_id), effectiveMoq(row.effective_moq));
     return map;
   }, [rows]);
 
   /**
-   * Products that still need units, for the Bunuan page. A complete kit is
-   * absent by construction, so the page can never advertise a finished product.
+   * Product VARIATIONS that still need units, for the Bunuan page. A complete
+   * kit is absent by construction, so the page never advertises a finished one.
    */
   const incompleteRows = useMemo(
     () => rows.filter((r) => r.kit_size !== null && r.bunuan_available > 0),
     [rows],
   );
 
+  /**
+   * Kits and MOQ are counted per VARIATION. A product without variations has a
+   * single row keyed by its id, which is also the fallback when a variation has
+   * no row yet (e.g. created after the page loaded).
+   */
   const getKitState = useCallback(
-    (productId: string): KitState => kitStates.get(productId) ?? UNTRACKED,
+    (productId: string, variationId?: string | null): KitState =>
+      kitStates.get(kitKey(productId, variationId)) ?? kitStates.get(productId) ?? UNTRACKED,
     [kitStates],
   );
 
-  const getMoq = useCallback((productId: string): number => moqs.get(productId) ?? 1, [moqs]);
+  const getMoq = useCallback(
+    (productId: string, variationId?: string | null): number =>
+      moqs.get(kitKey(productId, variationId)) ?? moqs.get(productId) ?? 1,
+    [moqs],
+  );
 
   return {
     rows,

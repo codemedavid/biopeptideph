@@ -1113,7 +1113,8 @@ const AdminDashboard: React.FC = () => {
                       placeholder="No minimum"
                     />
                     <p className="mt-1 text-[11px] text-gray-500">
-                      Per customer, per order. Leave blank for no minimum.
+                      Per customer, per order, for each size. Leave blank for no minimum.
+                      A size can have its own minimum under Variations.
                     </p>
                   </div>
 
@@ -1141,7 +1142,9 @@ const AdminDashboard: React.FC = () => {
                     />
                     <p className="mt-1 text-[11px] text-gray-500">
                       Vials per complete kit, counted across the whole round.
-                      Leave blank to keep this product out of Bunuan.
+                      Each size (5mg, 10mg…) fills its own kits; a size can have
+                      its own kit size under Variations. Leave blank to keep this
+                      product out of Bunuan.
                     </p>
                     {/* MOQ above kit size is legal — one order simply fills a
                         kit and starts the next — but it is usually a typo. */}

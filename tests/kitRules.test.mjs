@@ -24,6 +24,7 @@ import {
   effectiveKitSize,
   effectiveMoq,
   isOrderingPhase,
+  kitKey,
   maxQuantityFor,
   minQuantityFor,
   normalizeEmail,
@@ -314,9 +315,9 @@ test('one failing product blocks checkout but the passing one is not flagged', (
   const verdict = validateCart(lines, 'active');
 
   assert.equal(verdict.canCheckout, false);
-  assert.equal(verdict.byProduct.a.issue, 'BELOW_MOQ');
-  assert.equal(verdict.byProduct.a.shortBy, 1);
-  assert.equal(verdict.byProduct.b.ok, true);
+  assert.equal(verdict.byLine.a.issue, 'BELOW_MOQ');
+  assert.equal(verdict.byLine.a.shortBy, 1);
+  assert.equal(verdict.byLine.b.ok, true);
 });
 
 test('every failing line is reported, not just the first', () => {
@@ -327,12 +328,63 @@ test('every failing line is reported, not just the first', () => {
 
   const verdict = validateCart(lines, 'active');
 
-  assert.equal(verdict.byProduct.a.ok, false);
-  assert.equal(verdict.byProduct.b.ok, false);
+  assert.equal(verdict.byLine.a.ok, false);
+  assert.equal(verdict.byLine.b.ok, false);
 });
 
 test('an empty cart cannot check out', () => {
   assert.equal(validateCart([], 'active').canCheckout, false);
+});
+
+// ---------------------------------------------------------------------------
+// Per-variation kits and MOQ
+// ---------------------------------------------------------------------------
+
+test('kitKey separates strengths of one product and keeps plain products on their id', () => {
+  assert.equal(kitKey('tirz', '15mg'), 'tirz:15mg');
+  assert.notEqual(kitKey('tirz', '15mg'), kitKey('tirz', '10mg'));
+  assert.equal(kitKey('bpc'), 'bpc');
+  assert.equal(kitKey('bpc', null), 'bpc');
+});
+
+test('48 of one strength with kit 10 leaves exactly 2 for Bunuan', () => {
+  const state = computeKitState({ kitSize: 10, eligibleQty: 48 });
+  assert.equal(state.completeKits, 4);
+  assert.equal(state.bunuanAvailable, 2);
+});
+
+test('MOQ is per strength: 1×5mg + 2×15mg fails, and the error names the strength', () => {
+  const lines = [
+    { productId: 'tirz', variationId: 'v5', productName: 'Tirz', variationName: '5mg', quantity: 1, moq: 3, kitState: KIT_8_OF_10 },
+    { productId: 'tirz', variationId: 'v15', productName: 'Tirz', variationName: '15mg', quantity: 2, moq: 3, kitState: KIT_8_OF_10 },
+  ];
+
+  const verdict = validateCart(lines, 'active');
+
+  assert.equal(verdict.canCheckout, false);
+  assert.equal(verdict.byLine[kitKey('tirz', 'v5')].shortBy, 2);
+  assert.equal(verdict.byLine[kitKey('tirz', 'v15')].shortBy, 1);
+  assert.match(verdict.byLine[kitKey('tirz', 'v15')].message, /Tirz 15mg is 3/);
+});
+
+test('MOQ is per strength: 3×15mg passes on its own', () => {
+  const verdict = validateCart([
+    { productId: 'tirz', variationId: 'v15', productName: 'Tirz', variationName: '15mg', quantity: 3, moq: 3, kitState: KIT_8_OF_10 },
+  ], 'active');
+  assert.equal(verdict.canCheckout, true);
+});
+
+test('Bunuan caps each strength by its own shortfall', () => {
+  const short2 = computeKitState({ kitSize: 10, eligibleQty: 48 }); // 15mg: 2 left
+  const short3 = computeKitState({ kitSize: 10, eligibleQty: 7 });  // 5mg: 3 left
+  const verdict = validateCart([
+    { productId: 'tirz', variationId: 'v15', productName: 'Tirz', variationName: '15mg', quantity: 3, moq: 1, kitState: short2 },
+    { productId: 'tirz', variationId: 'v5', productName: 'Tirz', variationName: '5mg', quantity: 3, moq: 1, kitState: short3 },
+  ], 'bunuan_open');
+
+  assert.equal(verdict.byLine[kitKey('tirz', 'v15')].issue, 'BUNUAN_EXCEEDS_REMAINING');
+  assert.equal(verdict.byLine[kitKey('tirz', 'v15')].maxAllowed, 2);
+  assert.equal(verdict.byLine[kitKey('tirz', 'v5')].ok, true, '5mg is judged against its own kit');
 });
 
 // ---------------------------------------------------------------------------

@@ -19,8 +19,8 @@ interface MenuProps {
   // MOQ + kit context for the current round. Omitted, the grid behaves exactly
   // as it did before MOQ existed.
   phase?: GroupBuyPhase;
-  getKitState?: (productId: string) => KitState;
-  getMoq?: (productId: string) => number;
+  getKitState?: (productId: string, variationId?: string | null) => KitState;
+  getMoq?: (productId: string, variationId?: string | null) => number;
 }
 
 const Menu: React.FC<MenuProps> = ({
@@ -170,7 +170,11 @@ const Menu: React.FC<MenuProps> = ({
                   onGoToGroupBuy={onGoToGroupBuy}
                   kit={
                     phase && getKitState && getMoq
-                      ? { phase, state: getKitState(product.id), moq: getMoq(product.id) }
+                      ? {
+                          phase,
+                          getState: (variationId) => getKitState(product.id, variationId),
+                          getMoq: (variationId) => getMoq(product.id, variationId),
+                        }
                       : undefined
                   }
                 />

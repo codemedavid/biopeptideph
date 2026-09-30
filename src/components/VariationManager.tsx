@@ -10,6 +10,52 @@ interface VariationManagerProps {
   onClose: () => void;
 }
 
+type KitPatch = { kit_size?: number | null; min_order_quantity?: number | null };
+
+const toOptionalCount = (raw: string): number | null => {
+  const n = Math.floor(Number(raw));
+  return raw.trim() === '' || !Number.isFinite(n) || n < 1 ? null : n;
+};
+
+/**
+ * Per-strength minimum order and kit size. Blank inherits the product's value,
+ * so a kit size set once on the product still covers every strength and only
+ * the exceptions (e.g. 15mg ships in kits of 5) need filling in here.
+ */
+const VariationKitFields: React.FC<{
+  kitSize: number | null;
+  minOrder: number | null;
+  product: Product;
+  onChange: (patch: KitPatch) => void;
+}> = ({ kitSize, minOrder, product, onChange }) => (
+  <>
+    <div>
+      <label className="block text-sm font-semibold text-gray-700 mb-2">Min order (this size)</label>
+      <input
+        type="number"
+        min={1}
+        value={minOrder ?? ''}
+        onChange={(e) => onChange({ min_order_quantity: toOptionalCount(e.target.value) })}
+        placeholder={product.min_order_quantity ? `Product: ${product.min_order_quantity}` : 'No minimum'}
+        className="input-field"
+      />
+      <p className="mt-1 text-[11px] text-gray-500">Blank = use the product&apos;s minimum.</p>
+    </div>
+    <div>
+      <label className="block text-sm font-semibold text-gray-700 mb-2">Kit size (this size)</label>
+      <input
+        type="number"
+        min={1}
+        value={kitSize ?? ''}
+        onChange={(e) => onChange({ kit_size: toOptionalCount(e.target.value) })}
+        placeholder={product.kit_size ? `Product: ${product.kit_size}` : 'Not kit-tracked'}
+        className="input-field"
+      />
+      <p className="mt-1 text-[11px] text-gray-500">Each size fills its own kits. Blank = product&apos;s kit size.</p>
+    </div>
+  </>
+);
+
 const VariationManager: React.FC<VariationManagerProps> = ({ product, onClose }) => {
   const { addVariation, updateVariation, deleteVariation } = useMenu();
   const { siteSettings } = useSiteSettings();
@@ -25,7 +71,9 @@ const VariationManager: React.FC<VariationManagerProps> = ({ product, onClose })
     price: product.base_price,
     national_price: product.national_price ?? product.base_price,
     international_price: product.international_price ?? 0,
-    stock_quantity: 0
+    stock_quantity: 0,
+    kit_size: null as number | null,
+    min_order_quantity: null as number | null,
   });
 
   const [editingVariation, setEditingVariation] = useState({
@@ -34,7 +82,9 @@ const VariationManager: React.FC<VariationManagerProps> = ({ product, onClose })
     price: product.base_price,
     national_price: product.national_price ?? product.base_price,
     international_price: product.international_price ?? 0,
-    stock_quantity: 0
+    stock_quantity: 0,
+    kit_size: null as number | null,
+    min_order_quantity: null as number | null,
   });
 
   const handleAddVariation = async () => {
@@ -54,7 +104,9 @@ const VariationManager: React.FC<VariationManagerProps> = ({ product, onClose })
         price: newVariation.national_price,
         national_price: newVariation.national_price,
         international_price: phpToUsd(newVariation.national_price, savedRate),
-        stock_quantity: newVariation.stock_quantity
+        stock_quantity: newVariation.stock_quantity,
+        kit_size: newVariation.kit_size,
+        min_order_quantity: newVariation.min_order_quantity,
       });
 
       if (result.success) {
@@ -64,7 +116,9 @@ const VariationManager: React.FC<VariationManagerProps> = ({ product, onClose })
           price: product.base_price,
           national_price: product.national_price ?? product.base_price,
           international_price: product.international_price ?? 0,
-          stock_quantity: 0
+          stock_quantity: 0,
+          kit_size: null,
+          min_order_quantity: null,
         });
         setIsAdding(false);
         alert('Variation added successfully!');
@@ -86,7 +140,9 @@ const VariationManager: React.FC<VariationManagerProps> = ({ product, onClose })
       price: variation.price,
       national_price: variation.national_price ?? variation.price,
       international_price: variation.international_price ?? 0,
-      stock_quantity: variation.stock_quantity
+      stock_quantity: variation.stock_quantity,
+      kit_size: variation.kit_size ?? null,
+      min_order_quantity: variation.min_order_quantity ?? null,
     });
     setIsAdding(false);
   };
@@ -256,6 +312,13 @@ const VariationManager: React.FC<VariationManagerProps> = ({ product, onClose })
                               className="input-field"
                             />
                           </div>
+
+                          <VariationKitFields
+                            kitSize={editingVariation.kit_size}
+                            minOrder={editingVariation.min_order_quantity}
+                            product={product}
+                            onChange={(patch) => setEditingVariation({ ...editingVariation, ...patch })}
+                          />
                         </div>
 
                         <div className="flex gap-3 pt-4">
@@ -300,6 +363,20 @@ const VariationManager: React.FC<VariationManagerProps> = ({ product, onClose })
                             <div className="text-xs text-gray-500 mb-1">Stock</div>
                             <div className="font-semibold text-gray-700">{variation.stock_quantity} units</div>
                           </div>
+                          {(variation.kit_size || variation.min_order_quantity) && (
+                            <div className="col-span-5 -mt-1 flex flex-wrap gap-2 text-xs">
+                              {variation.min_order_quantity ? (
+                                <span className="rounded-full bg-white/70 px-2 py-0.5 font-semibold text-gray-700">
+                                  Min order {variation.min_order_quantity}
+                                </span>
+                              ) : null}
+                              {variation.kit_size ? (
+                                <span className="rounded-full bg-purple-100 px-2 py-0.5 font-semibold text-purple-700">
+                                  Kit of {variation.kit_size}
+                                </span>
+                              ) : null}
+                            </div>
+                          )}
                         </div>
                         <div className="flex gap-2 ml-4">
                           <button
@@ -415,6 +492,13 @@ const VariationManager: React.FC<VariationManagerProps> = ({ product, onClose })
                       className="input-field"
                     />
                   </div>
+
+                  <VariationKitFields
+                    kitSize={newVariation.kit_size}
+                    minOrder={newVariation.min_order_quantity}
+                    product={product}
+                    onChange={(patch) => setNewVariation({ ...newVariation, ...patch })}
+                  />
                 </div>
 
                 <div className="flex gap-3 pt-4">

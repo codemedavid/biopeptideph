@@ -3,6 +3,7 @@ import type { CartItem, CartItemRef, Product, ProductVariation, PricingMode } fr
 import { computeEffectivePrice, round2, type GlobalDiscount } from '../lib/pricing';
 import {
   computeKitState,
+  kitKey,
   validateCart,
   type CartVerdict,
   type GroupBuyPhase,
@@ -128,8 +129,9 @@ function placeholderProduct(ref: CartItemRef): Product {
  */
 export interface CartKitOptions {
   phase: GroupBuyPhase;
-  getKitState: (productId: string) => KitState;
-  getMoq: (productId: string) => number;
+  /** Kits and MOQ are per variation; omit variationId for a plain product. */
+  getKitState: (productId: string, variationId?: string | null) => KitState;
+  getMoq: (productId: string, variationId?: string | null) => number;
 }
 
 const UNTRACKED_KIT: KitState = computeKitState({ kitSize: null, eligibleQty: 0 });
@@ -203,56 +205,71 @@ export function useCart(
   }, [refs, menuItems, globalDiscount, unavailableProductIds]);
 
   /**
-   * MOQ / Bunuan verdict per PRODUCT (not per line).
+   * MOQ / Bunuan verdict per (product, VARIATION).
    *
-   * Quantities are summed across lines first, because a cart can hold the same
-   * product twice via two variations. Checking lines separately would fail a
-   * legitimate 2 + 2 against MOQ 3, and would let 1 + 1 slip past a Bunuan cap
-   * of 1. place_group_buy_order aggregates the same way, so the message the
-   * customer sees here is the one the server would give.
+   * Each strength fills its own kit and has its own minimum, so 15mg and 10mg
+   * are judged separately. The same strength in two lines (e.g. added under two
+   * pricing modes) is summed first, so 1 + 1 cannot slip past a Bunuan cap of 1.
+   * place_group_buy_order aggregates the same way, so the message the customer
+   * sees here is the one the server would give.
    */
   const validation = useMemo<CartVerdict>(() => {
-    if (!kitOptions) return { canCheckout: cartItems.length > 0, byProduct: {} };
+    if (!kitOptions) return { canCheckout: cartItems.length > 0, byLine: {} };
 
-    const totals = new Map<string, { name: string; quantity: number }>();
+    const totals = new Map<string, {
+      productId: string; variationId: string | null; name: string; variationName: string | null; quantity: number;
+    }>();
     for (const item of cartItems) {
-      const existing = totals.get(item.product.id);
-      if (existing) existing.quantity += item.quantity;
-      else totals.set(item.product.id, { name: item.product.name, quantity: item.quantity });
+      const variationId = item.variation?.id ?? null;
+      const key = kitKey(item.product.id, variationId);
+      const existing = totals.get(key);
+      totals.set(key, existing
+        ? { ...existing, quantity: existing.quantity + item.quantity }
+        : {
+            productId: item.product.id,
+            variationId,
+            name: item.product.name,
+            variationName: item.variation?.name ?? null,
+            quantity: item.quantity,
+          });
     }
 
-    const lines = Array.from(totals.entries()).map(([productId, { name, quantity }]) => ({
-      productId,
-      productName: name,
-      quantity,
-      moq: kitOptions.getMoq(productId),
-      kitState: kitOptions.getKitState(productId),
+    const lines = Array.from(totals.values()).map((t) => ({
+      productId: t.productId,
+      variationId: t.variationId,
+      productName: t.name,
+      variationName: t.variationName,
+      quantity: t.quantity,
+      moq: kitOptions.getMoq(t.productId, t.variationId),
+      kitState: kitOptions.getKitState(t.productId, t.variationId),
     }));
 
     return validateCart(lines, kitOptions.phase);
   }, [cartItems, kitOptions]);
 
   /**
-   * The largest quantity this product may reach, or null when unbounded.
-   * During Bunuan that is the kit's exact shortfall; otherwise stock is the
-   * only ceiling and the existing stock rules still own it.
+   * The largest quantity this product/variation may reach, or null when
+   * unbounded. During Bunuan that is the kit's exact shortfall; otherwise stock
+   * is the only ceiling and the existing stock rules still own it.
    */
   const maxQuantityForProduct = useCallback(
-    (productId: string): number | null => {
+    (productId: string, variationId?: string | null): number | null => {
       if (!kitOptions || kitOptions.phase !== 'bunuan_open') return null;
-      return kitOptions.getKitState(productId).bunuanAvailable;
+      return kitOptions.getKitState(productId, variationId).bunuanAvailable;
     },
     [kitOptions],
   );
 
-  /** The MOQ floor for a product in the current round (1 = no minimum). */
+  /** The MOQ floor for a product/variation in the current round (1 = no minimum). */
   const moqForProduct = useCallback(
-    (productId: string): number => (kitOptions ? kitOptions.getMoq(productId) : 1),
+    (productId: string, variationId?: string | null): number =>
+      (kitOptions ? kitOptions.getMoq(productId, variationId) : 1),
     [kitOptions],
   );
 
   const kitStateForProduct = useCallback(
-    (productId: string): KitState => (kitOptions ? kitOptions.getKitState(productId) : UNTRACKED_KIT),
+    (productId: string, variationId?: string | null): KitState =>
+      (kitOptions ? kitOptions.getKitState(productId, variationId) : UNTRACKED_KIT),
     [kitOptions],
   );
 
@@ -367,15 +384,16 @@ export function useCart(
       }
 
       // During Bunuan the kit's shortfall is a hard ceiling, and it is usually
-      // lower than stock. Clamp against the total already in the cart for this
-      // product so two variation lines cannot add up past the remainder.
+      // lower than stock. Kits are per variation, so clamp against the other
+      // lines for the SAME strength only — 5mg never eats into 15mg's remainder.
       const bunuanMax = kitOptions?.phase === 'bunuan_open'
-        ? kitOptions.getKitState(ref.product_id).bunuanAvailable
+        ? kitOptions.getKitState(ref.product_id, ref.variation_id).bunuanAvailable
         : null;
 
       if (bunuanMax !== null) {
+        const sameKit = kitKey(ref.product_id, ref.variation_id);
         const otherLines = current.reduce(
-          (sum, r, i) => (i !== index && r.product_id === ref.product_id ? sum + r.quantity : sum),
+          (sum, r, i) => (i !== index && kitKey(r.product_id, r.variation_id) === sameKit ? sum + r.quantity : sum),
           0,
         );
         const allowed = Math.max(0, bunuanMax - otherLines);

@@ -1,7 +1,7 @@
 // MOQ + Bunuan business rules.
 //
 // This module is the TypeScript half of a deliberate pair. Every rule here also
-// exists in SQL (supabase/migrations/20260922000002_kit_functions.sql), because
+// exists in SQL (supabase/migrations/20260930000000_kits_per_variation.sql), because
 // the database is the authority — the browser copy exists only so the UI can
 // disable a button and explain why BEFORE the customer reaches checkout.
 //
@@ -21,6 +21,16 @@ export type GroupBuyPhase =
 
 /** A MOQ of 1 is indistinguishable from no minimum, so both mean "no floor". */
 export const NO_MOQ = 1;
+
+/**
+ * The identity a kit and a MOQ are counted against: one product, or one
+ * VARIATION of a product. Tirzepatide 15mg and 10mg fill separate kits and have
+ * separate minimums, so every per-kit lookup is keyed by this — never by the
+ * bare product id alone unless the product has no variations.
+ */
+export function kitKey(productId: string, variationId?: string | null): string {
+  return variationId ? `${productId}:${variationId}` : productId;
+}
 
 export interface KitState {
   /** null = product is not kit-tracked and never enters Bunuan. */
@@ -215,7 +225,11 @@ export function isOrderingPhase(phase: GroupBuyPhase): boolean {
 
 export interface CartLineInput {
   productId: string;
+  /** Set when the line is one variation of the product (e.g. 15mg). */
+  variationId?: string | null;
   productName: string;
+  /** Shown after the product name in messages, e.g. "Tirzepatide 15mg". */
+  variationName?: string | null;
   quantity: number;
   moq: number;
   kitState: KitState;
@@ -234,6 +248,7 @@ export interface CartLineInput {
  */
 export function validateCartLine(line: CartLineInput, phase: GroupBuyPhase): CartLineVerdict {
   const quantity = Math.max(0, Math.floor(line.quantity || 0));
+  const label = line.variationName ? `${line.productName} ${line.variationName}` : line.productName;
 
   if (phase === 'bunuan_open') {
     const { kitState } = line;
@@ -242,7 +257,7 @@ export function validateCartLine(line: CartLineInput, phase: GroupBuyPhase): Car
       return {
         ok: false,
         issue: 'BUNUAN_KIT_COMPLETE',
-        message: `${line.productName} is already complete and is no longer available.`,
+        message: `${label} is already complete and is no longer available.`,
         maxAllowed: 0,
       };
     }
@@ -251,7 +266,7 @@ export function validateCartLine(line: CartLineInput, phase: GroupBuyPhase): Car
       return {
         ok: false,
         issue: 'BUNUAN_DISABLED',
-        message: `${line.productName} is not available in this Bunuan round.`,
+        message: `${label} is not available in this Bunuan round.`,
         maxAllowed: 0,
       };
     }
@@ -278,7 +293,7 @@ export function validateCartLine(line: CartLineInput, phase: GroupBuyPhase): Car
     return {
       ok: false,
       issue: 'BELOW_MOQ',
-      message: `Minimum order for ${line.productName} is ${moq} vials. Please add ${shortBy} more ${unit} to continue.`,
+      message: `Minimum order for ${label} is ${moq} vials. Please add ${shortBy} more ${unit} to continue.`,
       shortBy,
     };
   }
@@ -288,8 +303,11 @@ export function validateCartLine(line: CartLineInput, phase: GroupBuyPhase): Car
 
 export interface CartVerdict {
   canCheckout: boolean;
-  /** Keyed by productId so the UI can show the error beside the right line. */
-  byProduct: Record<string, CartLineVerdict>;
+  /**
+   * Keyed by kitKey(productId, variationId) so the UI can show the error beside
+   * the exact line — a 15mg shortfall must not flag the 10mg line.
+   */
+  byLine: Record<string, CartLineVerdict>;
 }
 
 /**
@@ -298,16 +316,16 @@ export interface CartVerdict {
  * a time.
  */
 export function validateCart(lines: readonly CartLineInput[], phase: GroupBuyPhase): CartVerdict {
-  const byProduct: Record<string, CartLineVerdict> = {};
+  const byLine: Record<string, CartLineVerdict> = {};
   let canCheckout = lines.length > 0;
 
   for (const line of lines) {
     const verdict = validateCartLine(line, phase);
-    byProduct[line.productId] = verdict;
+    byLine[kitKey(line.productId, line.variationId)] = verdict;
     if (!verdict.ok) canCheckout = false;
   }
 
-  return { canCheckout, byProduct };
+  return { canCheckout, byLine };
 }
 
 /**

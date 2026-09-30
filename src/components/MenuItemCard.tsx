@@ -20,10 +20,20 @@ interface MenuItemCardProps {
   gbNumber?: number | null;
   onGoToGroupBuy?: () => void;
   /**
-   * MOQ + kit context for the current round. Omitted (or before the MOQ
-   * migrations are applied) the card behaves exactly as it always has.
+   * MOQ + kit context for the current round, resolved per VARIATION (each
+   * strength has its own minimum and fills its own kit). Omitted (or before the
+   * MOQ migrations are applied) the card behaves exactly as it always has.
    */
-  kit?: { moq: number; phase: GroupBuyPhase; state: KitState };
+  kit?: {
+    phase: GroupBuyPhase;
+    getState: (variationId?: string | null) => KitState;
+    getMoq: (variationId?: string | null) => number;
+  };
+  /**
+   * Pin the card to one variation (the Bunuan page lists each short strength
+   * as its own card): it is preselected and the other strengths are hidden.
+   */
+  lockedVariationId?: string | null;
 }
 
 // QuantityInput component
@@ -81,10 +91,15 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
   gbNumber = null,
   onGoToGroupBuy,
   kit,
+  lockedVariationId = null,
 }) => {
   const { pricingMode, currencySymbol, isInternational, globalDiscount } = usePricingMode();
+  const lockedVariation = lockedVariationId
+    ? product.variations?.find((v) => v.id === lockedVariationId)
+    : undefined;
+  const pickableVariations = lockedVariation ? [lockedVariation] : (product.variations ?? []);
   const [selectedVariation, setSelectedVariation] = useState<ProductVariation | undefined>(
-    product.variations && product.variations.length > 0 ? product.variations[0] : undefined
+    lockedVariation ?? (product.variations && product.variations.length > 0 ? product.variations[0] : undefined)
   );
 
   // Effective (discounted) price and the non-discounted "was" price — both via the
@@ -107,9 +122,11 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
   // Bunuan: the MOQ is suspended (buying a single vial is the whole point) and
   // the kit's shortfall becomes the ceiling, usually well below stock.
   const isBunuan = kit?.phase === 'bunuan_open';
-  const moq = kit?.moq ?? 1;
+  // Per variation: switching 10mg -> 15mg switches the minimum and the kit.
+  const kitState = kit ? kit.getState(selectedVariation?.id) : undefined;
+  const moq = kit ? kit.getMoq(selectedVariation?.id) : 1;
   const minQuantity = isBunuan ? 1 : moq;
-  const bunuanRemaining = isBunuan ? kit.state.bunuanAvailable : null;
+  const bunuanRemaining = isBunuan && kitState ? kitState.bunuanAvailable : null;
   const maxQuantity = bunuanRemaining !== null
     ? Math.min(availableStock, bunuanRemaining)
     : availableStock;
@@ -224,9 +241,9 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
 
         {/* Variations (Sizes) */}
         <div className="mb-3 sm:mb-4 min-h-[2.5rem] sm:min-h-[3rem]">
-          {product.variations && product.variations.length > 0 && (
+          {pickableVariations.length > 0 && (
             <div className="flex flex-wrap gap-1.5 sm:gap-2">
-              {product.variations.slice(0, 3).map((variation) => {
+              {pickableVariations.slice(0, 3).map((variation) => {
                 const isOutOfStock = variation.stock_quantity === 0;
                 return (
                   <button
@@ -252,9 +269,9 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
                   </button>
                 );
               })}
-              {product.variations.length > 3 && (
+              {pickableVariations.length > 3 && (
                 <span className="text-[10px] sm:text-xs text-gray-400 self-center font-medium">
-                  +{product.variations.length - 3}
+                  +{pickableVariations.length - 3}
                 </span>
               )}
             </div>
@@ -357,29 +374,29 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
           )}
 
           {/* Bunuan progress — "8 / 10 filled, 2 needed to complete this kit" */}
-          {isBunuan && kit.state.kitSize !== null && (
+          {isBunuan && kitState && kitState.kitSize !== null && (
             <div className="rounded-md bg-theme-accent/10 border border-theme-accent/20 px-2 py-1.5 space-y-1">
               <div className="flex items-center justify-between text-[11px] font-semibold text-theme-accent">
                 <span>BUNUAN</span>
-                <span>{kit.state.inProgress} / {kit.state.kitSize} filled</span>
+                <span>{kitState.inProgress} / {kitState.kitSize} filled</span>
               </div>
               <div
                 className="h-1.5 rounded-full bg-theme-accent/20 overflow-hidden"
                 role="progressbar"
-                aria-valuenow={kit.state.inProgress}
+                aria-valuenow={kitState.inProgress}
                 aria-valuemin={0}
-                aria-valuemax={kit.state.kitSize}
-                aria-label={`${kit.state.inProgress} of ${kit.state.kitSize} vials filled`}
+                aria-valuemax={kitState.kitSize}
+                aria-label={`${kitState.inProgress} of ${kitState.kitSize} vials filled`}
               >
                 <div
                   className="h-full bg-theme-accent transition-[width] duration-300"
-                  style={{ width: `${(kit.state.inProgress / kit.state.kitSize) * 100}%` }}
+                  style={{ width: `${(kitState.inProgress / kitState.kitSize) * 100}%` }}
                 />
               </div>
               <p className="text-[11px] leading-snug text-theme-text/70">
                 {bunuanClosed
                   ? 'Kit completed.'
-                  : `${kit.state.bunuanAvailable} ${kit.state.bunuanAvailable === 1 ? 'vial' : 'vials'} needed to complete this kit.`}
+                  : `${kitState.bunuanAvailable} ${kitState.bunuanAvailable === 1 ? 'vial' : 'vials'} needed to complete this kit.`}
               </p>
             </div>
           )}

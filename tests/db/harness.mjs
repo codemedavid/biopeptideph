@@ -61,8 +61,19 @@ export async function placeOrder(items, customer = {}, mode = 'national', conn =
   return r.rows[0].res;
 }
 
-export async function kitState(gb, p) {
-  const r = await q(`select * from gb_kit_state($1,$2)`, [gb.id, p.id]);
+/** One strength of a product, e.g. Tirzepatide 15mg. kit/moq null = inherit the product. */
+export async function seedVariation({ p, name, kit = null, moq = null, price = 100, stock = 1000 }) {
+  const r = await q(
+    `insert into product_variations (product_id, name, quantity_mg, price, national_price, international_price,
+                                     stock_quantity, kit_size, min_order_quantity)
+     values ($1,$2,1,$3,$3,$3,$4,$5,$6) returning *`,
+    [p.id, name, price, stock, kit, moq],
+  );
+  return r.rows[0];
+}
+
+export async function kitState(gb, p, variation = null) {
+  const r = await q(`select * from gb_kit_state($1,$2,$3)`, [gb.id, p.id, variation ? variation.id : null]);
   return r.rows[0];
 }
 

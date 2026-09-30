@@ -61,6 +61,10 @@ export interface ProductVariation {
   international_price: number | null;
   stock_quantity: number;
   created_at: string;
+  /** Units per complete kit for THIS strength; null = use the product's kit size. */
+  kit_size?: number | null;
+  /** Minimum per order for THIS strength; null = use the product's minimum. */
+  min_order_quantity?: number | null;
 }
 
 export interface Category {

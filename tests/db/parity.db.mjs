@@ -50,7 +50,7 @@ test('PARITY — kit arithmetic agrees for a large matrix, via REAL orders', asy
       for (const [enabled, done] of [[true, false], [false, false], [true, true]]) {
         await H.q(`insert into group_buy_product_kits (group_buy_id, product_id, bunuan_enabled, manually_completed)
                    values ($1,$2,$3,$4)
-                   on conflict (group_buy_id, product_id) do update set bunuan_enabled=$3, manually_completed=$4`,
+                   on conflict (group_buy_id, product_id, variation_id) do update set bunuan_enabled=$3, manually_completed=$4`,
           [gb.id, p.id, enabled, done]);
         const sql = (await H.kitState(gb, p));
         const ts = K.computeKitState({ kitSize: ks, eligibleQty: qty, bunuanEnabled: enabled, manuallyCompleted: done });
@@ -74,7 +74,7 @@ test('PARITY — effective MOQ agrees, including overrides', async () => {
     const p = await H.seedProduct({ name: `MOQ${moq}`, gb, moq });
     for (const ovr of [null, 1, 2, 4]) {
       await H.q(`insert into group_buy_product_kits (group_buy_id, product_id, moq_override) values ($1,$2,$3)
-                 on conflict (group_buy_id, product_id) do update set moq_override=$3`, [gb.id, p.id, ovr]);
+                 on conflict (group_buy_id, product_id, variation_id) do update set moq_override=$3`, [gb.id, p.id, ovr]);
       const sql = (await H.q('select gb_effective_moq($1,$2) v', [gb.id, p.id])).rows[0].v;
       assert.equal(K.effectiveMoq(moq, ovr), sql, `moq=${moq} override=${ovr}`);
     }

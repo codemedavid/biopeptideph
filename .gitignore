@@ -32,3 +32,5 @@ migration-backups/
 
 # Local throwaway PostgreSQL used by npm run test:db
 .tmp/
+.vercel
+.env*

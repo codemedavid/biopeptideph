@@ -2,15 +2,16 @@
 -- FULL SCHEMA BASELINE — rebuilds the entire database structure in one file
 -- ============================================================================
 -- Source    Supabase project tpzkdhcowlvpjfvjiejx (live), PostgreSQL 17.6
--- Captured  2026-09-29, after migrations 20260922000000..000004 were applied.
+-- Captured  2026-09-29 from live (migrations 20260922000000..000004), then
+--           updated for 20260930000000_kits_per_variation (kits & MOQ per variation).
 -- Method    Generated from the live catalog (pg_get_functiondef,
 --           pg_get_constraintdef, pg_get_indexdef, pg_get_viewdef,
 --           pg_get_triggerdef, pg_policies, ACLs) — i.e. what is REALLY in
 --           production, including objects no repo migration creates
 --           (validate_and_price_order, session, app_settings, ...).
 --
--- CONTAINS  extensions · 23 tables · 37 PK/unique/check · 14 FKs ·
---           29 indexes · 16 functions · 1 view · 6 triggers · comments ·
+-- CONTAINS  extensions · 23 tables · 39 PK/unique/check · 15 FKs ·
+--           30 indexes · 16 functions · 1 view · 6 triggers · comments ·
 --           RLS switches (11 tables) · 36 public policies · grants ·
 --           realtime publication (5 tables) · 2 storage buckets +
 --           10 storage policies · moq_presets seed · a self-check that
@@ -163,7 +164,8 @@ CREATE TABLE IF NOT EXISTS public.group_buy_product_kits (
   bunuan_enabled boolean DEFAULT true NOT NULL,
   manually_completed boolean DEFAULT false NOT NULL,
   created_at timestamp with time zone DEFAULT now(),
-  updated_at timestamp with time zone DEFAULT now()
+  updated_at timestamp with time zone DEFAULT now(),
+  variation_id uuid
 );
 
 -- Group Buy rounds. order_seq_counter allocates per-round order numbers.
@@ -294,7 +296,9 @@ CREATE TABLE IF NOT EXISTS public.product_variations (
   stock_quantity integer DEFAULT 0,
   created_at timestamp with time zone DEFAULT now(),
   national_price numeric(10,2),
-  international_price numeric(10,2)
+  international_price numeric(10,2),
+  kit_size integer,
+  min_order_quantity integer
 );
 
 -- min_order_quantity = per-customer floor; kit_size = per-round total per kit
@@ -397,6 +401,12 @@ CREATE TABLE IF NOT EXISTS public.variations (
   created_at timestamp with time zone DEFAULT now()
 );
 
+-- Columns added after the first baseline (per-variation kits). ADD COLUMN IF
+-- NOT EXISTS so a database built from an older copy of this file catches up.
+ALTER TABLE public.product_variations ADD COLUMN IF NOT EXISTS kit_size integer;
+ALTER TABLE public.product_variations ADD COLUMN IF NOT EXISTS min_order_quantity integer;
+ALTER TABLE public.group_buy_product_kits ADD COLUMN IF NOT EXISTS variation_id uuid;
+
 -- ----------------------------------------------------------------------------
 -- 2) Primary keys, unique and check constraints
 -- ----------------------------------------------------------------------------
@@ -412,7 +422,10 @@ SELECT pg_temp.add_constraint('group_buy_bunuan_grants', 'group_buy_bunuan_grant
 SELECT pg_temp.add_constraint('group_buy_product_availability', 'group_buy_product_availability_pkey', $c$PRIMARY KEY (id)$c$);
 SELECT pg_temp.add_constraint('group_buy_product_availability', 'group_buy_product_availability_group_buy_id_product_id_key', $c$UNIQUE (group_buy_id, product_id)$c$);
 SELECT pg_temp.add_constraint('group_buy_product_kits', 'group_buy_product_kits_pkey', $c$PRIMARY KEY (id)$c$);
-SELECT pg_temp.add_constraint('group_buy_product_kits', 'group_buy_product_kits_group_buy_id_product_id_key', $c$UNIQUE (group_buy_id, product_id)$c$);
+-- One override row per (round, product, variation); NULLS NOT DISTINCT makes the
+-- product-level row (variation_id NULL) unique too, and lets PostgREST upsert it.
+ALTER TABLE public.group_buy_product_kits DROP CONSTRAINT IF EXISTS group_buy_product_kits_group_buy_id_product_id_key;
+SELECT pg_temp.add_constraint('group_buy_product_kits', 'group_buy_product_kits_scope_key', $c$UNIQUE NULLS NOT DISTINCT (group_buy_id, product_id, variation_id)$c$);
 SELECT pg_temp.add_constraint('group_buy_product_kits', 'group_buy_product_kits_kit_size_override_check', $c$CHECK (((kit_size_override IS NULL) OR (kit_size_override >= 1)))$c$);
 SELECT pg_temp.add_constraint('group_buy_product_kits', 'group_buy_product_kits_moq_override_check', $c$CHECK (((moq_override IS NULL) OR (moq_override >= 1)))$c$);
 SELECT pg_temp.add_constraint('group_buys', 'group_buys_pkey', $c$PRIMARY KEY (id)$c$);
@@ -426,6 +439,8 @@ SELECT pg_temp.add_constraint('moq_presets', 'moq_presets_value_check', $c$CHECK
 SELECT pg_temp.add_constraint('orders', 'orders_pkey', $c$PRIMARY KEY (id)$c$);
 SELECT pg_temp.add_constraint('payment_methods', 'payment_methods_pkey', $c$PRIMARY KEY (id)$c$);
 SELECT pg_temp.add_constraint('product_variations', 'product_variations_pkey', $c$PRIMARY KEY (id)$c$);
+SELECT pg_temp.add_constraint('product_variations', 'product_variations_kit_size_positive', $c$CHECK (((kit_size IS NULL) OR (kit_size >= 1)))$c$);
+SELECT pg_temp.add_constraint('product_variations', 'product_variations_min_order_quantity_positive', $c$CHECK (((min_order_quantity IS NULL) OR (min_order_quantity >= 1)))$c$);
 SELECT pg_temp.add_constraint('products', 'products_pkey', $c$PRIMARY KEY (id)$c$);
 SELECT pg_temp.add_constraint('products', 'products_kit_size_positive', $c$CHECK (((kit_size IS NULL) OR (kit_size >= 1)))$c$);
 SELECT pg_temp.add_constraint('products', 'products_min_order_quantity_positive', $c$CHECK (((min_order_quantity IS NULL) OR (min_order_quantity >= 1)))$c$);
@@ -446,6 +461,7 @@ SELECT pg_temp.add_constraint('group_buy_product_availability', 'group_buy_produ
 SELECT pg_temp.add_constraint('group_buy_product_availability', 'group_buy_product_availability_product_id_fkey', $c$FOREIGN KEY (product_id) REFERENCES public.products(id) ON DELETE CASCADE$c$);
 SELECT pg_temp.add_constraint('group_buy_product_kits', 'group_buy_product_kits_group_buy_id_fkey', $c$FOREIGN KEY (group_buy_id) REFERENCES public.group_buys(id) ON DELETE CASCADE$c$);
 SELECT pg_temp.add_constraint('group_buy_product_kits', 'group_buy_product_kits_product_id_fkey', $c$FOREIGN KEY (product_id) REFERENCES public.products(id) ON DELETE CASCADE$c$);
+SELECT pg_temp.add_constraint('group_buy_product_kits', 'group_buy_product_kits_variation_id_fkey', $c$FOREIGN KEY (variation_id) REFERENCES public.product_variations(id) ON DELETE CASCADE$c$);
 SELECT pg_temp.add_constraint('menu_items', 'menu_items_category_fkey', $c$FOREIGN KEY (category) REFERENCES public.categories(id)$c$);
 SELECT pg_temp.add_constraint('orders', 'orders_group_buy_id_fkey', $c$FOREIGN KEY (group_buy_id) REFERENCES public.group_buys(id) ON DELETE SET NULL$c$);
 SELECT pg_temp.add_constraint('product_variations', 'product_variations_product_id_fkey', $c$FOREIGN KEY (product_id) REFERENCES public.products(id) ON DELETE CASCADE$c$);
@@ -467,6 +483,7 @@ CREATE INDEX IF NOT EXISTS gb_prod_avail_gb_idx ON public.group_buy_product_avai
 CREATE INDEX IF NOT EXISTS gb_prod_avail_prod_idx ON public.group_buy_product_availability USING btree (product_id);
 CREATE INDEX IF NOT EXISTS gb_prod_kits_gb_idx ON public.group_buy_product_kits USING btree (group_buy_id);
 CREATE INDEX IF NOT EXISTS gb_prod_kits_prod_idx ON public.group_buy_product_kits USING btree (product_id);
+CREATE INDEX IF NOT EXISTS gb_prod_kits_var_idx ON public.group_buy_product_kits USING btree (variation_id);
 CREATE INDEX IF NOT EXISTS group_buys_gb_number_idx ON public.group_buys USING btree (gb_number);
 CREATE INDEX IF NOT EXISTS group_buys_status_idx ON public.group_buys USING btree (status);
 CREATE INDEX IF NOT EXISTS hero_carousel_active_idx ON public.hero_carousel_slides USING btree (is_active);
@@ -493,6 +510,28 @@ CREATE INDEX IF NOT EXISTS shipping_locations_order_idx ON public.shipping_locat
 -- ----------------------------------------------------------------------------
 -- 5) Functions (bodies copied byte-for-byte from production)
 -- ----------------------------------------------------------------------------
+
+-- Kits are counted per (product, VARIATION). Remove the older per-product
+-- signatures first so re-running on a database built from an older copy of
+-- this file cannot leave two overloads behind. The view depends on them and is
+-- recreated in section 6.
+DROP VIEW IF EXISTS public.group_buy_kit_status;
+DROP FUNCTION IF EXISTS public.gb_kit_state(uuid, uuid);
+DROP FUNCTION IF EXISTS public.gb_effective_kit_size(uuid, uuid);
+DROP FUNCTION IF EXISTS public.gb_effective_moq(uuid, uuid);
+DROP FUNCTION IF EXISTS public.gb_eligible_quantity(uuid, uuid);
+DO $$
+BEGIN
+  -- gb_eligible_quantities keeps its argument list but gained a column, which
+  -- CREATE OR REPLACE cannot do — drop only the old two-column shape.
+  IF EXISTS (
+    SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+     WHERE n.nspname = 'public' AND p.proname = 'gb_eligible_quantities'
+       AND pg_get_function_result(p.oid) NOT LIKE '%variation_id%'
+  ) THEN
+    DROP FUNCTION public.gb_eligible_quantities(uuid);
+  END IF;
+END $$;
 
 -- 5a) Generic helpers --------------------------------------------------------
 
@@ -601,12 +640,11 @@ $function$;
 
 -- Units ordered per product in a round, summed across variations.
 CREATE OR REPLACE FUNCTION public.gb_eligible_quantities(p_group_buy_id uuid)
- RETURNS TABLE(product_id uuid, quantity integer)
- LANGUAGE sql
- STABLE SECURITY DEFINER
- SET search_path TO 'public'
-AS $function$
+RETURNS TABLE (product_id uuid, variation_id uuid, quantity integer)
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
   SELECT (li->>'product_id')::uuid AS product_id,
+         CASE WHEN (li->>'variation_id') ~ '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'
+              THEN (li->>'variation_id')::uuid END AS variation_id,
          SUM((li->>'quantity')::numeric)::integer AS quantity
   FROM orders o
   CROSS JOIN LATERAL jsonb_array_elements(
@@ -616,65 +654,77 @@ AS $function$
     AND gb_order_counts_toward_kit(o.order_status, o.payment_status)
     AND (li->>'product_id') ~ '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'
     AND (li->>'quantity')   ~ '^[0-9]+(\.[0-9]+)?$'
-  GROUP BY 1;
-$function$;
+  GROUP BY 1, 2;
+$$;
 
-CREATE OR REPLACE FUNCTION public.gb_eligible_quantity(p_group_buy_id uuid, p_product_id uuid)
- RETURNS integer
- LANGUAGE sql
- STABLE SECURITY DEFINER
- SET search_path TO 'public'
-AS $function$
+CREATE OR REPLACE FUNCTION public.gb_eligible_quantity(p_group_buy_id uuid, p_product_id uuid, p_variation_id uuid DEFAULT NULL)
+RETURNS integer LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
   SELECT COALESCE(
-    (SELECT q.quantity FROM gb_eligible_quantities(p_group_buy_id) q WHERE q.product_id = p_product_id),
+    (SELECT q.quantity FROM gb_eligible_quantities(p_group_buy_id) q
+      WHERE q.product_id = p_product_id AND q.variation_id IS NOT DISTINCT FROM p_variation_id),
     0
   );
-$function$;
+$$;
 
 -- Per-customer minimum: round override ?? product default ?? 1.
-CREATE OR REPLACE FUNCTION public.gb_effective_moq(p_group_buy_id uuid, p_product_id uuid)
- RETURNS integer
- LANGUAGE sql
- STABLE SECURITY DEFINER
- SET search_path TO 'public'
-AS $function$
+CREATE OR REPLACE FUNCTION public.gb_effective_moq(p_group_buy_id uuid, p_product_id uuid, p_variation_id uuid DEFAULT NULL)
+RETURNS integer LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
   SELECT GREATEST(1, COALESCE(
     (SELECT k.moq_override FROM group_buy_product_kits k
-      WHERE k.group_buy_id = p_group_buy_id AND k.product_id = p_product_id),
+      WHERE k.group_buy_id = p_group_buy_id AND k.product_id = p_product_id
+        AND k.variation_id IS NOT DISTINCT FROM p_variation_id),
+    (SELECT k.moq_override FROM group_buy_product_kits k
+      WHERE k.group_buy_id = p_group_buy_id AND k.product_id = p_product_id AND k.variation_id IS NULL),
+    (SELECT v.min_order_quantity FROM product_variations v WHERE v.id = p_variation_id),
     (SELECT p.min_order_quantity FROM products p WHERE p.id = p_product_id),
     1
   ));
-$function$;
+$$;
 
 -- Kit size: round override ?? product default. NULL = not kit-tracked.
-CREATE OR REPLACE FUNCTION public.gb_effective_kit_size(p_group_buy_id uuid, p_product_id uuid)
- RETURNS integer
- LANGUAGE sql
- STABLE SECURITY DEFINER
- SET search_path TO 'public'
-AS $function$
+CREATE OR REPLACE FUNCTION public.gb_effective_kit_size(p_group_buy_id uuid, p_product_id uuid, p_variation_id uuid DEFAULT NULL)
+RETURNS integer LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
   SELECT COALESCE(
     (SELECT k.kit_size_override FROM group_buy_product_kits k
-      WHERE k.group_buy_id = p_group_buy_id AND k.product_id = p_product_id),
+      WHERE k.group_buy_id = p_group_buy_id AND k.product_id = p_product_id
+        AND k.variation_id IS NOT DISTINCT FROM p_variation_id),
+    (SELECT k.kit_size_override FROM group_buy_product_kits k
+      WHERE k.group_buy_id = p_group_buy_id AND k.product_id = p_product_id AND k.variation_id IS NULL),
+    (SELECT v.kit_size FROM product_variations v WHERE v.id = p_variation_id),
     (SELECT p.kit_size FROM products p WHERE p.id = p_product_id)
   );
-$function$;
+$$;
 
 -- complete_kits = qty / size; in_progress = qty % size;
 -- bunuan_needed = size - in_progress (0 when the last kit closed exactly).
-CREATE OR REPLACE FUNCTION public.gb_kit_state(p_group_buy_id uuid, p_product_id uuid)
- RETURNS TABLE(kit_size integer, eligible_qty integer, complete_kits integer, in_progress integer, bunuan_needed integer, bunuan_available integer, is_complete boolean)
- LANGUAGE sql
- STABLE SECURITY DEFINER
- SET search_path TO 'public'
-AS $function$
+CREATE OR REPLACE FUNCTION public.gb_kit_state(p_group_buy_id uuid, p_product_id uuid, p_variation_id uuid DEFAULT NULL)
+RETURNS TABLE (
+  kit_size         integer,
+  eligible_qty     integer,
+  complete_kits    integer,
+  in_progress      integer,
+  bunuan_needed    integer,
+  bunuan_available integer,
+  is_complete      boolean
+)
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
   WITH cfg AS (
-    SELECT gb_effective_kit_size(p_group_buy_id, p_product_id) AS ks,
-           gb_eligible_quantity (p_group_buy_id, p_product_id) AS qty,
-           COALESCE((SELECT k.bunuan_enabled     FROM group_buy_product_kits k
-                      WHERE k.group_buy_id = p_group_buy_id AND k.product_id = p_product_id), true)  AS enabled,
-           COALESCE((SELECT k.manually_completed FROM group_buy_product_kits k
-                      WHERE k.group_buy_id = p_group_buy_id AND k.product_id = p_product_id), false) AS forced_complete
+    SELECT gb_effective_kit_size(p_group_buy_id, p_product_id, p_variation_id) AS ks,
+           gb_eligible_quantity (p_group_buy_id, p_product_id, p_variation_id) AS qty,
+           COALESCE(
+             (SELECT k.bunuan_enabled FROM group_buy_product_kits k
+               WHERE k.group_buy_id = p_group_buy_id AND k.product_id = p_product_id
+                 AND k.variation_id IS NOT DISTINCT FROM p_variation_id),
+             (SELECT k.bunuan_enabled FROM group_buy_product_kits k
+               WHERE k.group_buy_id = p_group_buy_id AND k.product_id = p_product_id AND k.variation_id IS NULL),
+             true) AS enabled,
+           COALESCE(
+             (SELECT k.manually_completed FROM group_buy_product_kits k
+               WHERE k.group_buy_id = p_group_buy_id AND k.product_id = p_product_id
+                 AND k.variation_id IS NOT DISTINCT FROM p_variation_id),
+             (SELECT k.manually_completed FROM group_buy_product_kits k
+               WHERE k.group_buy_id = p_group_buy_id AND k.product_id = p_product_id AND k.variation_id IS NULL),
+             false) AS forced_complete
   ),
   calc AS (
     SELECT ks, qty, enabled, forced_complete,
@@ -692,7 +742,7 @@ AS $function$
          THEN 0 ELSE ks - in_progress END                                    AS bunuan_available,
     (ks IS NULL OR in_progress = 0 OR forced_complete)                       AS is_complete
   FROM calc;
-$function$;
+$$;
 
 -- Bunuan eligibility: name AND email AND phone match a counting order in THIS
 -- round, or an admin grant exists. NOT callable by anon (see grants) — it
@@ -943,33 +993,43 @@ $function$;
 -- competing checkouts per (round, product) with advisory locks, inserts, and
 -- returns the per-round order number. Between rounds it still accepts orders
 -- (attributed to the newest round) so the store never closes.
-CREATE OR REPLACE FUNCTION public.place_group_buy_order(p_items jsonb, p_pricing_mode text, p_order jsonb)
- RETURNS jsonb
- LANGUAGE plpgsql
- SECURITY DEFINER
- SET search_path TO 'public'
-AS $function$
+CREATE OR REPLACE FUNCTION public.place_group_buy_order(
+  p_items        jsonb,
+  p_pricing_mode text,
+  p_order        jsonb
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
 DECLARE
-  v_gb            group_buys%ROWTYPE;
-  v_phase         text;
-  v_bunuan        boolean := false;
-  v_priced        jsonb;
-  v_item          jsonb;
-  v_product_id    uuid;
-  v_qty           integer;
-  v_moq           integer;
-  v_state         record;
-  v_name          text;
-  v_email         text;
-  v_phone         text;
-  v_order_id      uuid := gen_random_uuid();
-  v_subtotal      numeric := 0;
-  v_shipping_fee  numeric;
-  v_product_name  text;
-  v_uuid_re       text := '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$';
-  v_order_seq     integer;
-  v_order_code    text;
+  v_gb             group_buys%ROWTYPE;
+  v_phase          text;
+  v_bunuan         boolean := false;
+  v_priced         jsonb;
+  v_item           jsonb;
+  v_product_id     uuid;
+  v_variation_id   uuid;
+  v_qty            integer;
+  v_moq            integer;
+  v_state          record;
+  v_name           text;
+  v_email          text;
+  v_phone          text;
+  v_order_id       uuid := gen_random_uuid();
+  v_subtotal       numeric := 0;
+  v_shipping_fee   numeric;
+  v_product_name   text;
+  v_variation_name text;
+  v_label          text;
+  v_uuid_re        text := '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$';
+  v_order_seq      integer;
+  v_order_code     text;
 BEGIN
+  -- Which round: derived server-side, never taken from the client. With no
+  -- round open the store still takes orders (attributed to the newest round)
+  -- under normal MOQ rules — closing checkout in that gap once lost 59 orders.
   SELECT * INTO v_gb
   FROM group_buys
   WHERE status IN ('active', 'bunuan_open')
@@ -1015,14 +1075,20 @@ BEGIN
 
   v_subtotal := COALESCE((v_priced->>'subtotal')::numeric, 0);
 
-  FOR v_product_id IN
-    SELECT DISTINCT (it->>'product_id')::uuid
+  -- Lock every (round, product, variation) in the cart, in a fixed order, so two
+  -- checkouts for the same last vial queue instead of both succeeding, and two
+  -- multi-line carts can never deadlock.
+  FOR v_product_id, v_variation_id IN
+    SELECT DISTINCT (it->>'product_id')::uuid,
+           CASE WHEN (it->>'variation_id') ~ v_uuid_re THEN (it->>'variation_id')::uuid END
     FROM jsonb_array_elements(v_priced->'items') it
     WHERE (it->>'product_id') ~ v_uuid_re
-    ORDER BY 1
+    ORDER BY 1, 2
   LOOP
     PERFORM pg_advisory_xact_lock(
-      hashtextextended(COALESCE(v_gb.id::text, '-') || ':' || v_product_id::text, 0)
+      hashtextextended(
+        COALESCE(v_gb.id::text, '-') || ':' || v_product_id::text || ':' || COALESCE(v_variation_id::text, '-'),
+        0)
     );
   END LOOP;
 
@@ -1040,39 +1106,49 @@ BEGIN
     END IF;
   END IF;
 
-  FOR v_product_id, v_qty, v_product_name IN
+  -- Rules apply to the cart's TOTAL per (product, variation): the same strength
+  -- in two lines is summed, while different strengths are judged separately.
+  FOR v_product_id, v_variation_id, v_qty, v_product_name, v_variation_name IN
     SELECT (it->>'product_id')::uuid,
+           CASE WHEN (it->>'variation_id') ~ v_uuid_re THEN (it->>'variation_id')::uuid END,
            SUM((it->>'quantity')::numeric)::integer,
-           MIN(it->>'product_name')
+           MIN(it->>'product_name'),
+           MIN(it->>'variation_name')
     FROM jsonb_array_elements(v_priced->'items') it
     WHERE (it->>'product_id') ~ v_uuid_re
-    GROUP BY 1
+    GROUP BY 1, 2
   LOOP
+    v_label := v_product_name || COALESCE(' ' || NULLIF(v_variation_name, ''), '');
+
     IF NOT v_bunuan THEN
-      v_moq := gb_effective_moq(v_gb.id, v_product_id);
+      v_moq := gb_effective_moq(v_gb.id, v_product_id, v_variation_id);
 
       IF v_qty < v_moq THEN
         RETURN jsonb_build_object(
           'ok', false,
           'code', 'BELOW_MOQ',
           'product_id', v_product_id,
+          'variation_id', v_variation_id,
           'required', v_moq,
           'ordered', v_qty,
           'short_by', v_moq - v_qty,
-          'message', 'Minimum order for ' || v_product_name || ' is ' || v_moq ||
+          'message', 'Minimum order for ' || v_label || ' is ' || v_moq ||
                      ' vials. Please add ' || (v_moq - v_qty) || ' more to continue.'
         );
       END IF;
 
     ELSE
-      SELECT * INTO v_state FROM gb_kit_state(v_gb.id, v_product_id);
+      -- Evaluated inside the lock, so it already reflects any order a competing
+      -- checkout committed a moment ago.
+      SELECT * INTO v_state FROM gb_kit_state(v_gb.id, v_product_id, v_variation_id);
 
       IF v_state.kit_size IS NULL THEN
         RETURN jsonb_build_object(
           'ok', false,
           'code', 'NOT_IN_BUNUAN',
           'product_id', v_product_id,
-          'message', v_product_name || ' is not part of this Bunuan round.'
+          'variation_id', v_variation_id,
+          'message', v_label || ' is not part of this Bunuan round.'
         );
       END IF;
 
@@ -1081,7 +1157,8 @@ BEGIN
           'ok', false,
           'code', 'BUNUAN_UNAVAILABLE',
           'product_id', v_product_id,
-          'message', v_product_name || ' is already complete and is no longer available.'
+          'variation_id', v_variation_id,
+          'message', v_label || ' is already complete and is no longer available.'
         );
       END IF;
 
@@ -1090,10 +1167,11 @@ BEGIN
           'ok', false,
           'code', 'BUNUAN_EXCEEDS_REMAINING',
           'product_id', v_product_id,
+          'variation_id', v_variation_id,
           'available', v_state.bunuan_available,
           'ordered', v_qty,
           'message', 'Only ' || v_state.bunuan_available || ' left to complete the ' ||
-                     v_product_name || ' kit. Someone may have just ordered before you.'
+                     v_label || ' kit. Someone may have just ordered before you.'
         );
       END IF;
     END IF;
@@ -1154,29 +1232,39 @@ BEGIN
     'items', v_priced->'items'
   );
 END;
-$function$;
+$$;
 
 -- ----------------------------------------------------------------------------
--- 6) View — admin kit audit (aggregate quantities only, no customer PII)
+-- 6) View — kit audit, one row per product VARIATION (aggregate quantities only, no customer PII)
 -- ----------------------------------------------------------------------------
 CREATE OR REPLACE VIEW public.group_buy_kit_status AS
- SELECT g.id AS group_buy_id,
-    g.gb_number,
-    g.status AS group_buy_status,
-    p.id AS product_id,
-    p.name AS product_name,
-    p.image_url,
-    gb_effective_moq(g.id, p.id) AS effective_moq,
-    s.kit_size,
-    s.eligible_qty,
-    s.complete_kits,
-    s.in_progress,
-    s.bunuan_needed,
-    s.bunuan_available,
-    s.is_complete
-   FROM products p
-     JOIN group_buys g ON g.id = p.group_buy_id
-     CROSS JOIN LATERAL gb_kit_state(g.id, p.id) s(kit_size, eligible_qty, complete_kits, in_progress, bunuan_needed, bunuan_available, is_complete);
+SELECT
+  g.id          AS group_buy_id,
+  g.gb_number,
+  g.status      AS group_buy_status,
+  p.id          AS product_id,
+  p.name        AS product_name,
+  p.image_url,
+  gb_effective_moq(g.id, p.id, pv.variation_id) AS effective_moq,
+  s.kit_size,
+  s.eligible_qty,
+  s.complete_kits,
+  s.in_progress,
+  s.bunuan_needed,
+  s.bunuan_available,
+  s.is_complete,
+  pv.variation_id,
+  pv.variation_name
+FROM products p
+JOIN group_buys g ON g.id = p.group_buy_id
+CROSS JOIN LATERAL (
+  SELECT v.id AS variation_id, v.name AS variation_name
+    FROM product_variations v WHERE v.product_id = p.id
+  UNION ALL
+  SELECT NULL::uuid, NULL::text
+   WHERE NOT EXISTS (SELECT 1 FROM product_variations v2 WHERE v2.product_id = p.id)
+) pv
+CROSS JOIN LATERAL gb_kit_state(g.id, p.id, pv.variation_id) s;
 
 -- ----------------------------------------------------------------------------
 -- 7) Triggers
@@ -1331,11 +1419,11 @@ TO anon, authenticated, service_role;
 
 GRANT EXECUTE ON FUNCTION
   public.assign_gb_order_seq(),
-  public.gb_effective_kit_size(uuid, uuid),
-  public.gb_effective_moq(uuid, uuid),
+  public.gb_effective_kit_size(uuid, uuid, uuid),
+  public.gb_effective_moq(uuid, uuid, uuid),
   public.gb_eligible_quantities(uuid),
-  public.gb_eligible_quantity(uuid, uuid),
-  public.gb_kit_state(uuid, uuid),
+  public.gb_eligible_quantity(uuid, uuid, uuid),
+  public.gb_kit_state(uuid, uuid, uuid),
   public.gb_norm_email(text),
   public.gb_norm_name(text),
   public.gb_norm_phone(text),
@@ -1449,7 +1537,7 @@ BEGIN
   INTO r;
 
   IF r.tables < 23 OR r.views < 1 OR r.funcs < 16 OR r.triggers < 6 OR r.policies < 36
-     OR r.rls < 11 OR r.fks < 14 OR r.realtime < 5 OR r.buckets <> 2 OR r.anon_oracle THEN
+     OR r.rls < 11 OR r.fks < 15 OR r.realtime < 5 OR r.buckets <> 2 OR r.anon_oracle THEN
     RAISE EXCEPTION 'Schema baseline self-check FAILED: %', row_to_json(r);
   END IF;
   RAISE NOTICE 'Schema baseline OK: %', row_to_json(r);

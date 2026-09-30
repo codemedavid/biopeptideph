@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { PackageCheck, Info } from 'lucide-react';
 import MenuItemCard from './MenuItemCard';
 import type { CartItem, GroupBuy, Product, ProductVariation } from '../types';
-import type { KitState } from '../lib/kitRules';
+import { kitKey, type KitState } from '../lib/kitRules';
 import type { KitStatusRow } from '../hooks/useKitStatus';
 
 /**
@@ -10,8 +10,9 @@ import type { KitStatusRow } from '../hooks/useKitStatus';
  *
  * Deliberately NOT the normal catalog with a filter applied. Bunuan answers one
  * question — "which kits are short, and by how much?" — so the page shows only
- * products that still need units and leads with the shortfall rather than the
- * price. A kit that reaches its size disappears on the next realtime tick,
+ * the product VARIATIONS that still need units (each strength fills its own
+ * kit, so "Tirzepatide 15mg — 2 needed" is its own card) and leads with the
+ * shortfall rather than the price. A kit that reaches its size disappears on the next realtime tick,
  * which is also exactly when the server stops accepting orders for it.
  */
 
@@ -21,8 +22,8 @@ interface BunuanPanelProps {
   menuItems: Product[];
   cartItems: CartItem[];
   addToCart: (product: Product, variation?: ProductVariation, quantity?: number) => void;
-  getKitState: (productId: string) => KitState;
-  getMoq: (productId: string) => number;
+  getKitState: (productId: string, variationId?: string | null) => KitState;
+  getMoq: (productId: string, variationId?: string | null) => number;
   groupBuy?: GroupBuy | null;
 }
 
@@ -45,9 +46,9 @@ const BunuanPanel: React.FC<BunuanPanelProps> = ({
       .sort((a, b) => a.row.bunuan_available - b.row.bunuan_available); // closest to done first
   }, [incompleteRows, menuItems]);
 
-  const getCartQuantity = (productId: string) =>
+  const getCartQuantity = (productId: string, variationId: string | null) =>
     cartItems
-      .filter((item) => item.product.id === productId)
+      .filter((item) => kitKey(item.product.id, item.variation?.id) === kitKey(productId, variationId))
       .reduce((sum, item) => sum + item.quantity, 0);
 
   const totalNeeded = products.reduce((sum, { row }) => sum + row.bunuan_available, 0);
@@ -111,19 +112,22 @@ const BunuanPanel: React.FC<BunuanPanelProps> = ({
             </p>
 
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-2 md:gap-6 lg:grid-cols-3 xl:grid-cols-4">
-              {products.map(({ product }) => (
+              {products.map(({ row, product }) => (
                 <MenuItemCard
-                  key={product.id}
+                  key={kitKey(product.id, row.variation_id)}
                   product={product}
                   onAddToCart={addToCart}
-                  cartQuantity={getCartQuantity(product.id)}
+                  cartQuantity={getCartQuantity(product.id, row.variation_id)}
+                  // One card per short strength, pinned to it: offering 10mg on
+                  // the 15mg card would invite an order the server refuses.
+                  lockedVariationId={row.variation_id}
                   // gbLocked stays false: during Bunuan these products ARE the
                   // round, so steering the shopper "to the Group Buy" would be
                   // pointing at the page they are already on.
                   kit={{
                     phase: 'bunuan_open',
-                    state: getKitState(product.id),
-                    moq: getMoq(product.id),
+                    getState: (variationId) => getKitState(product.id, variationId),
+                    getMoq: (variationId) => getMoq(product.id, variationId),
                   }}
                 />
               ))}
