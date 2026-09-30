@@ -120,6 +120,50 @@ async function listAssessmentResponses() {
   return data || [];
 }
 
+// --- Bunuan access grants (admin-only; RLS denies the anon key entirely) -----
+
+async function groupBuyExists(groupBuyId) {
+  const { data, error } = await supabase.from('group_buys').select('id').eq('id', groupBuyId).maybeSingle();
+  if (error) throw error;
+  return Boolean(data);
+}
+
+async function listBunuanGrants(groupBuyId) {
+  const { data, error } = await supabase
+    .from('group_buy_bunuan_grants')
+    .select('id, group_buy_id, customer_email, note, granted_at')
+    .eq('group_buy_id', groupBuyId)
+    .order('granted_at', { ascending: false });
+  if (error) throw error;
+  return data || [];
+}
+
+/** Idempotent: re-allowing an email refreshes its note instead of failing. */
+async function upsertBunuanGrant(groupBuyId, email, note) {
+  const { data, error } = await supabase
+    .from('group_buy_bunuan_grants')
+    .upsert(
+      { group_buy_id: groupBuyId, customer_email: email, note },
+      { onConflict: 'group_buy_id,customer_email' },
+    )
+    .select('id, group_buy_id, customer_email, note, granted_at')
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+/** Returns the number of rows removed (0 when the grant is not in this round). */
+async function deleteBunuanGrant(groupBuyId, grantId) {
+  const { data, error } = await supabase
+    .from('group_buy_bunuan_grants')
+    .delete()
+    .eq('id', grantId)
+    .eq('group_buy_id', groupBuyId)
+    .select('id');
+  if (error) throw error;
+  return data ? data.length : 0;
+}
+
 /** Liveness probe for GET /api/health — a trivial REST read. */
 async function ping() {
   const { error } = await supabase.from('app_settings').select('id').limit(1);
@@ -135,5 +179,9 @@ export const supabaseDb = {
   deleteOrder,
   bulkDeleteOrders,
   listAssessmentResponses,
+  groupBuyExists,
+  listBunuanGrants,
+  upsertBunuanGrant,
+  deleteBunuanGrant,
   ping,
 };

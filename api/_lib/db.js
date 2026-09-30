@@ -160,6 +160,41 @@ async function listAssessmentResponses() {
   return rows;
 }
 
+// --- Bunuan access grants (admin-only) ---------------------------------------
+
+async function groupBuyExists(groupBuyId) {
+  const { rowCount } = await pool.query('SELECT 1 FROM group_buys WHERE id = $1::uuid', [groupBuyId]);
+  return rowCount > 0;
+}
+
+async function listBunuanGrants(groupBuyId) {
+  const { rows } = await pool.query(
+    `SELECT id, group_buy_id, customer_email, note, granted_at
+       FROM group_buy_bunuan_grants WHERE group_buy_id = $1::uuid ORDER BY granted_at DESC`,
+    [groupBuyId]
+  );
+  return rows;
+}
+
+async function upsertBunuanGrant(groupBuyId, email, note) {
+  const { rows } = await pool.query(
+    `INSERT INTO group_buy_bunuan_grants (group_buy_id, customer_email, note)
+     VALUES ($1::uuid, $2, $3)
+     ON CONFLICT (group_buy_id, customer_email) DO UPDATE SET note = EXCLUDED.note
+     RETURNING id, group_buy_id, customer_email, note, granted_at`,
+    [groupBuyId, email, note]
+  );
+  return rows[0];
+}
+
+async function deleteBunuanGrant(groupBuyId, grantId) {
+  const { rowCount } = await pool.query(
+    'DELETE FROM group_buy_bunuan_grants WHERE id = $1::uuid AND group_buy_id = $2::uuid',
+    [grantId, groupBuyId]
+  );
+  return rowCount;
+}
+
 /** Liveness probe used by GET /api/health. Throws if the DB is unreachable. */
 async function ping() {
   await pool.query('SELECT 1');
@@ -179,5 +214,9 @@ export const pgDb = {
   deleteOrder,
   bulkDeleteOrders,
   listAssessmentResponses,
+  groupBuyExists,
+  listBunuanGrants,
+  upsertBunuanGrant,
+  deleteBunuanGrant,
   ping,
 };

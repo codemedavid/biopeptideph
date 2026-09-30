@@ -3,6 +3,7 @@ import { ArrowLeft, Package, CheckCircle, XCircle, Clock, Truck, AlertCircle, Se
 import { supabase } from '../lib/supabase';
 import { listOrders, updateOrder, deleteOrder, bulkDeleteOrders, bulkAssignGroupBuy } from '../lib/adminOrdersApi';
 import { useGroupBuys } from '../hooks/useGroupBuys';
+import AllowInBunuanButton from './admin/AllowInBunuanButton';
 import { useMenu } from '../hooks/useMenu';
 import { useSiteSettings } from '../hooks/useSiteSettings';
 
@@ -870,7 +871,16 @@ const OrderDetailsView: React.FC<OrderDetailsViewProps> = ({
 
           {/* Customer Info */}
           <div>
-            <h3 className="font-bold text-gray-900 mb-2 md:mb-3 text-sm md:text-base">Customer Information</h3>
+            <div className="mb-2 md:mb-3 flex flex-wrap items-center justify-between gap-2">
+              <h3 className="font-bold text-gray-900 text-sm md:text-base">Customer Information</h3>
+              {order.group_buy_id && order.customer_email && (
+                <AllowInBunuanButton
+                  groupBuyId={order.group_buy_id}
+                  email={order.customer_email}
+                  orderLabel={order.gb_order_code || order.id.slice(0, 8).toUpperCase()}
+                />
+              )}
+            </div>
             <div className="bg-gray-50 rounded-lg p-3 md:p-4 space-y-1.5 md:space-y-2 text-xs md:text-sm">
               <p><span className="font-semibold">Name:</span> {order.customer_name}</p>
               <p><span className="font-semibold">Email:</span> {order.customer_email}</p>

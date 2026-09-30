@@ -329,3 +329,103 @@ test('unknown /api route → 404 not_found', async () => {
     await app.close();
   }
 });
+
+// --- Bunuan access grants ---------------------------------------------------
+const GB = '11111111-1111-4111-8111-111111111111';
+const OTHER_GB = '22222222-2222-4222-8222-222222222222';
+
+/** In-memory grants store implementing the db methods the routes use. */
+function grantsDb() {
+  const rows = [];
+  let n = 0;
+  return {
+    rows,
+    async groupBuyExists(id) { return id === GB || id === OTHER_GB; },
+    async listBunuanGrants(gb) { return rows.filter((r) => r.group_buy_id === gb).slice().reverse(); },
+    async upsertBunuanGrant(gb, email, note) {
+      const existing = rows.find((r) => r.group_buy_id === gb && r.customer_email === email);
+      if (existing) { existing.note = note; return existing; }
+      n += 1;
+      const row = { id: `aaaaaaaa-aaaa-4aaa-8aaa-${String(n).padStart(12, '0')}`, group_buy_id: gb, customer_email: email, note, granted_at: new Date().toISOString() };
+      rows.push(row);
+      return row;
+    },
+    async deleteBunuanGrant(gb, id) {
+      const i = rows.findIndex((r) => r.id === id && r.group_buy_id === gb);
+      if (i === -1) return 0;
+      rows.splice(i, 1);
+      return 1;
+    },
+  };
+}
+
+test('normalizeGrantEmail: trims + lowercases valid emails, rejects junk', async () => {
+  const { normalizeGrantEmail } = await import('../api/_lib/app.js');
+  assert.equal(normalizeGrantEmail('  Maria.Cruz@Example.COM '), 'maria.cruz@example.com');
+  assert.equal(normalizeGrantEmail('not-an-email'), null);
+  assert.equal(normalizeGrantEmail(''), null);
+  assert.equal(normalizeGrantEmail(42), null);
+  assert.equal(normalizeGrantEmail(`${'a'.repeat(250)}@x.co`), null);
+});
+
+test('bunuan grants: admin-only (403 without session, incl. write)', async () => {
+  const db = grantsDb();
+  const app = await start({ env: { ADMIN_PASSWORD: 'pw12345' }, db });
+  try {
+    const list = await call(app.base, `/api/admin/group-buys/${GB}/bunuan-grants`);
+    assert.equal(list.status, 403);
+    const add = await call(app.base, `/api/admin/group-buys/${GB}/bunuan-grants`, { method: 'POST', body: { email: 'a@b.co' } });
+    assert.equal(add.status, 403);
+    assert.equal(db.rows.length, 0);
+  } finally {
+    await app.close();
+  }
+});
+
+test('bunuan grants: validation, normalisation, idempotent upsert, scoped delete', async () => {
+  const db = grantsDb();
+  const app = await start({ env: { ADMIN_PASSWORD: 'pw12345' }, db });
+  const j = jar();
+  const url = (gb) => `/api/admin/group-buys/${gb}/bunuan-grants`;
+  try {
+    await call(app.base, '/api/admin/login', { method: 'POST', body: { password: 'pw12345' }, j });
+
+    assert.equal((await call(app.base, url('not-a-uuid'), { j })).status, 400);
+    const badEmail = await call(app.base, url(GB), { method: 'POST', body: { email: 'nope' }, j });
+    assert.equal(badEmail.status, 400);
+    assert.equal(badEmail.data.error, 'invalid_email');
+    const longNote = await call(app.base, url(GB), { method: 'POST', body: { email: 'a@b.co', note: 'x'.repeat(301) }, j });
+    assert.equal(longNote.status, 400);
+    assert.equal(longNote.data.error, 'note_too_long');
+    const missingRound = await call(app.base, url('33333333-3333-4333-8333-333333333333'), { method: 'POST', body: { email: 'a@b.co' }, j });
+    assert.equal(missingRound.status, 404);
+
+    const add = await call(app.base, url(GB), { method: 'POST', body: { email: '  Maria@Example.com ', note: '  From order GB15-004 ' }, j });
+    assert.equal(add.status, 200);
+    assert.equal(add.data.grant.customer_email, 'maria@example.com');
+    assert.equal(add.data.grant.note, 'From order GB15-004');
+
+    // Same email again (different case) is an update, not a duplicate.
+    const again = await call(app.base, url(GB), { method: 'POST', body: { email: 'MARIA@example.com' }, j });
+    assert.equal(again.status, 200);
+    assert.equal(db.rows.length, 1);
+    assert.equal(db.rows[0].note, null);
+
+    const list = await call(app.base, url(GB), { j });
+    assert.equal(list.status, 200);
+    assert.equal(list.data.grants.length, 1);
+    assert.equal((await call(app.base, url(OTHER_GB), { j })).data.grants.length, 0);
+
+    const id = add.data.grant.id;
+    // A grant id used under another round's URL is not found and not deleted.
+    const wrongRound = await call(app.base, `${url(OTHER_GB)}/${id}`, { method: 'DELETE', j });
+    assert.equal(wrongRound.status, 404);
+    assert.equal(db.rows.length, 1);
+    assert.equal((await call(app.base, `${url(GB)}/bad-id`, { method: 'DELETE', j })).status, 400);
+    const del = await call(app.base, `${url(GB)}/${id}`, { method: 'DELETE', j });
+    assert.equal(del.status, 200);
+    assert.equal(db.rows.length, 0);
+  } finally {
+    await app.close();
+  }
+});

@@ -29,6 +29,23 @@ export function safeEqual(a, b) {
   return crypto.timingSafeEqual(ah, bh);
 }
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const MAX_EMAIL = 254;
+const MAX_GRANT_NOTE = 300;
+
+/**
+ * Normalise an email exactly as gb_norm_email does in SQL (trim + lowercase),
+ * because the eligibility check compares grants by plain equality. Returns null
+ * for anything that is not a plausible address.
+ */
+export function normalizeGrantEmail(value) {
+  if (typeof value !== 'string') return null;
+  const email = value.trim().toLowerCase();
+  if (!email || email.length > MAX_EMAIL || !EMAIL_RE.test(email)) return null;
+  return email;
+}
+
 export function createApp({ db, mediaAssets = imageAssets } = {}) {
   if (!db) throw new Error('createApp requires a `db` data layer');
   // SESSION_SECRET signs the session cookie. Fail fast with a clear message if
@@ -242,6 +259,58 @@ export function createApp({ db, mediaAssets = imageAssets } = {}) {
       return res.json({ ok: true, updated });
     } catch (err) {
       console.error('bulk assign group buy error', err?.message || err);
+      return res.status(500).json({ error: 'server_error' });
+    }
+  });
+
+  // --- Bunuan access grants ---------------------------------------------------
+  // Bunuan is limited to customers whose name + email + phone match an earlier
+  // order in the same round. A grant lets one email in anyway, for one round,
+  // when a returning customer typed their details differently. Grants decide who
+  // may buy, so they are admin-only: the table has RLS on with no policies and is
+  // reached only through these service-role routes.
+  app.get('/api/admin/group-buys/:id/bunuan-grants', sessionLimiter, requireAdmin, async (req, res) => {
+    try {
+      if (!UUID_RE.test(req.params.id)) return res.status(400).json({ error: 'invalid_group_buy_id' });
+      const grants = await db.listBunuanGrants(req.params.id);
+      return res.json({ grants });
+    } catch (err) {
+      console.error('list bunuan grants error', err?.message || err);
+      return res.status(500).json({ error: 'server_error' });
+    }
+  });
+
+  app.post('/api/admin/group-buys/:id/bunuan-grants', adminLimiter, requireAdmin, async (req, res) => {
+    try {
+      if (!UUID_RE.test(req.params.id)) return res.status(400).json({ error: 'invalid_group_buy_id' });
+      const email = normalizeGrantEmail(req.body?.email);
+      if (!email) return res.status(400).json({ error: 'invalid_email' });
+      const rawNote = req.body?.note;
+      if (rawNote !== undefined && rawNote !== null && typeof rawNote !== 'string') {
+        return res.status(400).json({ error: 'invalid_note' });
+      }
+      const note = typeof rawNote === 'string' && rawNote.trim() ? rawNote.trim() : null;
+      if (note && note.length > MAX_GRANT_NOTE) return res.status(400).json({ error: 'note_too_long' });
+      if (!(await db.groupBuyExists(req.params.id))) return res.status(404).json({ error: 'group_buy_not_found' });
+      const grant = await db.upsertBunuanGrant(req.params.id, email, note);
+      return res.json({ ok: true, grant });
+    } catch (err) {
+      console.error('upsert bunuan grant error', err?.message || err);
+      return res.status(500).json({ error: 'server_error' });
+    }
+  });
+
+  app.delete('/api/admin/group-buys/:id/bunuan-grants/:grantId', adminLimiter, requireAdmin, async (req, res) => {
+    try {
+      if (!UUID_RE.test(req.params.id) || !UUID_RE.test(req.params.grantId)) {
+        return res.status(400).json({ error: 'invalid_id' });
+      }
+      // Scoped to the round in the URL, so a grant id from another round is a 404.
+      const removed = await db.deleteBunuanGrant(req.params.id, req.params.grantId);
+      if (removed === 0) return res.status(404).json({ error: 'not_found' });
+      return res.json({ ok: true });
+    } catch (err) {
+      console.error('delete bunuan grant error', err?.message || err);
       return res.status(500).json({ error: 'server_error' });
     }
   });

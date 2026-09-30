@@ -2,13 +2,14 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   ArrowLeft, Plus, Edit, Trash2, Save, X, Package, Square,
   Calendar, ShoppingBag, RefreshCw, AlertTriangle, Tag, FileSpreadsheet,
-  ToggleRight, Eye, EyeOff, CheckCircle2, XCircle, Search, CheckSquare,
+  ToggleRight, Eye, EyeOff, CheckCircle2, XCircle, Search, CheckSquare, UserCheck,
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { listOrders } from '../../lib/adminOrdersApi';
 import { useGroupBuys, type GroupBuyInput } from '../../hooks/useGroupBuys';
 import { useGroupBuyAvailability } from '../../hooks/useGroupBuyAvailability';
 import GroupBuyKitPanel from './GroupBuyKitPanel';
+import BunuanAccessPanel from './BunuanAccessPanel';
 import { downloadGroupBuyReport, countsForSupplier } from '../../utils/groupBuyReport';
 import type { GroupBuy, GroupBuyStatus } from '../../types';
 
@@ -68,7 +69,7 @@ const GroupBuyManager: React.FC<GroupBuyManagerProps> = ({ onBack }) => {
     createGroupBuy, updateGroupBuy, setStatus, deleteGroupBuy, setProductGroupBuy,
   } = useGroupBuys();
 
-  const [view, setView] = useState<'list' | 'form' | 'assign' | 'availability' | 'kits'>('list');
+  const [view, setView] = useState<'list' | 'form' | 'assign' | 'availability' | 'kits' | 'bunuan-access'>('list');
   const [kitsTarget, setKitsTarget] = useState<GroupBuy | null>(null);
   const [editing, setEditing] = useState<GroupBuy | null>(null);
   const [assignTarget, setAssignTarget] = useState<GroupBuy | null>(null);
@@ -347,6 +348,9 @@ const GroupBuyManager: React.FC<GroupBuyManagerProps> = ({ onBack }) => {
                       <button onClick={() => { setKitsTarget(gb); setView('kits'); }} className="flex items-center gap-1.5 bg-purple-50 hover:bg-purple-100 text-purple-700 px-3 py-1.5 rounded-lg text-xs font-semibold">
                         <Package className="w-3.5 h-3.5" /> Kits &amp; MOQ
                       </button>
+                      <button onClick={() => { setKitsTarget(gb); setView('bunuan-access'); }} className="flex items-center gap-1.5 bg-purple-50 hover:bg-purple-100 text-purple-700 px-3 py-1.5 rounded-lg text-xs font-semibold">
+                        <UserCheck className="w-3.5 h-3.5" /> Bunuan Access
+                      </button>
                       <button onClick={() => { setAssignTarget(gb); setAssignSearch(''); setAssignSelected(new Set()); setView('assign'); }} className="flex items-center gap-1.5 bg-theme-accent/10 hover:bg-theme-accent/20 text-theme-accent px-3 py-1.5 rounded-lg text-xs font-semibold">
                         <Package className="w-3.5 h-3.5" /> Assign Products
                       </button>
@@ -565,6 +569,10 @@ const GroupBuyManager: React.FC<GroupBuyManagerProps> = ({ onBack }) => {
         {/* ---- PRODUCT AVAILABILITY (per GB) ---- */}
         {view === 'kits' && kitsTarget && (
           <GroupBuyKitPanel groupBuy={kitsTarget} onBack={() => setView('list')} />
+        )}
+
+        {view === 'bunuan-access' && kitsTarget && (
+          <BunuanAccessPanel groupBuy={kitsTarget} onBack={() => setView('list')} />
         )}
 
         {view === 'availability' && availabilityTarget && (
