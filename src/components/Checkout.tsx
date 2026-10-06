@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { ArrowLeft, CreditCard, ShieldCheck, Check, Copy, MessageCircle, Package, Sparkles, Heart } from 'lucide-react';
+import { ArrowLeft, CreditCard, ShieldCheck, Check, Copy, MessageCircle, Package, Sparkles, Heart, Tag } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { CartItem, GroupBuy } from '../types';
 import ImageUpload from './ImageUpload';
@@ -108,7 +108,14 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, clea
   const [zipCode, setZipCode] = useState(savedCustomer?.zipCode ?? '');
   const [saveDetails, setSaveDetails] = useState(true);
   const [shippingLocation, setShippingLocation] = useState<'NCR' | 'LUZON' | 'VISAYAS_MINDANAO' | ''>('');
-  const [courier, setCourier] = useState<'jnt' | 'lalamove'>('jnt');
+  // No default courier: a preselected J&T meant NCR customers who never touched
+  // the picker were sent as "J&T Express" even when they wanted Lalamove.
+  const [courier, setCourier] = useState<'jnt' | 'lalamove' | ''>('');
+  const courierLabel = courier === 'lalamove' ? 'Lalamove' : courier === 'jnt' ? 'J&T Express' : '';
+  // No default either: the customer must say whether they want labels so the
+  // team packs it right the first time instead of labeling and peeling off.
+  const [labelPreference, setLabelPreference] = useState<'with' | 'none' | ''>('');
+  const labelPreferenceText = labelPreference === 'with' ? 'With labels' : labelPreference === 'none' ? 'No labels' : '';
 
   // Payment
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>('');
@@ -162,7 +169,9 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, clea
     city.trim() !== '' &&
     state.trim() !== '' &&
     zipCode.trim() !== '' &&
-    shippingLocation !== '';
+    shippingLocation !== '' &&
+    courier !== '' &&
+    labelPreference !== '';
 
   const handleProceedToPayment = () => {
     if (isDetailsValid) {
@@ -179,6 +188,16 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, clea
 
     if (!shippingLocation) {
       alert('Please select your shipping location.');
+      return;
+    }
+
+    if (!courier) {
+      alert('Please select your courier (J&T Express or Lalamove).');
+      return;
+    }
+
+    if (!labelPreference) {
+      alert('Please choose With labels or No labels.');
       return;
     }
 
@@ -301,7 +320,7 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, clea
         payment_method_name: paymentMethod?.name || null,
         payment_proof_url: paymentProof,
         contact_method: contactMethod || null,
-        notes: `Courier Preference: ${courier === 'jnt' ? 'J&T Express' : 'Lalamove'} \n${notes.trim() || ''} `.trim(),
+        notes: `Courier Preference: ${courierLabel} \nLabels: ${labelPreferenceText} \n${notes.trim() || ''} `.trim(),
         order_status: 'new',
         payment_status: 'pending',
         pricing_mode: cartPricingMode,
@@ -413,8 +432,8 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, clea
       });
 
       const orderDetails = `
-🌸 SAKU FUJI - NEW ORDER
-${orderGroupBuy ? `🛒 GROUP BUY: GB${orderGroupBuy.gb_number}${orderGroupBuy.title ? ` — ${orderGroupBuy.title}` : ''}\n` : ''}
+🌸 SAKURA FUJI - NEW ORDER
+${orderCode ? `📋 ORDER NO: ${orderCode}\n` : ''}${orderGroupBuy ? `🛒 GROUP BUY: GB${orderGroupBuy.gb_number}${orderGroupBuy.title ? ` — ${orderGroupBuy.title}` : ''}\n` : ''}
 📅 ORDER DATE & TIME
 ${dateTimeStamp}
 
@@ -429,7 +448,10 @@ ${barangay}
 ${city}, ${state} ${zipCode}
 
 🚚 COURIER PREFERENCE
-${courier === 'jnt' ? 'J&T Express' : 'Lalamove'}
+${courierLabel}
+
+🏷️ LABELS
+${labelPreferenceText}
 
 🛒 ORDER DETAILS
 ${orderItems.map(item => {
@@ -461,7 +483,7 @@ ${paymentProof}
 📱 CONTACT METHOD
 WhatsApp: https://api.whatsapp.com/send?phone=639273823893
 
-${orderCode ? `📋 ORDER NO: ${orderCode}\n🆔 Reference: ${orderData.id}` : `📋 ORDER ID: ${orderData.id}`}
+${orderCode ? `🆔 Reference: ${orderData.id}` : `📋 ORDER ID: ${orderData.id}`}
 
 Please confirm this order. Thank you!
       `.trim();
@@ -828,11 +850,11 @@ Please confirm this order. Thank you!
                     <button
                       key={loc.id}
                       onClick={() => {
+                        if (loc.id === shippingLocation) return;
                         setShippingLocation(loc.id as 'NCR' | 'LUZON' | 'VISAYAS_MINDANAO');
-                        // Reset to J&T if not NCR
-                        if (loc.id !== 'NCR') {
-                          setCourier('jnt');
-                        }
+                        // Outside NCR, J&T is the only courier. In NCR the customer
+                        // must tick one themselves.
+                        setCourier(loc.id === 'NCR' ? '' : 'jnt');
                       }}
                       className={`p-3 rounded-lg border-2 transition-all ${shippingLocation === loc.id
                         ? 'border-theme-accent bg-theme-accent/5'
@@ -848,31 +870,47 @@ Please confirm this order. Thank you!
                 {/* Courier Selection */}
                 {shippingLocation && (
                   <div className="mt-4 border-t border-gray-100 pt-4">
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Select Courier</label>
-                    <div className="grid grid-cols-2 gap-3">
+                    <p id="courier-label" className="block text-sm font-semibold text-gray-700 mb-2">Select Courier *</p>
+                    <div role="radiogroup" aria-labelledby="courier-label" className="grid grid-cols-2 gap-3">
                       <button
+                        type="button"
+                        role="radio"
+                        aria-checked={courier === 'jnt'}
                         onClick={() => setCourier('jnt')}
-                        className={`p-3 rounded-lg border transition-all flex items-center justify-center gap-2 ${courier === 'jnt'
+                        className={`p-3 rounded-lg border-2 transition-all flex items-center justify-center gap-2 ${courier === 'jnt'
                           ? 'border-theme-accent bg-theme-accent/5 text-theme-text'
                           : 'border-gray-200 hover:border-theme-accent/50'
                           }`}
                       >
+                        <span className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 ${courier === 'jnt' ? 'bg-theme-accent border-theme-accent text-white' : 'border-gray-300 bg-white'}`}>
+                          {courier === 'jnt' && <Check className="w-3.5 h-3.5" />}
+                        </span>
                         <span className="text-sm font-medium">J&T Express</span>
                       </button>
 
                       <button
+                        type="button"
+                        role="radio"
+                        aria-checked={courier === 'lalamove'}
                         onClick={() => setCourier('lalamove')}
                         disabled={shippingLocation !== 'NCR'}
-                        className={`p-3 rounded-lg border transition-all flex items-center justify-center gap-2 ${shippingLocation !== 'NCR'
+                        className={`p-3 rounded-lg border-2 transition-all flex items-center justify-center gap-2 ${shippingLocation !== 'NCR'
                           ? 'opacity-50 cursor-not-allowed bg-gray-50'
                           : courier === 'lalamove'
                             ? 'border-orange-500 bg-orange-50 text-orange-900'
                             : 'border-gray-200 hover:border-orange-300'
                           }`}
                       >
+                        <span className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 ${courier === 'lalamove' ? 'bg-orange-500 border-orange-500 text-white' : 'border-gray-300 bg-white'}`}>
+                          {courier === 'lalamove' && <Check className="w-3.5 h-3.5" />}
+                        </span>
                         <span className="text-sm font-medium">Lalamove</span>
                       </button>
                     </div>
+
+                    {!courier && (
+                      <p className="text-xs text-red-500 mt-2">Please tick your courier.</p>
+                    )}
 
                     {shippingLocation !== 'NCR' && (
                       <p className="text-xs text-gray-500 mt-2">Lalamove is only available for NCR delivery.</p>
@@ -905,6 +943,39 @@ Please confirm this order. Thank you!
                       </div>
                     )}
                   </div>
+                )}
+              </div>
+
+              {/* Label Preference */}
+              <div className="bg-white rounded-2xl shadow-lg p-5 md:p-6 border border-gray-200">
+                <h2 id="label-preference-heading" className="text-lg md:text-xl font-bold text-theme-text mb-2 md:mb-3 flex items-center gap-2">
+                  <div className="bg-theme-secondary/10 p-2 rounded-xl">
+                    <Tag className="w-5 h-5 md:w-6 md:h-6 text-theme-secondary" />
+                  </div>
+                  Labels *
+                </h2>
+                <div role="radiogroup" aria-labelledby="label-preference-heading" className="grid grid-cols-2 gap-3">
+                  {([['with', 'With labels'], ['none', 'No labels']] as const).map(([value, text]) => (
+                    <button
+                      key={value}
+                      type="button"
+                      role="radio"
+                      aria-checked={labelPreference === value}
+                      onClick={() => setLabelPreference(value)}
+                      className={`p-3 rounded-lg border-2 transition-all flex items-center justify-center gap-2 ${labelPreference === value
+                        ? 'border-theme-accent bg-theme-accent/5 text-theme-text'
+                        : 'border-gray-200 hover:border-theme-accent/50'
+                        }`}
+                    >
+                      <span className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 ${labelPreference === value ? 'bg-theme-accent border-theme-accent text-white' : 'border-gray-300 bg-white'}`}>
+                        {labelPreference === value && <Check className="w-3.5 h-3.5" />}
+                      </span>
+                      <span className="text-sm font-medium">{text}</span>
+                    </button>
+                  ))}
+                </div>
+                {!labelPreference && (
+                  <p className="text-xs text-red-500 mt-2">Please tick With labels or No labels.</p>
                 )}
               </div>
 
@@ -1207,8 +1278,8 @@ Please confirm this order. Thank you!
 
           <button
             onClick={handlePlaceOrder}
-            disabled={!contactMethod || !shippingLocation || !termsAccepted || submitting}
-            className={`w-full py-3 md:py-4 rounded-2xl font-bold text-base md:text-lg shadow-lg transition-all flex items-center justify-center gap-2 ${contactMethod && shippingLocation && termsAccepted && !submitting
+            disabled={!contactMethod || !shippingLocation || !courier || !labelPreference || !termsAccepted || submitting}
+            className={`w-full py-3 md:py-4 rounded-2xl font-bold text-base md:text-lg shadow-lg transition-all flex items-center justify-center gap-2 ${contactMethod && shippingLocation && courier && labelPreference && termsAccepted && !submitting
               ? 'bg-theme-accent hover:bg-theme-accent/90 text-white hover:shadow-xl transform hover:scale-[1.02]'
               : 'bg-gray-300 text-gray-500 cursor-not-allowed'
               }`}
