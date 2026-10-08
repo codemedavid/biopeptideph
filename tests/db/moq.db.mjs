@@ -127,25 +127,27 @@ test('TEST 7 — Bunuan shows only incomplete kits', async () => {
   assert.equal(res.code, 'NOT_IN_BUNUAN');
 });
 
-test('TEST 8 — Bunuan quantity ceiling enforced by the backend', async () => {
+test('TEST 8 — Bunuan overflow opens the next kit with a fresh shortfall', async () => {
   await H.reset();
   const gb = await H.seedRound({ status: 'active' });
-  const p = await H.seedProduct({ name: 'Cap', gb, moq: 3, kit: 10 });
+  const p = await H.seedProduct({ name: 'Overflow', gb, moq: 3, kit: 10 });
   await H.legacyOrder({ gb, name: 'X', email: 'x@e2e.test', phone: '09270000010', items: [{ product_id: p.id, quantity: 8 }] });
   await H.q(`update group_buys set status='bunuan_open' where id=$1`, [gb.id]);
   const who = { customer_name: 'X', customer_email: 'x@e2e.test', customer_phone: '09270000010' };
-  for (const qty of [3, 4, 99]) {
-    const res = await H.placeOrder([{ product_id: p.id, quantity: qty }], who);
-    assert.equal(res.ok, false, `qty ${qty} must be rejected`);
-    assert.equal(res.code, 'BUNUAN_EXCEEDS_REMAINING');
-    assert.equal(res.available, 2);
-  }
-  // MOQ 3 is suspended: 1 is allowed even though normal MOQ is 3
+
+  // Kit is 8 / 10, short 2. Committing 5: 2 close it, 3 start the next kit.
+  const res = await H.placeOrder([{ product_id: p.id, quantity: 5 }], who);
+  assert.equal(res.ok, true, res.message);
+  const st = await H.kitState(gb, p);
+  assert.equal(st.eligible_qty, 13);
+  assert.equal(st.bunuan_available, 7, 'the next kit now needs 7');
+
+  // MOQ 3 is still suspended: 1 is allowed even though normal MOQ is 3
   assert.equal((await H.placeOrder([{ product_id: p.id, quantity: 1 }], who)).ok, true);
-  assert.equal((await H.placeOrder([{ product_id: p.id, quantity: 1 }], who)).ok, true);
+  assert.equal((await H.kitState(gb, p)).bunuan_available, 6);
 });
 
-test('TEST 8b — cart-splitting cannot beat the cap', async () => {
+test('TEST 8b — split cart lines are summed toward the same kit', async () => {
   await H.reset();
   const gb = await H.seedRound({ status: 'active' });
   const p = await H.seedProduct({ name: 'Split', gb, kit: 10 });
@@ -153,11 +155,21 @@ test('TEST 8b — cart-splitting cannot beat the cap', async () => {
   await H.q(`update group_buys set status='bunuan_open' where id=$1`, [gb.id]);
   const who = { customer_name: 'X', customer_email: 'x@e2e.test', customer_phone: '09270000010' };
   const res = await H.placeOrder([{ product_id: p.id, quantity: 1 }, { product_id: p.id, quantity: 1 }], who);
-  assert.equal(res.ok, false, 'two lines of 1 must not slip past a cap of 1');
-  assert.equal(res.code, 'BUNUAN_EXCEEDS_REMAINING');
+  assert.equal(res.ok, true, res.message);
+  assert.equal((await H.kitState(gb, p)).bunuan_available, 9, '9 + 2 = 11: next kit needs 9');
 });
 
-test('TEST 9 — Bunuan eligibility is scoped to THIS round', async () => {
+test('TEST 8c — Bunuan overflow is still bounded by stock', async () => {
+  await H.reset();
+  const gb = await H.seedRound({ status: 'active' });
+  const p = await H.seedProduct({ name: 'Stock', gb, kit: 10, stock: 4 });
+  await H.legacyOrder({ gb, name: 'X', email: 'x@e2e.test', phone: '09270000010', items: [{ product_id: p.id, quantity: 8 }] });
+  await H.q(`update group_buys set status='bunuan_open' where id=$1`, [gb.id]);
+  const who = { customer_name: 'X', customer_email: 'x@e2e.test', customer_phone: '09270000010' };
+  assert.equal((await H.placeOrder([{ product_id: p.id, quantity: 5 }], who)).code, 'INSUFFICIENT_STOCK');
+});
+
+test('TEST 9 — Bunuan is open to everyone, not only this round\'s customers', async () => {
   await H.reset();
   const old = await H.seedRound({ status: 'closed', title: 'E2E Old' });
   const gb = await H.seedRound({ status: 'active', title: 'E2E New' });
@@ -165,7 +177,7 @@ test('TEST 9 — Bunuan eligibility is scoped to THIS round', async () => {
   const p = await H.seedProduct({ name: 'NewP', gb, kit: 10 });
   // A joined this round
   await H.legacyOrder({ gb, name: 'Alice Cruz', email: 'alice@e2e.test', phone: '0927 111 1111',
-    items: [{ product_id: p.id, quantity: 8 }] });
+    items: [{ product_id: p.id, quantity: 7 }] });
   // C joined only the previous round
   await H.legacyOrder({ gb: old, name: 'Carol Reyes', email: 'carol@e2e.test', phone: '09273333333',
     items: [{ product_id: pOld.id, quantity: 5 }] });
@@ -175,15 +187,14 @@ test('TEST 9 — Bunuan eligibility is scoped to THIS round', async () => {
   const B = { customer_name: 'Bob New', customer_email: 'bob@e2e.test', customer_phone: '09272222222' };
   const C = { customer_name: 'Carol Reyes', customer_email: 'carol@e2e.test', customer_phone: '09273333333' };
 
-  assert.equal((await H.placeOrder([{ product_id: p.id, quantity: 1 }], A)).ok, true, 'A must be allowed');
-  assert.equal((await H.placeOrder([{ product_id: p.id, quantity: 1 }], B)).code, 'BUNUAN_NOT_ELIGIBLE');
-  assert.equal((await H.placeOrder([{ product_id: p.id, quantity: 1 }], C)).code, 'BUNUAN_NOT_ELIGIBLE');
-  // admin grant lets a named customer in
-  await H.q(`insert into group_buy_bunuan_grants (group_buy_id, customer_email) values ($1,'bob@e2e.test')`, [gb.id]);
-  assert.equal((await H.placeOrder([{ product_id: p.id, quantity: 1 }], B)).ok, true, 'grant must work');
+  for (const [who, label] of [[A, 'A (this round)'], [B, 'B (brand new)'], [C, 'C (previous round)']]) {
+    const out = await H.placeOrder([{ product_id: p.id, quantity: 1 }], who);
+    assert.equal(out.ok, true, `${label} must be allowed — ${out.code}: ${out.message}`);
+  }
+  assert.equal((await H.kitState(gb, p)).bunuan_available, 0, 'the kit is now complete (7 + 3 of 10)');
 });
 
-test('TEST 10/11 — dead orders never count and never grant access', async () => {
+test('TEST 10/11 — dead orders never count', async () => {
   await H.reset();
   const gb = await H.seedRound({ status: 'active' });
   const p = await H.seedProduct({ name: 'Dead', gb, kit: 10 });
@@ -201,8 +212,9 @@ test('TEST 10/11 — dead orders never count and never grant access', async () =
   assert.equal((await H.kitState(gb, p)).eligible_qty, 8);
   await H.q(`update group_buys set status='bunuan_open' where id=$1`, [gb.id]);
   const cancelledGuy = { customer_name: 'Zed cancelledpending', customer_email: 'zed.cancelled.pending@e2e.test', customer_phone: '09279999999' };
-  assert.equal((await H.placeOrder([{ product_id: p.id, quantity: 1 }], cancelledGuy)).code, 'BUNUAN_NOT_ELIGIBLE',
-    'a cancelled order must not buy Bunuan access');
+  assert.equal((await H.kitState(gb, p)).bunuan_available, 2, 'only the live order counts toward the kit');
+  // Bunuan is open to everyone, so the cancelled customer may still help finish it.
+  assert.equal((await H.placeOrder([{ product_id: p.id, quantity: 1 }], cancelledGuy)).ok, true);
 });
 
 test('TEST 12 — payment pending counts (documented rule) and cancelling releases the slot', async () => {

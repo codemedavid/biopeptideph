@@ -42,14 +42,14 @@ function makeDb(over = {}) {
 }
 
 /** Start the app on a random port. Returns { base, close } and restores env. */
-async function start({ db = {}, env = {} } = {}) {
+async function start({ db = {}, env = {}, settingsTtlMs } = {}) {
   const saved = {};
   for (const k of Object.keys(env)) {
     saved[k] = process.env[k];
     if (env[k] === undefined) delete process.env[k];
     else process.env[k] = env[k];
   }
-  const app = createApp({ db: makeDb(db) });
+  const app = createApp({ db: makeDb(db), settingsTtlMs });
   const server = await new Promise((res) => {
     const s = app.listen(0, () => res(s));
   });
@@ -286,7 +286,11 @@ test('access/verify: empty → 400, wrong → 401, correct → 200 + valid sessi
 
 test('access gate: rotating the code invalidates existing sessions (codeVersion bump)', async () => {
   let version = 1; // flips to 2 to simulate an admin code change
-  const app = await start({ db: { async getSettings() { return { access_code_hash: CODE_HASH, code_version: version }; } } });
+  // TTL 0: the rotation happens out-of-band (another instance), so read fresh.
+  const app = await start({
+    settingsTtlMs: 0,
+    db: { async getSettings() { return { access_code_hash: CODE_HASH, code_version: version }; } },
+  });
   const j = jar();
   try {
     const right = await call(app.base, '/api/access/verify', { method: 'POST', body: { code: CODE }, j });
@@ -296,6 +300,52 @@ test('access gate: rotating the code invalidates existing sessions (codeVersion 
 
     version = 2; // admin rotated the code
     s = await call(app.base, '/api/session', { j });
+    assert.equal(s.status, 401);
+    assert.equal(s.data.error, 'session_invalidated');
+  } finally {
+    await app.close();
+  }
+});
+
+test('access gate: settings are cached — repeated session checks read app_settings once', async () => {
+  let reads = 0;
+  const app = await start({
+    db: { async getSettings() { reads += 1; return { access_code_hash: CODE_HASH, code_version: 1 }; } },
+  });
+  const j = jar();
+  try {
+    const right = await call(app.base, '/api/access/verify', { method: 'POST', body: { code: CODE }, j });
+    assert.equal(right.status, 200);
+    for (let i = 0; i < 5; i += 1) {
+      const s = await call(app.base, '/api/session', { j });
+      assert.equal(s.status, 200);
+    }
+    assert.equal(reads, 1);
+  } finally {
+    await app.close();
+  }
+});
+
+test('access gate: rotating the code on this instance invalidates sessions despite the cache', async () => {
+  let version = 1;
+  const app = await start({
+    env: { ADMIN_PASSWORD: 'admin-pw' },
+    db: {
+      async getSettings() { return { access_code_hash: CODE_HASH, code_version: version }; },
+      async updateAccessCode() { version += 1; return version; },
+    },
+  });
+  const user = jar();
+  const admin = jar();
+  try {
+    assert.equal((await call(app.base, '/api/access/verify', { method: 'POST', body: { code: CODE }, j: user })).status, 200);
+    assert.equal((await call(app.base, '/api/session', { j: user })).status, 200);
+
+    assert.equal((await call(app.base, '/api/admin/login', { method: 'POST', body: { password: 'admin-pw' }, j: admin })).status, 200);
+    const changed = await call(app.base, '/api/admin/access-code', { method: 'POST', body: { newCode: 'brand-new-code' }, j: admin });
+    assert.equal(changed.status, 200);
+
+    const s = await call(app.base, '/api/session', { j: user });
     assert.equal(s.status, 401);
     assert.equal(s.data.error, 'session_invalidated');
   } finally {

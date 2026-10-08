@@ -197,7 +197,6 @@ function MainApp() {
             onContinueShopping={() => handleViewChange('menu')}
             onCheckout={() => handleViewChange('checkout')}
             validation={kitOptions ? cart.validation : undefined}
-            maxQuantityForProduct={kitOptions ? cart.maxQuantityForProduct : undefined}
           />
         )}
 

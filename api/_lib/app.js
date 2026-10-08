@@ -35,6 +35,38 @@ const MAX_EMAIL = 254;
 const MAX_GRANT_NOTE = 300;
 
 /**
+ * How long app_settings (access-code hash + code_version) is cached in memory.
+ * Every gated request — including each /api/media image — checks the session's
+ * code_version, which was ~8k Supabase reads/day uncached. A rotation made on
+ * this instance clears the cache immediately; other warm instances pick it up
+ * within this window.
+ */
+const DEFAULT_SETTINGS_TTL_MS = 60 * 1000;
+
+function cachedSettingsReader(load, ttlMs) {
+  let cached = null;
+  let expiresAt = 0;
+  let generation = 0; // bumped by clear() so an in-flight read can't re-cache pre-rotation settings
+  return {
+    async get() {
+      if (cached && Date.now() < expiresAt) return cached;
+      const startedAt = generation;
+      const fresh = await load();
+      if (startedAt === generation) {
+        cached = fresh;
+        expiresAt = Date.now() + ttlMs;
+      }
+      return fresh;
+    },
+    clear() {
+      generation += 1;
+      cached = null;
+      expiresAt = 0;
+    },
+  };
+}
+
+/**
  * Normalise an email exactly as gb_norm_email does in SQL (trim + lowercase),
  * because the eligibility check compares grants by plain equality. Returns null
  * for anything that is not a plausible address.
@@ -46,8 +78,13 @@ export function normalizeGrantEmail(value) {
   return email;
 }
 
-export function createApp({ db, mediaAssets = imageAssets } = {}) {
+export function createApp({
+  db,
+  mediaAssets = imageAssets,
+  settingsTtlMs = DEFAULT_SETTINGS_TTL_MS,
+} = {}) {
   if (!db) throw new Error('createApp requires a `db` data layer');
+  const settingsCache = cachedSettingsReader(() => db.getSettings(), settingsTtlMs);
   // SESSION_SECRET signs the session cookie. Fail fast with a clear message if
   // it's missing instead of letting requests fail opaquely.
   if (!process.env.SESSION_SECRET) {
@@ -97,7 +134,7 @@ export function createApp({ db, mediaAssets = imageAssets } = {}) {
       if (!req.session || !req.session.authed) {
         return res.status(401).json({ error: 'unauthenticated' });
       }
-      const settings = await db.getSettings();
+      const settings = await settingsCache.get();
       if (req.session.codeVersion !== settings.code_version) {
         req.clearSession();
         return res.status(401).json({ error: 'session_invalidated' });
@@ -126,7 +163,7 @@ export function createApp({ db, mediaAssets = imageAssets } = {}) {
     try {
       const code = typeof req.body?.code === 'string' ? req.body.code : '';
       if (!code) return res.status(400).json({ error: 'code_required' });
-      const settings = await db.getSettings();
+      const settings = await settingsCache.get();
       const ok = await bcrypt.compare(code, settings.access_code_hash);
       if (!ok) return res.status(401).json({ error: 'invalid_code' });
       req.session = { authed: true, codeVersion: settings.code_version };
@@ -180,6 +217,7 @@ export function createApp({ db, mediaAssets = imageAssets } = {}) {
       if (newCode.length < 6) return res.status(400).json({ error: 'code_too_short' });
       const hash = await bcrypt.hash(newCode, 12);
       const codeVersion = await db.updateAccessCode(hash);
+      settingsCache.clear();
       return res.json({ ok: true, codeVersion });
     } catch (err) {
       console.error('change code error', err?.message || err);

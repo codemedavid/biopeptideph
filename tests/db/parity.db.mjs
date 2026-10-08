@@ -97,9 +97,8 @@ test('PARITY — the UI verdict matches the RPC verdict for the same cart', asyn
   await H.q(`update group_buys set status='bunuan_open' where id=$1`, [gb.id]);
   const who = { customer_name: 'X', customer_email: 'x@e2e.test', customer_phone: '09270000010' };
   const state = K.computeKitState({ kitSize: 10, eligibleQty: 8 });
-  assert.equal(K.maxQuantityFor(state, 'bunuan_open'), 2);
   assert.equal(K.minQuantityFor(3, 'bunuan_open'), 1, 'MOQ must not floor the picker in Bunuan');
-  for (const qty of [1, 2, 3]) {
+  for (const qty of [1, 2, 3, 5]) {
     const ui = K.validateCartLine({ productId: p.id, productName: 'E2E Verdict', quantity: qty, moq: 3, kitState: state }, 'bunuan_open');
     const api = await H.placeOrder([{ product_id: p.id, quantity: qty }], who);
     assert.equal(ui.ok, api.ok === true, `bunuan qty ${qty}: UI ${ui.ok} vs API ${api.ok}`);
@@ -108,7 +107,7 @@ test('PARITY — the UI verdict matches the RPC verdict for the same cart', asyn
   }
 });
 
-test('TEST 15 — stale cart: the ceiling is re-read, not remembered', async () => {
+test('TEST 15 — stale cart: the open kit is re-read, not remembered', async () => {
   await H.reset();
   const gb = await H.seedRound({ status: 'active' });
   const p = await H.seedProduct({ name: 'Stale', gb, kit: 10 });
@@ -116,22 +115,19 @@ test('TEST 15 — stale cart: the ceiling is re-read, not remembered', async () 
   await H.legacyOrder({ gb, name: 'B', email: 'b@e2e.test', phone: '09272222222', items: [] });
   await H.q(`update group_buys set status='bunuan_open' where id=$1`, [gb.id]);
 
+  // A's cart was built when the kit was 8 / 10; B closes it before A checks out.
   const snapshotA = K.computeKitState({ kitSize: 10, eligibleQty: 8 });
-  assert.equal(K.maxQuantityFor(snapshotA, 'bunuan_open'), 2);
+  assert.equal(snapshotA.bunuanAvailable, 2);
 
-  const b = await H.placeOrder([{ product_id: p.id, quantity: 1 }],
+  const b = await H.placeOrder([{ product_id: p.id, quantity: 2 }],
     { customer_name: 'B', customer_email: 'b@e2e.test', customer_phone: '09272222222' });
   assert.equal(b.ok, true, b.message);
 
   const res = await H.placeOrder([{ product_id: p.id, quantity: 2 }],
     { customer_name: 'A', customer_email: 'a@e2e.test', customer_phone: '09271111111' });
-  assert.equal(res.ok, false);
-  assert.equal(res.code, 'BUNUAN_EXCEEDS_REMAINING');
-  assert.equal(res.available, 1);
-  assert.match(res.message, /Only 1 left/);
+  assert.equal(res.ok, false, 'the kit closed exactly, so nothing is open to join');
+  assert.equal(res.code, 'BUNUAN_UNAVAILABLE');
 
   const fresh = (await H.kitState(gb, p));
-  assert.equal(K.computeKitState({ kitSize: fresh.kit_size, eligibleQty: fresh.eligible_qty }).bunuanAvailable, 1);
-  assert.equal((await H.placeOrder([{ product_id: p.id, quantity: 1 }],
-    { customer_name: 'A', customer_email: 'a@e2e.test', customer_phone: '09271111111' })).ok, true);
+  assert.equal(K.computeKitState({ kitSize: fresh.kit_size, eligibleQty: fresh.eligible_qty }).isComplete, true);
 });

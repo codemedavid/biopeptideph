@@ -74,17 +74,16 @@ const BunuanPanel: React.FC<BunuanPanelProps> = ({
           </h2>
 
           <p className="mt-2 max-w-2xl text-sm leading-relaxed text-theme-text/70">
-            Normal ordering has closed. These kits are just short of complete —
-            only the exact number of vials still needed is available, and the
-            usual minimum order does not apply.
+            Normal ordering has closed. These kits are just short of complete,
+            and the usual minimum order does not apply. You can take more than
+            a kit needs — the extra vials start the next kit.
           </p>
 
           <div className="mt-4 flex items-start gap-2 rounded-lg border border-theme-accent/20 bg-theme-accent/10 px-3 py-2">
             <Info className="mt-0.5 h-4 w-4 flex-shrink-0 text-theme-accent" />
             <p className="text-xs leading-relaxed text-theme-text/80">
-              Bunuan is open only to customers who already joined this Group Buy.
-              Please check out using the <strong>same name, email and phone number</strong>{' '}
-              you used on your original order.
+              Bunuan is open to everyone — you don't need to have joined this
+              Group Buy to help complete a kit.
             </p>
           </div>
         </header>

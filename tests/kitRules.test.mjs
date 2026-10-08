@@ -25,7 +25,6 @@ import {
   effectiveMoq,
   isOrderingPhase,
   kitKey,
-  maxQuantityFor,
   minQuantityFor,
   normalizeEmail,
   normalizeName,
@@ -220,16 +219,24 @@ test('Bunuan suspends the MOQ so one vial is purchasable', () => {
   assert.equal(verdict.ok, true);
 });
 
-test('Bunuan caps the quantity at exactly what the kit still needs', () => {
+test('Bunuan accepts more than the kit still needs', () => {
   const verdict = validateCartLine(
-    line({ quantity: 3, moq: 1, kitState: KIT_8_OF_10 }),
+    line({ quantity: 5, moq: 1, kitState: KIT_8_OF_10 }),
     'bunuan_open',
   );
 
-  assert.equal(verdict.ok, false);
-  assert.equal(verdict.issue, 'BUNUAN_EXCEEDS_REMAINING');
-  assert.equal(verdict.maxAllowed, 2);
-  assert.match(verdict.message, /Only 2 vials left/);
+  assert.equal(verdict.ok, true);
+});
+
+test('overflow closes the open kit and opens the next one with a fresh shortfall', () => {
+  // 8 / 10 needing 2, someone commits 5: 2 close the kit, 3 start the next.
+  const after = computeKitState({ kitSize: 10, eligibleQty: 8 + 5 });
+
+  assert.equal(after.completeKits, 1);
+  assert.equal(after.inProgress, 3);
+  assert.equal(after.bunuanNeeded, 7);
+  assert.equal(after.bunuanAvailable, 7);
+  assert.equal(after.isComplete, false);
 });
 
 test('buying exactly the remaining quantity is allowed', () => {
@@ -290,13 +297,13 @@ test('a non-Bunuan phase applies the MOQ floor instead of blocking outright', ()
   }
 });
 
-// The Bunuan ceiling is round-scoped: once the round leaves bunuan_open it stops
-// applying, and the product goes back to ordinary MOQ rules.
-test('the Bunuan ceiling does not survive the round leaving bunuan_open', () => {
-  const overCeiling = { quantity: 5, moq: 1, kitState: KIT_8_OF_10 };
+// Bunuan rules are round-scoped: once the round leaves bunuan_open a completed
+// kit stops blocking, and the product goes back to ordinary MOQ rules.
+test('a completed Bunuan kit does not block once the round leaves bunuan_open', () => {
+  const done = { quantity: 5, moq: 1, kitState: computeKitState({ kitSize: 10, eligibleQty: 20 }) };
 
-  assert.equal(validateCartLine(line(overCeiling), 'bunuan_open').issue, 'BUNUAN_EXCEEDS_REMAINING');
-  assert.equal(validateCartLine(line(overCeiling), 'bunuan_closed').ok, true);
+  assert.equal(validateCartLine(line(done), 'bunuan_open').issue, 'BUNUAN_KIT_COMPLETE');
+  assert.equal(validateCartLine(line(done), 'bunuan_closed').ok, true);
 });
 
 // ---------------------------------------------------------------------------
@@ -374,31 +381,21 @@ test('MOQ is per strength: 3×15mg passes on its own', () => {
   assert.equal(verdict.canCheckout, true);
 });
 
-test('Bunuan caps each strength by its own shortfall', () => {
+test('Bunuan judges each strength by its own kit', () => {
   const short2 = computeKitState({ kitSize: 10, eligibleQty: 48 }); // 15mg: 2 left
-  const short3 = computeKitState({ kitSize: 10, eligibleQty: 7 });  // 5mg: 3 left
+  const done = computeKitState({ kitSize: 10, eligibleQty: 10 });   // 5mg: complete
   const verdict = validateCart([
     { productId: 'tirz', variationId: 'v15', productName: 'Tirz', variationName: '15mg', quantity: 3, moq: 1, kitState: short2 },
-    { productId: 'tirz', variationId: 'v5', productName: 'Tirz', variationName: '5mg', quantity: 3, moq: 1, kitState: short3 },
+    { productId: 'tirz', variationId: 'v5', productName: 'Tirz', variationName: '5mg', quantity: 3, moq: 1, kitState: done },
   ], 'bunuan_open');
 
-  assert.equal(verdict.byLine[kitKey('tirz', 'v15')].issue, 'BUNUAN_EXCEEDS_REMAINING');
-  assert.equal(verdict.byLine[kitKey('tirz', 'v15')].maxAllowed, 2);
-  assert.equal(verdict.byLine[kitKey('tirz', 'v5')].ok, true, '5mg is judged against its own kit');
+  assert.equal(verdict.byLine[kitKey('tirz', 'v15')].ok, true, '15mg overflow opens its next kit');
+  assert.equal(verdict.byLine[kitKey('tirz', 'v5')].issue, 'BUNUAN_KIT_COMPLETE', '5mg is judged against its own kit');
 });
 
 // ---------------------------------------------------------------------------
 // Quantity selector bounds
 // ---------------------------------------------------------------------------
-
-test('the quantity selector is capped at the Bunuan remainder', () => {
-  // "2 remaining" must allow 1 and 2, never 3.
-  assert.equal(maxQuantityFor(KIT_8_OF_10, 'bunuan_open'), 2);
-});
-
-test('normal ordering leaves the ceiling to the stock rules', () => {
-  assert.equal(maxQuantityFor(KIT_8_OF_10, 'active'), null);
-});
 
 test('the quantity floor is the MOQ normally and 1 during Bunuan', () => {
   assert.equal(minQuantityFor(3, 'active'), 3);

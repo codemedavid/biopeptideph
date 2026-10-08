@@ -12,7 +12,8 @@ test('media: authenticated catalog delivery, admin-only proofs, bounded variants
   const assets = { [id]: { filePath: `/diamondglow-migration/private-v1/${id}.jpg`, access: 'catalog' }, [proof]: { filePath: `/diamondglow-migration/private-v1/${proof}.png`, access: 'admin' } };
   let version = 1;
   const db = { getSettings: async () => ({ access_code_hash: bcrypt.hashSync('test-code', 4), code_version: version }) };
-  const app = createApp({ db, mediaAssets: assets });
+  // TTL 0: the test rotates code_version out-of-band and expects it seen at once.
+  const app = createApp({ db, mediaAssets: assets, settingsTtlMs: 0 });
   const server = await new Promise(resolve => { const s = app.listen(0, '127.0.0.1', () => resolve(s)); });
   const base = `http://127.0.0.1:${server.address().port}`;
   const get = (target, cookie = '', headers = {}) => fetch(base+target, { redirect: 'manual', headers: { cookie, ...headers } });

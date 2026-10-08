@@ -4,6 +4,7 @@ import {
   Package, BarChart3, CreditCard,
 } from 'lucide-react';
 import { listOrders } from '../../lib/adminOrdersApi';
+import { itemLineTotal } from '../../lib/orderItemMoney';
 
 interface AnalyticsManagerProps {
   onBack: () => void;
@@ -95,7 +96,7 @@ const SalesAnalytics: React.FC<AnalyticsManagerProps> = ({ onBack }) => {
         const label = it.variation_name ? `${it.product_name} (${it.variation_name})` : it.product_name;
         const e = map.get(label) || { name: label, qty: 0, revenue: 0 };
         e.qty += it.quantity;
-        e.revenue += it.total || it.price * it.quantity;
+        e.revenue += itemLineTotal(it) ?? 0;
         map.set(label, e);
       }
     }

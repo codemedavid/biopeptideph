@@ -45,15 +45,14 @@ test('TAMPER — before the lockdown, anon rewrites the rules and walks past MOQ
   assert.equal((await H.placeOrder([{ product_id: p.id, quantity: 1 }])).ok, true,
     'MOQ enforcement is only as trustworthy as the table it reads');
 
-  // The same trick defeats the Bunuan ceiling: flip the round out of Bunuan.
+  // The phase is a second way in: flip the round INTO Bunuan and the MOQ is gone.
   await H.q(`update products set min_order_quantity = 5 where id = $1`, [p.id]);
   await H.legacyOrder({ gb, name: 'X', email: 'x@e2e.test', phone: '09270000010', items: [{ product_id: p.id, quantity: 8 }] });
-  await H.q(`update group_buys set status = 'bunuan_open' where id = $1`, [gb.id]);
   const who = { customer_name: 'X', customer_email: 'x@e2e.test', customer_phone: '09270000010' };
-  assert.equal((await H.placeOrder([{ product_id: p.id, quantity: 50 }], who)).code, 'BUNUAN_EXCEEDS_REMAINING');
-  assert.equal(await tryAnon(`update group_buys set status = 'active' where id = $1`, [gb.id]), 'allowed');
-  assert.equal((await H.placeOrder([{ product_id: p.id, quantity: 50 }], who)).ok, true,
-    'the Bunuan ceiling disappears with the phase, and the phase is public-writable');
+  assert.equal((await H.placeOrder([{ product_id: p.id, quantity: 1 }], who)).code, 'BELOW_MOQ');
+  assert.equal(await tryAnon(`update group_buys set status = 'bunuan_open' where id = $1`, [gb.id]), 'allowed');
+  assert.equal((await H.placeOrder([{ product_id: p.id, quantity: 1 }], who)).ok, true,
+    'Bunuan suspends the MOQ, and the phase is public-writable');
 
   // …and the per-round override is a third way in.
   await H.q(`update group_buys set status = 'active' where id = $1`, [gb.id]);

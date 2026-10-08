@@ -9,6 +9,7 @@
 // SheetJS (`xlsx`) is large, so it is lazy-loaded inside downloadGroupBuyReport
 // (admin-only) and never ships in the storefront's initial bundle.
 import type { GroupBuy } from '../types';
+import { itemUnitPrice, itemLineTotal } from '../lib/orderItemMoney.ts';
 
 export interface ReportOrderItem {
   product_name: string;
@@ -104,7 +105,7 @@ export function prepareGroupBuyReport(gb: GroupBuy, orders: ReportOrder[]): {
     for (const it of o.order_items) {
       orderRows.push([
         orderNo, o.customer_name, o.customer_phone || '', it.product_name, it.variation_name || '',
-        it.quantity, it.price, it.total, o.currency || 'PHP', orderStatus, o.payment_status, counted, o.shipping_location || '', shippingText(o),
+        it.quantity, itemUnitPrice(it) ?? '', itemLineTotal(it) ?? '', o.currency || 'PHP', orderStatus, o.payment_status, counted, o.shipping_location || '', shippingText(o),
       ]);
     }
   }

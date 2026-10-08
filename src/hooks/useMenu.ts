@@ -1,158 +1,79 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
+import { isMenuStale, withSortedVariations } from '../lib/menuData';
 import type { Product, ProductVariation } from '../types';
+
+/** Coalesce a burst of realtime events (e.g. a bulk admin edit) into one refetch. */
+const REALTIME_REFETCH_DEBOUNCE_MS = 1500;
+/** Wait for focus/visibility events to settle before checking staleness. */
+const FOCUS_REFETCH_DELAY_MS = 1000;
 
 export function useMenu() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const lastFetchedAt = useRef(0);
 
   useEffect(() => {
     fetchProducts();
 
-    // Set up real-time subscription for product changes with unique channel name
-    const channelId = `products-realtime-${Date.now()}`;
+    let realtimeTimer: ReturnType<typeof setTimeout> | null = null;
+    const scheduleRealtimeRefetch = () => {
+      if (realtimeTimer) clearTimeout(realtimeTimer);
+      realtimeTimer = setTimeout(() => {
+        realtimeTimer = null;
+        fetchProducts();
+      }, REALTIME_REFETCH_DEBOUNCE_MS);
+    };
+
+    // Live updates when the admin edits products or variations.
     const productsChannel = supabase
-      .channel(channelId)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'products'
-        },
-        (payload) => {
-          console.log('✅ Product changed:', payload);
-          fetchProducts(); // Refetch all products when any change occurs
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'product_variations'
-        },
-        (payload) => {
-          console.log('✅ Variation changed:', payload);
-          fetchProducts(); // Refetch all products when variations change
-        }
-      )
+      .channel(`products-realtime-${Date.now()}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, scheduleRealtimeRefetch)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'product_variations' }, scheduleRealtimeRefetch)
       .subscribe();
 
-    // Refetch data when window regains focus (user switches back from admin)
-    // But only if we're not on the admin page to avoid interfering with forms
-    let focusRefreshTimeout: ReturnType<typeof setTimeout> | null = null;
-    const handleFocus = () => {
-      // Check if we're on admin page - if so, don't refresh
-      const isAdminPage = window.location.pathname === '/admin';
-      if (isAdminPage) {
-        console.log('👁️ Window focused on admin page - skipping refresh to avoid form interference');
-        return;
-      }
-
-      // Debounce focus refresh to avoid too frequent refreshes
-      if (focusRefreshTimeout) {
-        clearTimeout(focusRefreshTimeout);
-      }
-
-      focusRefreshTimeout = setTimeout(() => {
-        console.log('👁️ Window focused - refreshing products...');
-        fetchProducts();
-        focusRefreshTimeout = null;
-      }, 1000); // Wait 1 second before refreshing
+    // Safety net only: refetch on return to the tab if the data is old enough
+    // that realtime may have missed something while the tab was backgrounded.
+    // Skipped on /admin to avoid interfering with forms.
+    let focusTimer: ReturnType<typeof setTimeout> | null = null;
+    const handleReturnToTab = () => {
+      if (document.hidden || window.location.pathname === '/admin') return;
+      if (focusTimer) clearTimeout(focusTimer);
+      focusTimer = setTimeout(() => {
+        focusTimer = null;
+        if (isMenuStale(lastFetchedAt.current)) fetchProducts();
+      }, FOCUS_REFETCH_DELAY_MS);
     };
 
-    // Also add visibility change handler for better cross-tab updates
-    // But skip if on admin page
-    const handleVisibilityChange = () => {
-      if (document.hidden) return;
+    window.addEventListener('focus', handleReturnToTab);
+    document.addEventListener('visibilitychange', handleReturnToTab);
 
-      const isAdminPage = window.location.pathname === '/admin';
-      if (isAdminPage) {
-        console.log('👁️ Tab became visible on admin page - skipping refresh');
-        return;
-      }
-
-      // Debounce visibility refresh
-      if (focusRefreshTimeout) {
-        clearTimeout(focusRefreshTimeout);
-      }
-
-      focusRefreshTimeout = setTimeout(() => {
-        console.log('👁️ Tab became visible - refreshing products...');
-        fetchProducts();
-        focusRefreshTimeout = null;
-      }, 1000);
-    };
-
-    window.addEventListener('focus', handleFocus);
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
-    // Cleanup subscriptions on unmount
     return () => {
       supabase.removeChannel(productsChannel);
-      window.removeEventListener('focus', handleFocus);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      if (focusRefreshTimeout) {
-        clearTimeout(focusRefreshTimeout);
-      }
+      window.removeEventListener('focus', handleReturnToTab);
+      document.removeEventListener('visibilitychange', handleReturnToTab);
+      if (realtimeTimer) clearTimeout(realtimeTimer);
+      if (focusTimer) clearTimeout(focusTimer);
     };
   }, []);
 
   const fetchProducts = async () => {
     try {
       setLoading(true);
-      console.log('🔄 Fetching products from database...');
 
-      // Force fresh data by clearing any potential cache
-      const timestamp = Date.now();
+      // One request for products AND their variations (was 1 + one per product).
       const { data, error } = await supabase
         .from('products')
-        .select('*')
+        .select('*, variations:product_variations(*)')
         .eq('available', true)
         .order('featured', { ascending: false })
         .order('name', { ascending: true });
 
       if (error) throw error;
 
-      console.log(`📦 Found ${data?.length || 0} products`);
-
-      // Log products with images for debugging
-      const productsWithImages = (data || []).filter(p => p.image_url);
-      if (productsWithImages.length > 0) {
-        console.log(`🖼️ Products with images: ${productsWithImages.length}`,
-          productsWithImages.map(p => ({ name: p.name, image_url: p.image_url?.substring(0, 50) + '...' }))
-        );
-      }
-
-      // Fetch variations for each product
-      const productsWithVariations = await Promise.all(
-        (data || []).map(async (product) => {
-          const { data: variations } = await supabase
-            .from('product_variations')
-            .select('*')
-            .eq('product_id', product.id)
-            .order('quantity_mg', { ascending: true });
-
-          if (variations && variations.length > 0) {
-            console.log(`  └─ ${product.name}: ${variations.length} variations, prices:`, variations.map(v => `${v.name}:₱${v.price}`));
-          }
-
-          // Log if product has image_url
-          if (product.image_url) {
-            console.log(`  🖼️ ${product.name} has image: ${product.image_url.substring(0, 60)}...`);
-          }
-
-          return {
-            ...product,
-            variations: variations || []
-          };
-        })
-      );
-
-
-      setProducts(productsWithVariations);
+      setProducts(withSortedVariations(data || []) as Product[]);
+      lastFetchedAt.current = Date.now();
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch products');

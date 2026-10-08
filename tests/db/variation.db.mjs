@@ -109,9 +109,13 @@ test('VAR (d2) — Bunuan on 15mg does not cap 5mg', async () => {
   await H.q(`update group_buys set status='bunuan_open' where id=$1`, [gb.id]);
   const seed = { customer_name: 'Seed', customer_email: 'seed@e2e.test', customer_phone: '09270000000' };
 
-  const tooMany = await H.placeOrder([{ product_id: p.id, variation_id: v15.id, quantity: 2 }], seed);
-  assert.equal(tooMany.code, 'BUNUAN_EXCEEDS_REMAINING');
-  assert.equal(tooMany.available, 1);
+  // 15mg is short 1; committing 2 closes that kit and opens the next with 1.
+  const overflow = await H.placeOrder([{ product_id: p.id, variation_id: v15.id, quantity: 2 }], seed);
+  assert.equal(overflow.ok, true, overflow.message);
+  const s15 = await H.kitState(gb, p, v15);
+  assert.equal(s15.eligible_qty, 11);
+  assert.equal(s15.bunuan_available, 9, '15mg now needs 9 for its next kit');
+  assert.equal((await H.kitState(gb, p, v5)).bunuan_available, 4, '5mg kit is untouched');
 
   const ok = await H.placeOrder([{ product_id: p.id, variation_id: v5.id, quantity: 4 }], seed);
   assert.equal(ok.ok, true, ok.message);

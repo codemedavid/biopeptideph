@@ -120,16 +120,14 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
   // --- MOQ / Bunuan bounds --------------------------------------------------
   // Normal ordering: the MOQ is a floor and stock is the ceiling.
   // Bunuan: the MOQ is suspended (buying a single vial is the whole point) and
-  // the kit's shortfall becomes the ceiling, usually well below stock.
+  // stock stays the only ceiling — vials beyond the shortfall open the next kit.
   const isBunuan = kit?.phase === 'bunuan_open';
   // Per variation: switching 10mg -> 15mg switches the minimum and the kit.
   const kitState = kit ? kit.getState(selectedVariation?.id) : undefined;
   const moq = kit ? kit.getMoq(selectedVariation?.id) : 1;
   const minQuantity = isBunuan ? 1 : moq;
   const bunuanRemaining = isBunuan && kitState ? kitState.bunuanAvailable : null;
-  const maxQuantity = bunuanRemaining !== null
-    ? Math.min(availableStock, bunuanRemaining)
-    : availableStock;
+  const maxQuantity = availableStock;
 
   // A kit-tracked product that is finished (or was switched off) cannot be
   // bought during Bunuan at all.
@@ -156,11 +154,7 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
   const incrementQuantity = () => {
     setQuantity(prev => {
       if (prev >= maxQuantity) {
-        alert(
-          bunuanRemaining !== null && bunuanRemaining < availableStock
-            ? `Only ${bunuanRemaining} left to complete this kit.`
-            : `Only ${availableStock} item(s) available in stock.`
-        );
+        alert(`Only ${availableStock} item(s) available in stock.`);
         return prev;
       }
       return prev + 1;
@@ -332,11 +326,7 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
                 if (gbLocked) { onGoToGroupBuy?.(); return; }
                 if (unavailable || bunuanClosed) return;
                 if (quantity > maxQuantity) {
-                  alert(
-                    bunuanRemaining !== null && bunuanRemaining < availableStock
-                      ? `Only ${bunuanRemaining} left to complete this kit.`
-                      : `Only ${availableStock} item(s) available in stock.`
-                  );
+                  alert(`Only ${availableStock} item(s) available in stock.`);
                   setQuantity(maxQuantity);
                   return;
                 }
@@ -396,7 +386,7 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
               <p className="text-[11px] leading-snug text-theme-text/70">
                 {bunuanClosed
                   ? 'Kit completed.'
-                  : `${kitState.bunuanAvailable} ${kitState.bunuanAvailable === 1 ? 'vial' : 'vials'} needed to complete this kit.`}
+                  : `${kitState.bunuanAvailable} ${kitState.bunuanAvailable === 1 ? 'vial' : 'vials'} needed to complete this kit. Extra vials start the next kit.`}
               </p>
             </div>
           )}

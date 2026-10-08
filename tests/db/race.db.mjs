@@ -36,20 +36,22 @@ test('TEST 14 — N simultaneous buyers, 1 slot: exactly one wins (autocommit, x
     assert.equal(st.eligible_qty, 10, `round ${round}: total became ${st.eligible_qty}/10`);
     assert.equal(st.bunuan_available, 0);
     for (const r of results.filter(x => !x.ok)) {
-      assert.ok(['BUNUAN_EXCEEDS_REMAINING', 'BUNUAN_UNAVAILABLE'].includes(r.code), `bad loser code ${r.code}`);
+      assert.ok(r.code === 'BUNUAN_UNAVAILABLE', `bad loser code ${r.code}`);
     }
   }
 });
 
-test('TEST 14b — 3 slots, 5 buyers asking for 2 each: never oversells', async () => {
+test('TEST 14b — 5 buyers overflowing a kit at once: every commit lands, none lost', async () => {
   for (let round = 0; round < 10; round++) {
     const { gb, p } = await setupBunuan({ kit: 10, already: 7, buyers: 5 });
     const results = await Promise.all(Array.from({ length: 5 }, (_, i) =>
       H.placeOrder([{ product_id: p.id, quantity: 2 }], who(i))));
     const st = await H.kitState(gb, p);
-    assert.ok(st.eligible_qty <= 10, `round ${round}: oversold to ${st.eligible_qty}`);
-    const wins = results.filter(r => r.ok).length;
-    assert.equal(st.eligible_qty, 7 + wins * 2);
+    // 7 → 9, 11, 13, 15, 17: the total never lands on a multiple of 10, so the
+    // open kit never closes exactly and every buyer may join.
+    assert.equal(results.filter(r => r.ok).length, 5, JSON.stringify(results.map(r => r.code || 'ok')));
+    assert.equal(st.eligible_qty, 17);
+    assert.equal(st.bunuan_available, 3);
   }
 });
 
@@ -70,9 +72,9 @@ test('TEST 14c — explicit open transactions serialise correctly', async () => 
     const rb = await pendingB;
     await b.query('commit');
     assert.equal(rb.ok, false, 'B must lose');
-    // Either refusal is correct: A's commit took the last slot, so by the time B
-    // recomputes, the kit is complete (BUNUAN_UNAVAILABLE) rather than merely short.
-    assert.ok(['BUNUAN_EXCEEDS_REMAINING', 'BUNUAN_UNAVAILABLE'].includes(rb.code), `unexpected ${rb.code}`);
+    // A's commit closed the kit exactly, so by the time B recomputes there is no
+    // open kit left to join.
+    assert.ok(rb.code === 'BUNUAN_UNAVAILABLE', `unexpected ${rb.code}`);
     assert.equal((await H.kitState(gb, p)).eligible_qty, 10);
   } finally { await a.end(); await b.end(); }
 });
@@ -94,7 +96,7 @@ test('TEST 14d — multi-product carts in opposite order do not deadlock', async
       ? [{ product_id: p1.id, quantity: 1 }, { product_id: p2.id, quantity: 1 }]
       : [{ product_id: p2.id, quantity: 1 }, { product_id: p1.id, quantity: 1 }], who(i))));
   for (const r of results) {
-    if (!r.ok) assert.ok(['BUNUAN_EXCEEDS_REMAINING','BUNUAN_UNAVAILABLE'].includes(r.code), `unexpected ${r.code}: ${r.message}`);
+    if (!r.ok) assert.ok(r.code === 'BUNUAN_UNAVAILABLE', `unexpected ${r.code}: ${r.message}`);
   }
   for (const p of [p1, p2]) {
     assert.ok((await H.kitState(gb, p)).eligible_qty <= 10, 'oversold');

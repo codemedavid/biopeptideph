@@ -15,7 +15,7 @@ export type GroupBuyPhase =
   | 'upcoming'       // Draft — not customer-visible
   | 'active'         // Normal Ordering Open  — MOQ enforced
   | 'closed'         // Normal Ordering Closed — no new orders
-  | 'bunuan_open'    // Bunuan Open — MOQ suspended, only the shortfall sellable
+  | 'bunuan_open'    // Bunuan Open — MOQ suspended, open kits sellable in any quantity
   | 'bunuan_closed'  // Bunuan Closed — no new orders
   | 'completed';     // Round finished
 
@@ -48,7 +48,6 @@ export interface KitState {
 
 export type CartLineIssue =
   | 'BELOW_MOQ'
-  | 'BUNUAN_EXCEEDS_REMAINING'
   | 'BUNUAN_KIT_COMPLETE'
   | 'BUNUAN_DISABLED';
 
@@ -58,7 +57,7 @@ export interface CartLineVerdict {
   message?: string;
   /** BELOW_MOQ: how many more units are needed to reach the minimum. */
   shortBy?: number;
-  /** Bunuan: the largest quantity currently allowed for this line. */
+  /** Bunuan: 0 when the line cannot be bought at all. */
   maxAllowed?: number;
 }
 
@@ -239,7 +238,9 @@ export interface CartLineInput {
  * Validate ONE cart line against the round's current phase.
  *
  * During Bunuan the MOQ is suspended entirely — the point of Bunuan is to let
- * someone buy a single vial — and the shortfall becomes a ceiling instead.
+ * someone buy a single vial. The shortfall is NOT a ceiling: committing 5 to a
+ * kit that is short 2 closes it and puts 3 into the next kit, which then needs
+ * 7. computeKitState derives that from the new total, so nothing else changes.
  *
  * EVERY other phase applies the MOQ floor, including the gap between rounds.
  * The phase is not a gate: blocking checkout whenever no round happened to be
@@ -271,18 +272,9 @@ export function validateCartLine(line: CartLineInput, phase: GroupBuyPhase): Car
       };
     }
 
-    if (quantity > kitState.bunuanAvailable) {
-      const unit = kitState.bunuanAvailable === 1 ? 'vial' : 'vials';
-      return {
-        ok: false,
-        issue: 'BUNUAN_EXCEEDS_REMAINING',
-        message: `Only ${kitState.bunuanAvailable} ${unit} left to complete this kit.`,
-        maxAllowed: kitState.bunuanAvailable,
-      };
-    }
-
-    // MOQ deliberately not applied in Bunuan.
-    return { ok: true, maxAllowed: kitState.bunuanAvailable };
+    // MOQ deliberately not applied in Bunuan, and no ceiling: any extra vials
+    // open the next kit.
+    return { ok: true };
   }
 
   // Normal ordering, and every phase that is not Bunuan — MOQ is a floor.
@@ -326,16 +318,6 @@ export function validateCart(lines: readonly CartLineInput[], phase: GroupBuyPha
   }
 
   return { canCheckout, byLine };
-}
-
-/**
- * The quantity a `+` button may climb to for one line: the Bunuan shortfall
- * during Bunuan, otherwise unbounded (stock is clamped separately by the cart,
- * which already owns that rule).
- */
-export function maxQuantityFor(kitState: KitState, phase: GroupBuyPhase): number | null {
-  if (phase !== 'bunuan_open') return null;
-  return kitState.bunuanAvailable;
 }
 
 /** The floor a `−` button may fall to: the MOQ during normal ordering, else 1. */

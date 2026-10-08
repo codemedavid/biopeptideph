@@ -247,19 +247,6 @@ export function useCart(
     return validateCart(lines, kitOptions.phase);
   }, [cartItems, kitOptions]);
 
-  /**
-   * The largest quantity this product/variation may reach, or null when
-   * unbounded. During Bunuan that is the kit's exact shortfall; otherwise stock
-   * is the only ceiling and the existing stock rules still own it.
-   */
-  const maxQuantityForProduct = useCallback(
-    (productId: string, variationId?: string | null): number | null => {
-      if (!kitOptions || kitOptions.phase !== 'bunuan_open') return null;
-      return kitOptions.getKitState(productId, variationId).bunuanAvailable;
-    },
-    [kitOptions],
-  );
-
   /** The MOQ floor for a product/variation in the current round (1 = no minimum). */
   const moqForProduct = useCallback(
     (productId: string, variationId?: string | null): number =>
@@ -383,29 +370,7 @@ export function useCart(
         newQuantity = availableStock;
       }
 
-      // During Bunuan the kit's shortfall is a hard ceiling, and it is usually
-      // lower than stock. Kits are per variation, so clamp against the other
-      // lines for the SAME strength only — 5mg never eats into 15mg's remainder.
-      const bunuanMax = kitOptions?.phase === 'bunuan_open'
-        ? kitOptions.getKitState(ref.product_id, ref.variation_id).bunuanAvailable
-        : null;
-
-      if (bunuanMax !== null) {
-        const sameKit = kitKey(ref.product_id, ref.variation_id);
-        const otherLines = current.reduce(
-          (sum, r, i) => (i !== index && kitKey(r.product_id, r.variation_id) === sameKit ? sum + r.quantity : sum),
-          0,
-        );
-        const allowed = Math.max(0, bunuanMax - otherLines);
-        if (newQuantity > allowed) {
-          alert(
-            allowed > 0
-              ? `Only ${allowed} left to complete this kit.`
-              : 'This kit is already complete.',
-          );
-          newQuantity = allowed;
-        }
-      }
+      // No Bunuan ceiling: vials beyond the kit's shortfall open the next kit.
 
       if (newQuantity <= 0) return current.filter((_, i) => i !== index);
 
@@ -413,7 +378,7 @@ export function useCart(
       updated[index] = { ...ref, quantity: newQuantity };
       return updated;
     });
-  }, [menuItems, kitOptions]);
+  }, [menuItems]);
 
   const clearCart = useCallback(() => {
     setRefs([]);
@@ -454,7 +419,6 @@ export function useCart(
     getCartPricingMode,
     // MOQ / Bunuan (empty + permissive when kitOptions is absent)
     validation,
-    maxQuantityForProduct,
     moqForProduct,
     kitStateForProduct,
   };

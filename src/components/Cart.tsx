@@ -19,8 +19,6 @@ interface CartProps {
    * it did before this feature.
    */
   validation?: CartVerdict;
-  /** Bunuan ceiling for a product/variation, or null when only stock limits it. */
-  maxQuantityForProduct?: (productId: string, variationId?: string | null) => number | null;
 }
 
 // CartQuantityInput moved to top
@@ -88,7 +86,6 @@ const Cart: React.FC<CartProps> = ({
   onContinueShopping,
   onCheckout,
   validation,
-  maxQuantityForProduct,
 }) => {
   const { currencySymbol, pricingMode, isInternational } = usePricingMode();
 
@@ -260,11 +257,7 @@ const Cart: React.FC<CartProps> = ({
                           value={item.quantity}
                           max={(() => {
                             const availableStock = item.variation ? item.variation.stock_quantity : item.product.stock_quantity;
-                            const stockCap = availableStock > 0 ? availableStock : 999;
-                            // During Bunuan the kit shortfall is usually the
-                            // tighter of the two limits.
-                            const bunuanCap = maxQuantityForProduct?.(item.product.id, item.variation?.id) ?? null;
-                            return bunuanCap === null ? stockCap : Math.min(stockCap, bunuanCap);
+                            return availableStock > 0 ? availableStock : 999;
                           })()}
                           onChange={(val) => updateQuantity(index, val)}
                           disabled={(() => {
@@ -283,11 +276,6 @@ const Cart: React.FC<CartProps> = ({
                         <button
                           onClick={() => {
                             const availableStock = item.variation ? item.variation.stock_quantity : item.product.stock_quantity;
-                            const bunuanCap = maxQuantityForProduct?.(item.product.id, item.variation?.id) ?? null;
-                            if (bunuanCap !== null && item.quantity >= bunuanCap) {
-                              alert(`Only ${bunuanCap} left to complete this kit.`);
-                              return;
-                            }
                             if (item.quantity >= availableStock) {
                               alert(`Only ${availableStock} item(s) available in stock.`);
                               return;
@@ -296,8 +284,6 @@ const Cart: React.FC<CartProps> = ({
                           }}
                           disabled={(() => {
                             const availableStock = item.variation ? item.variation.stock_quantity : item.product.stock_quantity;
-                            const bunuanCap = maxQuantityForProduct?.(item.product.id, item.variation?.id) ?? null;
-                            if (bunuanCap !== null && item.quantity >= bunuanCap) return true;
                             return item.quantity >= availableStock;
                           })()}
                           className="p-1.5 md:p-2 hover:bg-gray-50 transition-colors rounded-r-lg disabled:opacity-50 disabled:cursor-not-allowed"
