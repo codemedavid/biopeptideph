@@ -10,6 +10,7 @@ import { useGroupBuys, type GroupBuyInput } from '../../hooks/useGroupBuys';
 import { useGroupBuyAvailability } from '../../hooks/useGroupBuyAvailability';
 import GroupBuyKitPanel from './GroupBuyKitPanel';
 import { downloadGroupBuyReport, countsForSupplier } from '../../utils/groupBuyReport';
+import { kitKey } from '../../lib/kitRules';
 import type { GroupBuy, GroupBuyStatus } from '../../types';
 
 interface GroupBuyManagerProps {
@@ -180,9 +181,21 @@ const GroupBuyManager: React.FC<GroupBuyManagerProps> = ({ onBack }) => {
     try { data = await listOrders({ groupBuyId: gb.id }); }
     catch { flash('error', 'Could not load orders for the report.'); return; }
     if (!data || data.length === 0) { flash('error', 'No orders for this group buy yet.'); return; }
+    // Kit sizes come from the same view the Kits & MOQ panel reads, so "Kits to
+    // Order" matches the panel. If it fails the report still downloads, with the
+    // kit columns blank, rather than not at all.
+    const { data: kitRows, error: kitError } = await supabase
+      .from('group_buy_kit_status')
+      .select('product_id, variation_id, kit_size')
+      .eq('group_buy_id', gb.id);
+    const kitSizes = new Map<string, number | null>(
+      (kitRows || []).map((r) => [kitKey(r.product_id, r.variation_id), r.kit_size]),
+    );
     try {
-      await downloadGroupBuyReport(gb, data as any);
-      flash('success', `Report generated (${data.length} order${data.length === 1 ? '' : 's'}).`);
+      await downloadGroupBuyReport(gb, data as any, kitSizes);
+      const generated = `Report generated (${data.length} order${data.length === 1 ? '' : 's'})`;
+      if (kitError) flash('error', `${generated}, but kit sizes could not be loaded — Kits to Order is blank.`);
+      else flash('success', `${generated}.`);
     } catch (e: any) {
       flash('error', e?.message || 'Failed to generate report.');
     }
