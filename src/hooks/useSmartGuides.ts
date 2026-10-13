@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
+import { IMMUTABLE_CACHE_SECONDS } from './useImageUpload';
 import { SmartGuide, SmartGuideFile } from '../types';
 
 export const useSmartGuides = () => {
@@ -125,7 +126,7 @@ export const useSmartGuides = () => {
 
             const { error: uploadError } = await supabase.storage
                 .from('guide-files')
-                .upload(filePath, file);
+                .upload(filePath, file, { cacheControl: IMMUTABLE_CACHE_SECONDS });
 
             if (uploadError) throw uploadError;
 

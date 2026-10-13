@@ -1,5 +1,9 @@
 import { useState } from 'react';
 import { supabase } from '../lib/supabase';
+import { compressImage } from '../utils/imageCompression';
+
+/** Filenames are unique and never overwritten (upsert: false), so browsers and the CDN can keep them for a year. */
+export const IMMUTABLE_CACHE_SECONDS = '31536000';
 
 export const useImageUpload = (folder: string = 'menu-images', skipBucketCheck: boolean = false) => {
   const [uploading, setUploading] = useState(false);
@@ -76,8 +80,13 @@ export const useImageUpload = (folder: string = 'menu-images', skipBucketCheck: 
         throw new Error(`Image size must be less than 10MB. Current size: ${(file.size / 1024 / 1024).toFixed(2)}MB`);
       }
 
+      // Downscale + re-encode to WebP so storage egress stays small. Falls back to
+      // the original file on any failure, so it never blocks an upload.
+      const optimized = await compressImage(file);
+      const uploadContentType = optimized === file ? contentType : optimized.type;
+
       // Generate unique filename
-      const fileExt = file.name.split('.').pop();
+      const fileExt = optimized.name.split('.').pop();
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
 
       // Simulate upload progress
@@ -144,10 +153,10 @@ export const useImageUpload = (folder: string = 'menu-images', skipBucketCheck: 
       // Use the determined content type (may have been set from extension if MIME type was empty)
       const uploadPromise = supabase.storage
         .from(folder)
-        .upload(fileName, file, {
-          cacheControl: '3600',
+        .upload(fileName, optimized, {
+          cacheControl: IMMUTABLE_CACHE_SECONDS,
           upsert: false,
-          contentType: contentType || 'image/jpeg' // Fallback to jpeg if still empty
+          contentType: uploadContentType || 'image/jpeg' // Fallback to jpeg if still empty
         });
 
       const uploadResult = await Promise.race([

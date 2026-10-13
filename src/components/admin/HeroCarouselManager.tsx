@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { useHeroCarousel } from '../../hooks/useHeroCarousel';
 import { useImageUpload } from '../../hooks/useImageUpload';
-import { compressImage, validateImageFile } from '../../utils/imageCompression';
+import { validateImageFile } from '../../utils/imageCompression';
 import type { HeroSlide } from '../../types';
 
 interface Draft {
@@ -59,8 +59,7 @@ const HeroCarouselManager: React.FC = () => {
   const uploadOne = async (file: File, sortOrder: number) => {
     const v = validateImageFile(file);
     if (!v.ok) return false; // counted as failed; consolidated message shown after the batch
-    const compressed = await compressImage(file);
-    const url = await uploadImage(compressed);
+    const url = await uploadImage(file);
     const res = await addSlide({ image_url: url, sort_order: sortOrder, is_active: true });
     return res.success;
   };
@@ -99,8 +98,7 @@ const HeroCarouselManager: React.FC = () => {
       const v = validateImageFile(files[0]);
       if (!v.ok) { flash('error', v.error || 'Invalid image'); }
       else {
-        const compressed = await compressImage(files[0]);
-        const url = await uploadImage(compressed);
+        const url = await uploadImage(files[0]);
         const res = await updateSlide(id, { image_url: url });
         flash(res.success ? 'success' : 'error', res.success ? 'Image replaced.' : (res.error || 'Failed'));
       }
