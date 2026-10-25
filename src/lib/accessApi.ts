@@ -4,6 +4,8 @@
  * session id never live in JS — they're only ever in the httpOnly cookie.
  */
 
+import { ADMIN_FEATURE_INFO, type AdminFeature, type AdminRole, type AdminSession } from './adminFeatures';
+
 const BASE = '/api';
 
 /** True if a valid, non-expired session exists. Refreshes the idle timer. */
@@ -50,16 +52,22 @@ export async function verifyCode(code: string): Promise<VerifyResult> {
 
 export type AdminLoginResult =
   | { ok: true }
-  | { ok: false; reason: 'invalid_password' | 'not_configured' | 'too_many_attempts' | 'error' };
+  | {
+      ok: false;
+      reason: 'invalid_password' | 'account_disabled' | 'not_configured' | 'too_many_attempts' | 'error';
+    };
 
-/** Verify the admin dashboard password server-side and start an admin session. */
-export async function adminLogin(password: string): Promise<AdminLoginResult> {
+/**
+ * Verify admin credentials server-side and start an admin session. The owner
+ * signs in with the admin password alone; staff add the email the owner gave them.
+ */
+export async function adminLogin(password: string, email = ''): Promise<AdminLoginResult> {
   try {
     const res = await fetch(`${BASE}/admin/login`, {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password }),
+      body: JSON.stringify(email ? { email, password } : { password }),
     });
     if (res.ok) {
       // Defense in depth: a 2xx is only a real login if the body is the API's
@@ -70,6 +78,7 @@ export async function adminLogin(password: string): Promise<AdminLoginResult> {
       return data?.ok === true ? { ok: true } : { ok: false, reason: 'error' };
     }
     if (res.status === 401) return { ok: false, reason: 'invalid_password' };
+    if (res.status === 403) return { ok: false, reason: 'account_disabled' };
     if (res.status === 429) return { ok: false, reason: 'too_many_attempts' };
     if (res.status === 500) {
       // Distinguish "env var truly missing" from a generic server/DB error so
@@ -86,19 +95,28 @@ export async function adminLogin(password: string): Promise<AdminLoginResult> {
   }
 }
 
-/** True if the current session already has admin privileges (e.g. after reload). */
-export async function checkAdminSession(): Promise<boolean> {
+/**
+ * The signed-in admin (owner or staff, with the sections they may open), or
+ * null when there is no admin session (e.g. after reload or expiry).
+ */
+export async function checkAdminSession(): Promise<AdminSession | null> {
   try {
     const res = await fetch(`${BASE}/admin/session`, {
       method: 'GET',
       credentials: 'include',
       headers: { 'cache-control': 'no-store' },
     });
-    if (!res.ok) return false;
+    if (!res.ok) return null;
     const data = await res.json();
-    return !!data.admin;
+    if (data?.admin !== true) return null;
+    const role: AdminRole = data.role === 'staff' ? 'staff' : 'owner';
+    const known = new Set<string>(ADMIN_FEATURE_INFO.map((f) => f.key));
+    const permissions = Array.isArray(data.permissions)
+      ? (data.permissions.filter((p: unknown) => typeof p === 'string' && known.has(p)) as AdminFeature[])
+      : [];
+    return { role, email: typeof data.email === 'string' ? data.email : null, permissions };
   } catch {
-    return false;
+    return null;
   }
 }
 

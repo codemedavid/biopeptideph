@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Save, X, ArrowLeft, Package, CreditCard, Sparkles, Layers, Shield, RefreshCw, Warehouse, ShoppingCart, MapPin, Check, ClipboardList, FileText, DollarSign, ShoppingBag, BarChart3, Image as ImageIcon, Percent, ScrollText, KeyRound } from 'lucide-react';
+import { Plus, Edit, Trash2, Save, X, ArrowLeft, Package, CreditCard, Sparkles, Layers, Shield, RefreshCw, Warehouse, ShoppingCart, MapPin, Check, ClipboardList, FileText, DollarSign, ShoppingBag, BarChart3, Image as ImageIcon, Percent, ScrollText, KeyRound, Users } from 'lucide-react';
 import type { Product } from '../types';
 import { useMenu } from '../hooks/useMenu';
 import { useCategories } from '../hooks/useCategories';
@@ -22,23 +22,54 @@ import HeroManager from './admin/HeroManager';
 import DiscountManager from './admin/DiscountManager';
 import TermsManager from './admin/TermsManager';
 import AccessCodePanel from './admin/AccessCodePanel';
+import StaffManager from './admin/StaffManager';
 import { adminLogin, adminLogout, checkAdminSession } from '../lib/accessApi';
+import { canAccess, type AdminFeature, type AdminSession } from '../lib/adminFeatures';
 
+
+type AdminView = 'dashboard' | 'products' | 'add' | 'edit' | 'categories' | 'payments' | 'inventory' | 'orders' | 'shipping' | 'journey' | 'assessment' | 'guides' | 'group-buys' | 'analytics' | 'hero' | 'discounts' | 'terms' | 'access-code' | 'staff';
+
+/** The staff permission each view needs. 'dashboard' is open to every admin; 'staff' is owner-only. */
+const VIEW_FEATURE: Record<Exclude<AdminView, 'dashboard' | 'staff'>, AdminFeature> = {
+  products: 'products',
+  add: 'products',
+  edit: 'products',
+  categories: 'categories',
+  payments: 'payments',
+  inventory: 'inventory',
+  orders: 'orders',
+  shipping: 'shipping',
+  journey: 'journey',
+  assessment: 'assessment',
+  guides: 'guides',
+  'group-buys': 'group-buys',
+  analytics: 'analytics',
+  hero: 'hero',
+  discounts: 'discounts',
+  terms: 'terms',
+  'access-code': 'access-code',
+};
 
 const AdminDashboard: React.FC = () => {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  // The signed-in admin: the owner (everything) or a staff account limited to
+  // the sections the owner ticked. null = show the login form.
+  const [adminSession, setAdminSession] = useState<AdminSession | null>(null);
+  const isAuthenticated = adminSession !== null;
+  const isOwner = adminSession?.role === 'owner';
+  const can = (feature: AdminFeature) => canAccess(adminSession, feature);
   // True until the initial checkAdminSession() resolves, so we show a spinner
   // instead of flashing the login form for someone who is actually signed in.
   const [checkingAuth, setCheckingAuth] = useState(true);
   // True while a login request is in flight — disables the form to stop
   // double-submits (which otherwise burn the 20/15min admin rate limit).
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [loginEmail, setLoginEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState('');
   const { products, loading, addProduct, updateProduct, deleteProduct, refreshProducts } = useMenu();
   const { categories } = useCategories();
   const { siteSettings, upsertSiteSetting } = useSiteSettings();
-  const [currentView, setCurrentView] = useState<'dashboard' | 'products' | 'add' | 'edit' | 'categories' | 'payments' | 'inventory' | 'orders' | 'shipping' | 'journey' | 'assessment' | 'guides' | 'group-buys' | 'analytics' | 'hero' | 'discounts' | 'terms' | 'access-code'>('dashboard');
+  const [currentView, setCurrentView] = useState<AdminView>('dashboard');
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [managingVariationsProductId, setManagingVariationsProductId] = useState<string | null>(null);
@@ -409,21 +440,31 @@ const AdminDashboard: React.FC = () => {
     if (isLoggingIn) return; // guard against double-submit
     setLoginError('');
     setIsLoggingIn(true);
+    const email = loginEmail.trim();
     try {
-      const result = await adminLogin(password);
+      const result = await adminLogin(password, email);
       if (result.ok) {
-        setIsAuthenticated(true);
+        // Ask the server which sections this login may open (owner = all).
+        const session = await checkAdminSession();
+        if (!session) {
+          setLoginError('Signed in, but the session could not be confirmed. Please try again.');
+          return;
+        }
+        setAdminSession(session);
+        setCurrentView('dashboard');
         setPassword('');
         return;
       }
-      if (result.reason === 'not_configured') {
+      if (result.reason === 'account_disabled') {
+        setLoginError('This staff account is disabled. Ask the store owner to enable it.');
+      } else if (result.reason === 'not_configured') {
         setLoginError('Admin login is not configured (set ADMIN_PASSWORD on the server).');
       } else if (result.reason === 'too_many_attempts') {
         setLoginError('Too many attempts. Please wait a few minutes.');
       } else if (result.reason === 'error') {
         setLoginError('Server error — please try again in a moment.');
       } else {
-        setLoginError('Invalid password');
+        setLoginError(email ? 'Invalid email or password' : 'Invalid password');
       }
     } finally {
       setIsLoggingIn(false);
@@ -432,7 +473,7 @@ const AdminDashboard: React.FC = () => {
 
   const handleLogout = async () => {
     await adminLogout(); // destroy the server-side admin session too
-    setIsAuthenticated(false);
+    setAdminSession(null);
     setPassword('');
     setCurrentView('dashboard');
   };
@@ -440,13 +481,14 @@ const AdminDashboard: React.FC = () => {
   // Restore admin state on reload if the session cookie is still valid, and
   // re-check when the tab regains focus: the 15-min idle admin session may have
   // expired in the background, in which case we drop back to the login screen
-  // instead of showing a dead dashboard whose actions silently 401/403.
+  // instead of showing a dead dashboard whose actions silently 401/403. The
+  // re-check also picks up sections the owner granted or removed meanwhile.
   useEffect(() => {
     let active = true;
     const sync = () =>
-      checkAdminSession().then((isAdmin) => {
+      checkAdminSession().then((session) => {
         if (!active) return;
-        setIsAuthenticated(isAdmin);
+        setAdminSession(session);
         setCheckingAuth(false);
       });
     sync();
@@ -700,6 +742,21 @@ const AdminDashboard: React.FC = () => {
 
           <form onSubmit={handleLogin}>
             <div className="mb-4">
+              <label htmlFor="admin-email" className="block text-sm font-medium text-gray-700 mb-2">
+                Email
+              </label>
+              <input
+                id="admin-email"
+                type="email"
+                autoComplete="username"
+                value={loginEmail}
+                onChange={(e) => setLoginEmail(e.target.value)}
+                disabled={isLoggingIn}
+                className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-theme-accent focus:border-theme-accent transition-colors disabled:opacity-60"
+                placeholder="staff@gmail.com"
+              />
+            </div>
+            <div className="mb-4">
               <label htmlFor="admin-password" className="block text-sm font-medium text-gray-700 mb-2">Password</label>
               <input
                 id="admin-password"
@@ -709,7 +766,7 @@ const AdminDashboard: React.FC = () => {
                 onChange={(e) => setPassword(e.target.value)}
                 disabled={isLoggingIn}
                 className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-theme-accent focus:border-theme-accent transition-colors disabled:opacity-60"
-                placeholder="Enter admin password"
+                placeholder="Enter password"
                 required
               />
               {loginError && (
@@ -744,8 +801,14 @@ const AdminDashboard: React.FC = () => {
     );
   }
 
+  // A view this admin may not open (e.g. the owner just removed that section)
+  // falls back to the dashboard instead of rendering the panel.
+  const isViewAllowed =
+    currentView === 'dashboard' || (currentView === 'staff' ? isOwner : can(VIEW_FEATURE[currentView]));
+  const view: AdminView = isViewAllowed ? currentView : 'dashboard';
+
   // Form View (Add/Edit)
-  if (currentView === 'add' || currentView === 'edit') {
+  if (view === 'add' || view === 'edit') {
     return (
       <>
 
@@ -764,7 +827,7 @@ const AdminDashboard: React.FC = () => {
                   </button>
                   <div className="h-6 w-px bg-gray-200"></div>
                   <h1 className="text-lg font-bold text-theme-text">
-                    {currentView === 'add' ? 'Add New Product' : 'Edit Product'}
+                    {view === 'add' ? 'Add New Product' : 'Edit Product'}
                   </h1>
                 </div>
                 <div className="flex space-x-3">
@@ -901,12 +964,12 @@ const AdminDashboard: React.FC = () => {
                           <p className="text-[10px] md:text-xs text-gray-500 mt-0.5">
                             {editingProduct && editingProduct.variations && editingProduct.variations.length > 0
                               ? `${editingProduct.variations.length} variation(s) — these prices are what customers see.`
-                              : currentView === 'edit'
+                              : view === 'edit'
                                 ? 'No variations yet. Add sizes like 5mg, 10mg, 20mg.'
                                 : 'Save the product first, then add size variations.'}
                           </p>
                         </div>
-                        {currentView === 'edit' && editingProduct && (
+                        {view === 'edit' && editingProduct && (
                           <button
                             type="button"
                             onClick={() => setManagingVariationsProductId(editingProduct.id)}
@@ -1253,7 +1316,7 @@ const AdminDashboard: React.FC = () => {
   }
 
   // Products List View
-  if (currentView === 'products') {
+  if (view === 'products') {
     return (
       <>
         {variationManagerModal}
@@ -1643,68 +1706,68 @@ const AdminDashboard: React.FC = () => {
   }
 
   // Categories View
-  if (currentView === 'categories') {
+  if (view === 'categories') {
     return <CategoryManager onBack={() => setCurrentView('dashboard')} />;
   }
 
   // Payment Methods View
-  if (currentView === 'payments') {
+  if (view === 'payments') {
     return <PaymentMethodManager onBack={() => setCurrentView('dashboard')} />;
   }
 
 
 
   // Inventory View
-  if (currentView === 'inventory') {
+  if (view === 'inventory') {
     return <PeptideInventoryManager onBack={() => setCurrentView('dashboard')} />;
   }
 
   // Orders View
-  if (currentView === 'orders') {
+  if (view === 'orders') {
     return <OrdersManager onBack={() => setCurrentView('dashboard')} />;
   }
 
   // Group Buys View
-  if (currentView === 'group-buys') {
+  if (view === 'group-buys') {
     return <GroupBuyManager onBack={() => setCurrentView('dashboard')} />;
   }
 
   // Sales Analytics View
-  if (currentView === 'analytics') {
+  if (view === 'analytics') {
     return <SalesAnalytics onBack={() => setCurrentView('dashboard')} />;
   }
 
   // Hero Section View
-  if (currentView === 'hero') {
+  if (view === 'hero') {
     return <HeroManager onBack={() => setCurrentView('dashboard')} />;
   }
 
   // Global Discount View
-  if (currentView === 'discounts') {
+  if (view === 'discounts') {
     return <DiscountManager onBack={() => setCurrentView('dashboard')} />;
   }
 
   // Terms & Conditions View
-  if (currentView === 'terms') {
+  if (view === 'terms') {
     return <TermsManager onBack={() => setCurrentView('dashboard')} />;
   }
 
   // Site Access Code View
-  if (currentView === 'access-code') {
+  if (view === 'access-code') {
     return <AccessCodePanel onBack={() => setCurrentView('dashboard')} />;
   }
 
 
 
   // Shipping View
-  if (currentView === 'shipping') {
+  if (view === 'shipping') {
     return <ShippingManager onBack={() => setCurrentView('dashboard')} />;
   }
 
 
 
   // Journey Manager View
-  if (currentView === 'journey') {
+  if (view === 'journey') {
     return (
       <div className="min-h-screen bg-theme-bg">
         <JourneyManager onBack={() => setCurrentView('dashboard')} />
@@ -1713,7 +1776,7 @@ const AdminDashboard: React.FC = () => {
   }
 
   // Assessment Manager View
-  if (currentView === 'assessment') {
+  if (view === 'assessment') {
     return (
       <div className="min-h-screen bg-gray-50">
         <AssessmentManager onBack={() => setCurrentView('dashboard')} />
@@ -1722,7 +1785,7 @@ const AdminDashboard: React.FC = () => {
   }
 
   // Smart Guide View
-  if (currentView === 'guides') {
+  if (view === 'guides') {
     return (
       <div className="min-h-screen bg-theme-bg p-8">
         <div className="max-w-4xl mx-auto">
@@ -1738,8 +1801,13 @@ const AdminDashboard: React.FC = () => {
     );
   }
 
+  // Staff Accounts View (owner only)
+  if (view === 'staff') {
+    return <StaffManager onBack={() => setCurrentView('dashboard')} />;
+  }
+
   // Dashboard View
-  if (currentView === 'dashboard') {
+  if (view === 'dashboard') {
     return (
       <div className="min-h-screen bg-theme-bg">
         {/* Admin Header */}
@@ -1752,7 +1820,9 @@ const AdminDashboard: React.FC = () => {
                 </div>
                 <div>
                   <h1 className="text-xl font-bold text-theme-text">Admin Dashboard</h1>
-                  <p className="text-xs text-gray-500">Manage your store</p>
+                  <p className="text-xs text-gray-500 truncate max-w-[12rem] sm:max-w-none">
+                    {isOwner ? 'Owner · full access' : `Staff · ${adminSession?.email ?? ''}`}
+                  </p>
                 </div>
               </div>
               <div className="flex items-center gap-4">
@@ -1830,163 +1900,208 @@ const AdminDashboard: React.FC = () => {
             Management Tools
           </h2>
 
+          {!isOwner && adminSession?.permissions.length === 0 && (
+            <p className="mb-8 rounded-xl border border-dashed border-gray-300 bg-white/70 px-4 py-8 text-center text-sm text-gray-500">
+              No sections have been assigned to your account yet. Ask the store owner to give you access.
+            </p>
+          )}
+
           <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4 mb-8 md:mb-12">
 
+            {/* Staff Accounts Card (owner only) */}
+            {isOwner && (
+              <button
+                onClick={() => setCurrentView('staff')}
+                className="bg-white p-4 md:p-6 rounded-xl shadow-soft border border-theme-accent/30 hover:shadow-medium transition-all group text-left relative overflow-hidden"
+              >
+                <div className="absolute top-0 right-0 w-16 h-16 md:w-24 md:h-24 bg-theme-accent/5 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
+                <div className="p-2 md:p-3 bg-theme-accent/10 rounded-lg w-fit mb-3 md:mb-4 group-hover:bg-theme-accent group-hover:text-white transition-colors">
+                  <Users className="w-4 h-4 md:w-6 md:h-6 text-theme-accent group-hover:text-white" />
+                </div>
+                <h3 className="text-sm md:text-lg font-bold text-theme-text mb-1 md:mb-2 group-hover:text-theme-accent transition-colors">Staff Accounts</h3>
+                <p className="text-xs md:text-sm text-gray-500 line-clamp-2">Staff logins & what they can see.</p>
+              </button>
+            )}
+
             {/* Products Management Card */}
-            <button
-              onClick={() => setCurrentView('products')}
-              className="bg-white p-4 md:p-6 rounded-xl shadow-soft border border-gray-100 hover:shadow-medium transition-all group text-left relative overflow-hidden"
-            >
-              <div className="absolute top-0 right-0 w-16 h-16 md:w-24 md:h-24 bg-theme-accent/5 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
-              <div className="p-2 md:p-3 bg-theme-accent/10 rounded-lg w-fit mb-3 md:mb-4 group-hover:bg-theme-accent group-hover:text-white transition-colors">
-                <Package className="w-4 h-4 md:w-6 md:h-6 text-theme-accent group-hover:text-white" />
-              </div>
-              <h3 className="text-sm md:text-lg font-bold text-theme-text mb-1 md:mb-2 group-hover:text-theme-accent transition-colors">Products</h3>
-              <p className="text-xs md:text-sm text-gray-500 line-clamp-2">Manage store inventory.</p>
-            </button>
+            {can('products') && (
+              <button
+                onClick={() => setCurrentView('products')}
+                className="bg-white p-4 md:p-6 rounded-xl shadow-soft border border-gray-100 hover:shadow-medium transition-all group text-left relative overflow-hidden"
+              >
+                <div className="absolute top-0 right-0 w-16 h-16 md:w-24 md:h-24 bg-theme-accent/5 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
+                <div className="p-2 md:p-3 bg-theme-accent/10 rounded-lg w-fit mb-3 md:mb-4 group-hover:bg-theme-accent group-hover:text-white transition-colors">
+                  <Package className="w-4 h-4 md:w-6 md:h-6 text-theme-accent group-hover:text-white" />
+                </div>
+                <h3 className="text-sm md:text-lg font-bold text-theme-text mb-1 md:mb-2 group-hover:text-theme-accent transition-colors">Products</h3>
+                <p className="text-xs md:text-sm text-gray-500 line-clamp-2">Manage store inventory.</p>
+              </button>
+            )}
 
             {/* Categories Management Card */}
-            <button
-              onClick={() => setCurrentView('categories')}
-              className="bg-white p-4 md:p-6 rounded-xl shadow-soft border border-gray-100 hover:shadow-medium transition-all group text-left relative overflow-hidden"
-            >
-              <div className="absolute top-0 right-0 w-16 h-16 md:w-24 md:h-24 bg-theme-secondary/5 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
-              <div className="p-2 md:p-3 bg-theme-secondary/10 rounded-lg w-fit mb-3 md:mb-4 group-hover:bg-theme-secondary group-hover:text-white transition-colors">
-                <Layers className="w-4 h-4 md:w-6 md:h-6 text-theme-secondary group-hover:text-white" />
-              </div>
-              <h3 className="text-sm md:text-lg font-bold text-theme-text mb-1 md:mb-2 group-hover:text-theme-secondary transition-colors">Categories</h3>
-              <p className="text-xs md:text-sm text-gray-500 line-clamp-2">Organize products.</p>
-            </button>
+            {can('categories') && (
+              <button
+                onClick={() => setCurrentView('categories')}
+                className="bg-white p-4 md:p-6 rounded-xl shadow-soft border border-gray-100 hover:shadow-medium transition-all group text-left relative overflow-hidden"
+              >
+                <div className="absolute top-0 right-0 w-16 h-16 md:w-24 md:h-24 bg-theme-secondary/5 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
+                <div className="p-2 md:p-3 bg-theme-secondary/10 rounded-lg w-fit mb-3 md:mb-4 group-hover:bg-theme-secondary group-hover:text-white transition-colors">
+                  <Layers className="w-4 h-4 md:w-6 md:h-6 text-theme-secondary group-hover:text-white" />
+                </div>
+                <h3 className="text-sm md:text-lg font-bold text-theme-text mb-1 md:mb-2 group-hover:text-theme-secondary transition-colors">Categories</h3>
+                <p className="text-xs md:text-sm text-gray-500 line-clamp-2">Organize products.</p>
+              </button>
+            )}
 
             {/* Inventory Management Card */}
-            <button
-              onClick={() => setCurrentView('inventory')}
-              className="bg-white p-4 md:p-6 rounded-xl shadow-soft border border-gray-100 hover:shadow-medium transition-all group text-left relative overflow-hidden"
-            >
-              <div className="absolute top-0 right-0 w-16 h-16 md:w-24 md:h-24 bg-blue-50 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
-              <div className="p-2 md:p-3 bg-blue-50 rounded-lg w-fit mb-3 md:mb-4 group-hover:bg-blue-500 group-hover:text-white transition-colors">
-                <Warehouse className="w-4 h-4 md:w-6 md:h-6 text-blue-600 group-hover:text-white" />
-              </div>
-              <h3 className="text-sm md:text-lg font-bold text-theme-text mb-1 md:mb-2 group-hover:text-blue-600 transition-colors">Inventory</h3>
-              <p className="text-xs md:text-sm text-gray-500 line-clamp-2">Track raw materials.</p>
-            </button>
+            {can('inventory') && (
+              <button
+                onClick={() => setCurrentView('inventory')}
+                className="bg-white p-4 md:p-6 rounded-xl shadow-soft border border-gray-100 hover:shadow-medium transition-all group text-left relative overflow-hidden"
+              >
+                <div className="absolute top-0 right-0 w-16 h-16 md:w-24 md:h-24 bg-blue-50 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
+                <div className="p-2 md:p-3 bg-blue-50 rounded-lg w-fit mb-3 md:mb-4 group-hover:bg-blue-500 group-hover:text-white transition-colors">
+                  <Warehouse className="w-4 h-4 md:w-6 md:h-6 text-blue-600 group-hover:text-white" />
+                </div>
+                <h3 className="text-sm md:text-lg font-bold text-theme-text mb-1 md:mb-2 group-hover:text-blue-600 transition-colors">Inventory</h3>
+                <p className="text-xs md:text-sm text-gray-500 line-clamp-2">Track raw materials.</p>
+              </button>
+            )}
 
             {/* Orders Management Card */}
-            <button
-              onClick={() => setCurrentView('orders')}
-              className="bg-white p-4 md:p-6 rounded-xl shadow-soft border border-gray-100 hover:shadow-medium transition-all group text-left relative overflow-hidden"
-            >
-              <div className="absolute top-0 right-0 w-16 h-16 md:w-24 md:h-24 bg-green-50 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
-              <div className="p-2 md:p-3 bg-green-50 rounded-lg w-fit mb-3 md:mb-4 group-hover:bg-green-500 group-hover:text-white transition-colors">
-                <ShoppingCart className="w-4 h-4 md:w-6 md:h-6 text-green-600 group-hover:text-white" />
-              </div>
-              <h3 className="text-sm md:text-lg font-bold text-theme-text mb-1 md:mb-2 group-hover:text-green-600 transition-colors">Orders</h3>
-              <p className="text-xs md:text-sm text-gray-500 line-clamp-2">Manage orders.</p>
-            </button>
+            {can('orders') && (
+              <button
+                onClick={() => setCurrentView('orders')}
+                className="bg-white p-4 md:p-6 rounded-xl shadow-soft border border-gray-100 hover:shadow-medium transition-all group text-left relative overflow-hidden"
+              >
+                <div className="absolute top-0 right-0 w-16 h-16 md:w-24 md:h-24 bg-green-50 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
+                <div className="p-2 md:p-3 bg-green-50 rounded-lg w-fit mb-3 md:mb-4 group-hover:bg-green-500 group-hover:text-white transition-colors">
+                  <ShoppingCart className="w-4 h-4 md:w-6 md:h-6 text-green-600 group-hover:text-white" />
+                </div>
+                <h3 className="text-sm md:text-lg font-bold text-theme-text mb-1 md:mb-2 group-hover:text-green-600 transition-colors">Orders</h3>
+                <p className="text-xs md:text-sm text-gray-500 line-clamp-2">Manage orders.</p>
+              </button>
+            )}
 
             {/* Group Buys Management Card */}
-            <button
-              onClick={() => setCurrentView('group-buys')}
-              className="bg-white p-4 md:p-6 rounded-xl shadow-soft border border-gray-100 hover:shadow-medium transition-all group text-left relative overflow-hidden"
-            >
-              <div className="absolute top-0 right-0 w-16 h-16 md:w-24 md:h-24 bg-theme-accent/5 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
-              <div className="p-2 md:p-3 bg-theme-accent/10 rounded-lg w-fit mb-3 md:mb-4 group-hover:bg-theme-accent group-hover:text-white transition-colors">
-                <ShoppingBag className="w-4 h-4 md:w-6 md:h-6 text-theme-accent group-hover:text-white" />
-              </div>
-              <h3 className="text-sm md:text-lg font-bold text-theme-text mb-1 md:mb-2 group-hover:text-theme-accent transition-colors">Group Buys</h3>
-              <p className="text-xs md:text-sm text-gray-500 line-clamp-2">Create & manage GB rounds.</p>
-            </button>
+            {can('group-buys') && (
+              <button
+                onClick={() => setCurrentView('group-buys')}
+                className="bg-white p-4 md:p-6 rounded-xl shadow-soft border border-gray-100 hover:shadow-medium transition-all group text-left relative overflow-hidden"
+              >
+                <div className="absolute top-0 right-0 w-16 h-16 md:w-24 md:h-24 bg-theme-accent/5 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
+                <div className="p-2 md:p-3 bg-theme-accent/10 rounded-lg w-fit mb-3 md:mb-4 group-hover:bg-theme-accent group-hover:text-white transition-colors">
+                  <ShoppingBag className="w-4 h-4 md:w-6 md:h-6 text-theme-accent group-hover:text-white" />
+                </div>
+                <h3 className="text-sm md:text-lg font-bold text-theme-text mb-1 md:mb-2 group-hover:text-theme-accent transition-colors">Group Buys</h3>
+                <p className="text-xs md:text-sm text-gray-500 line-clamp-2">Create & manage GB rounds.</p>
+              </button>
+            )}
 
             {/* Sales Analytics Card */}
-            <button
-              onClick={() => setCurrentView('analytics')}
-              className="bg-white p-4 md:p-6 rounded-xl shadow-soft border border-gray-100 hover:shadow-medium transition-all group text-left relative overflow-hidden"
-            >
-              <div className="absolute top-0 right-0 w-16 h-16 md:w-24 md:h-24 bg-blue-50 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
-              <div className="p-2 md:p-3 bg-blue-50 rounded-lg w-fit mb-3 md:mb-4 group-hover:bg-blue-500 group-hover:text-white transition-colors">
-                <BarChart3 className="w-4 h-4 md:w-6 md:h-6 text-blue-600 group-hover:text-white" />
-              </div>
-              <h3 className="text-sm md:text-lg font-bold text-theme-text mb-1 md:mb-2 group-hover:text-blue-600 transition-colors">Sales Analytics</h3>
-              <p className="text-xs md:text-sm text-gray-500 line-clamp-2">Revenue & best sellers.</p>
-            </button>
+            {can('analytics') && (
+              <button
+                onClick={() => setCurrentView('analytics')}
+                className="bg-white p-4 md:p-6 rounded-xl shadow-soft border border-gray-100 hover:shadow-medium transition-all group text-left relative overflow-hidden"
+              >
+                <div className="absolute top-0 right-0 w-16 h-16 md:w-24 md:h-24 bg-blue-50 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
+                <div className="p-2 md:p-3 bg-blue-50 rounded-lg w-fit mb-3 md:mb-4 group-hover:bg-blue-500 group-hover:text-white transition-colors">
+                  <BarChart3 className="w-4 h-4 md:w-6 md:h-6 text-blue-600 group-hover:text-white" />
+                </div>
+                <h3 className="text-sm md:text-lg font-bold text-theme-text mb-1 md:mb-2 group-hover:text-blue-600 transition-colors">Sales Analytics</h3>
+                <p className="text-xs md:text-sm text-gray-500 line-clamp-2">Revenue & best sellers.</p>
+              </button>
+            )}
 
             {/* Hero Section Card */}
-            <button
-              onClick={() => setCurrentView('hero')}
-              className="bg-white p-4 md:p-6 rounded-xl shadow-soft border border-gray-100 hover:shadow-medium transition-all group text-left relative overflow-hidden"
-            >
-              <div className="absolute top-0 right-0 w-16 h-16 md:w-24 md:h-24 bg-indigo-50 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
-              <div className="p-2 md:p-3 bg-indigo-50 rounded-lg w-fit mb-3 md:mb-4 group-hover:bg-indigo-500 group-hover:text-white transition-colors">
-                <ImageIcon className="w-4 h-4 md:w-6 md:h-6 text-indigo-600 group-hover:text-white" />
-              </div>
-              <h3 className="text-sm md:text-lg font-bold text-theme-text mb-1 md:mb-2 group-hover:text-indigo-600 transition-colors">Hero Section</h3>
-              <p className="text-xs md:text-sm text-gray-500 line-clamp-2">Edit homepage banner.</p>
-            </button>
+            {can('hero') && (
+              <button
+                onClick={() => setCurrentView('hero')}
+                className="bg-white p-4 md:p-6 rounded-xl shadow-soft border border-gray-100 hover:shadow-medium transition-all group text-left relative overflow-hidden"
+              >
+                <div className="absolute top-0 right-0 w-16 h-16 md:w-24 md:h-24 bg-indigo-50 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
+                <div className="p-2 md:p-3 bg-indigo-50 rounded-lg w-fit mb-3 md:mb-4 group-hover:bg-indigo-500 group-hover:text-white transition-colors">
+                  <ImageIcon className="w-4 h-4 md:w-6 md:h-6 text-indigo-600 group-hover:text-white" />
+                </div>
+                <h3 className="text-sm md:text-lg font-bold text-theme-text mb-1 md:mb-2 group-hover:text-indigo-600 transition-colors">Hero Section</h3>
+                <p className="text-xs md:text-sm text-gray-500 line-clamp-2">Edit homepage banner.</p>
+              </button>
+            )}
 
             {/* Global Discount Card */}
-            <button
-              onClick={() => setCurrentView('discounts')}
-              className="bg-white p-4 md:p-6 rounded-xl shadow-soft border border-gray-100 hover:shadow-medium transition-all group text-left relative overflow-hidden"
-            >
-              <div className="absolute top-0 right-0 w-16 h-16 md:w-24 md:h-24 bg-rose-50 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
-              <div className="p-2 md:p-3 bg-rose-50 rounded-lg w-fit mb-3 md:mb-4 group-hover:bg-rose-500 group-hover:text-white transition-colors">
-                <Percent className="w-4 h-4 md:w-6 md:h-6 text-rose-600 group-hover:text-white" />
-              </div>
-              <h3 className="text-sm md:text-lg font-bold text-theme-text mb-1 md:mb-2 group-hover:text-rose-600 transition-colors">Discounts</h3>
-              <p className="text-xs md:text-sm text-gray-500 line-clamp-2">Sitewide promo pricing.</p>
-            </button>
+            {can('discounts') && (
+              <button
+                onClick={() => setCurrentView('discounts')}
+                className="bg-white p-4 md:p-6 rounded-xl shadow-soft border border-gray-100 hover:shadow-medium transition-all group text-left relative overflow-hidden"
+              >
+                <div className="absolute top-0 right-0 w-16 h-16 md:w-24 md:h-24 bg-rose-50 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
+                <div className="p-2 md:p-3 bg-rose-50 rounded-lg w-fit mb-3 md:mb-4 group-hover:bg-rose-500 group-hover:text-white transition-colors">
+                  <Percent className="w-4 h-4 md:w-6 md:h-6 text-rose-600 group-hover:text-white" />
+                </div>
+                <h3 className="text-sm md:text-lg font-bold text-theme-text mb-1 md:mb-2 group-hover:text-rose-600 transition-colors">Discounts</h3>
+                <p className="text-xs md:text-sm text-gray-500 line-clamp-2">Sitewide promo pricing.</p>
+              </button>
+            )}
 
             {/* Terms & Conditions Card */}
-            <button
-              onClick={() => setCurrentView('terms')}
-              className="bg-white p-4 md:p-6 rounded-xl shadow-soft border border-gray-100 hover:shadow-medium transition-all group text-left relative overflow-hidden"
-            >
-              <div className="absolute top-0 right-0 w-16 h-16 md:w-24 md:h-24 bg-slate-100 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
-              <div className="p-2 md:p-3 bg-slate-100 rounded-lg w-fit mb-3 md:mb-4 group-hover:bg-slate-600 group-hover:text-white transition-colors">
-                <ScrollText className="w-4 h-4 md:w-6 md:h-6 text-slate-600 group-hover:text-white" />
-              </div>
-              <h3 className="text-sm md:text-lg font-bold text-theme-text mb-1 md:mb-2 group-hover:text-slate-700 transition-colors">Terms</h3>
-              <p className="text-xs md:text-sm text-gray-500 line-clamp-2">Edit checkout T&amp;C.</p>
-            </button>
+            {can('terms') && (
+              <button
+                onClick={() => setCurrentView('terms')}
+                className="bg-white p-4 md:p-6 rounded-xl shadow-soft border border-gray-100 hover:shadow-medium transition-all group text-left relative overflow-hidden"
+              >
+                <div className="absolute top-0 right-0 w-16 h-16 md:w-24 md:h-24 bg-slate-100 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
+                <div className="p-2 md:p-3 bg-slate-100 rounded-lg w-fit mb-3 md:mb-4 group-hover:bg-slate-600 group-hover:text-white transition-colors">
+                  <ScrollText className="w-4 h-4 md:w-6 md:h-6 text-slate-600 group-hover:text-white" />
+                </div>
+                <h3 className="text-sm md:text-lg font-bold text-theme-text mb-1 md:mb-2 group-hover:text-slate-700 transition-colors">Terms</h3>
+                <p className="text-xs md:text-sm text-gray-500 line-clamp-2">Edit checkout T&amp;C.</p>
+              </button>
+            )}
 
             {/* Site Access Code Card */}
-            <button
-              onClick={() => setCurrentView('access-code')}
-              className="bg-white p-4 md:p-6 rounded-xl shadow-soft border border-gray-100 hover:shadow-medium transition-all group text-left relative overflow-hidden"
-            >
-              <div className="absolute top-0 right-0 w-16 h-16 md:w-24 md:h-24 bg-rose-50 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
-              <div className="p-2 md:p-3 bg-rose-50 rounded-lg w-fit mb-3 md:mb-4 group-hover:bg-rose-600 group-hover:text-white transition-colors">
-                <KeyRound className="w-4 h-4 md:w-6 md:h-6 text-rose-600 group-hover:text-white" />
-              </div>
-              <h3 className="text-sm md:text-lg font-bold text-theme-text mb-1 md:mb-2 group-hover:text-rose-600 transition-colors">Access Code</h3>
-              <p className="text-xs md:text-sm text-gray-500 line-clamp-2">Change the site entry code.</p>
-            </button>
+            {can('access-code') && (
+              <button
+                onClick={() => setCurrentView('access-code')}
+                className="bg-white p-4 md:p-6 rounded-xl shadow-soft border border-gray-100 hover:shadow-medium transition-all group text-left relative overflow-hidden"
+              >
+                <div className="absolute top-0 right-0 w-16 h-16 md:w-24 md:h-24 bg-rose-50 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
+                <div className="p-2 md:p-3 bg-rose-50 rounded-lg w-fit mb-3 md:mb-4 group-hover:bg-rose-600 group-hover:text-white transition-colors">
+                  <KeyRound className="w-4 h-4 md:w-6 md:h-6 text-rose-600 group-hover:text-white" />
+                </div>
+                <h3 className="text-sm md:text-lg font-bold text-theme-text mb-1 md:mb-2 group-hover:text-rose-600 transition-colors">Access Code</h3>
+                <p className="text-xs md:text-sm text-gray-500 line-clamp-2">Change the site entry code.</p>
+              </button>
+            )}
 
             {/* Payment Methods Card */}
-            <button
-              onClick={() => setCurrentView('payments')}
-              className="bg-white p-4 md:p-6 rounded-xl shadow-soft border border-gray-100 hover:shadow-medium transition-all group text-left relative overflow-hidden"
-            >
-              <div className="absolute top-0 right-0 w-16 h-16 md:w-24 md:h-24 bg-purple-50 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
-              <div className="p-2 md:p-3 bg-purple-50 rounded-lg w-fit mb-3 md:mb-4 group-hover:bg-purple-500 group-hover:text-white transition-colors">
-                <CreditCard className="w-4 h-4 md:w-6 md:h-6 text-purple-600 group-hover:text-white" />
-              </div>
-              <h3 className="text-sm md:text-lg font-bold text-theme-text mb-1 md:mb-2 group-hover:text-purple-600 transition-colors">Payments</h3>
-              <p className="text-xs md:text-sm text-gray-500 line-clamp-2">Setup accounts.</p>
-            </button>
+            {can('payments') && (
+              <button
+                onClick={() => setCurrentView('payments')}
+                className="bg-white p-4 md:p-6 rounded-xl shadow-soft border border-gray-100 hover:shadow-medium transition-all group text-left relative overflow-hidden"
+              >
+                <div className="absolute top-0 right-0 w-16 h-16 md:w-24 md:h-24 bg-purple-50 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
+                <div className="p-2 md:p-3 bg-purple-50 rounded-lg w-fit mb-3 md:mb-4 group-hover:bg-purple-500 group-hover:text-white transition-colors">
+                  <CreditCard className="w-4 h-4 md:w-6 md:h-6 text-purple-600 group-hover:text-white" />
+                </div>
+                <h3 className="text-sm md:text-lg font-bold text-theme-text mb-1 md:mb-2 group-hover:text-purple-600 transition-colors">Payments</h3>
+                <p className="text-xs md:text-sm text-gray-500 line-clamp-2">Setup accounts.</p>
+              </button>
+            )}
 
             {/* Shipping Rates Card */}
-            <button
-              onClick={() => setCurrentView('shipping')}
-              className="bg-white p-4 md:p-6 rounded-xl shadow-soft border border-gray-100 hover:shadow-medium transition-all group text-left relative overflow-hidden"
-            >
-              <div className="absolute top-0 right-0 w-16 h-16 md:w-24 md:h-24 bg-orange-50 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
-              <div className="p-2 md:p-3 bg-orange-50 rounded-lg w-fit mb-3 md:mb-4 group-hover:bg-orange-500 group-hover:text-white transition-colors">
-                <MapPin className="w-4 h-4 md:w-6 md:h-6 text-orange-600 group-hover:text-white" />
-              </div>
-              <h3 className="text-sm md:text-lg font-bold text-theme-text mb-1 md:mb-2 group-hover:text-orange-600 transition-colors">Shipping</h3>
-              <p className="text-xs md:text-sm text-gray-500 line-clamp-2">Manage shipping.</p>
-            </button>
+            {can('shipping') && (
+              <button
+                onClick={() => setCurrentView('shipping')}
+                className="bg-white p-4 md:p-6 rounded-xl shadow-soft border border-gray-100 hover:shadow-medium transition-all group text-left relative overflow-hidden"
+              >
+                <div className="absolute top-0 right-0 w-16 h-16 md:w-24 md:h-24 bg-orange-50 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
+                <div className="p-2 md:p-3 bg-orange-50 rounded-lg w-fit mb-3 md:mb-4 group-hover:bg-orange-500 group-hover:text-white transition-colors">
+                  <MapPin className="w-4 h-4 md:w-6 md:h-6 text-orange-600 group-hover:text-white" />
+                </div>
+                <h3 className="text-sm md:text-lg font-bold text-theme-text mb-1 md:mb-2 group-hover:text-orange-600 transition-colors">Shipping</h3>
+                <p className="text-xs md:text-sm text-gray-500 line-clamp-2">Manage shipping.</p>
+              </button>
+            )}
 
 
 
@@ -1995,122 +2110,132 @@ const AdminDashboard: React.FC = () => {
 
 
             {/* Journey Manager Card */}
-            <div
-              onClick={() => setCurrentView('journey')}
-              className="bg-white p-6 rounded-xl shadow-soft border border-gray-100 hover:shadow-lg transition-all cursor-pointer group"
-            >
-              <div className="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center text-indigo-600 mb-4 group-hover:scale-110 transition-transform">
-                <Sparkles className="w-6 h-6" />
+            {can('journey') && (
+              <div
+                onClick={() => setCurrentView('journey')}
+                className="bg-white p-6 rounded-xl shadow-soft border border-gray-100 hover:shadow-lg transition-all cursor-pointer group"
+              >
+                <div className="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center text-indigo-600 mb-4 group-hover:scale-110 transition-transform">
+                  <Sparkles className="w-6 h-6" />
+                </div>
+                <h3 className="text-lg font-bold text-gray-900 mb-1">Journey Page</h3>
+                <p className="text-sm text-gray-500">Edit content for "Our Journey"</p>
               </div>
-              <h3 className="text-lg font-bold text-gray-900 mb-1">Journey Page</h3>
-              <p className="text-sm text-gray-500">Edit content for "Our Journey"</p>
-            </div>
+            )}
 
             {/* Assessment System Card */}
-            <div
-              onClick={() => setCurrentView('assessment')}
-              className="bg-white p-6 rounded-xl shadow-soft border border-gray-100 hover:shadow-lg transition-all cursor-pointer group"
-            >
-              <div className="w-12 h-12 bg-teal-100 rounded-lg flex items-center justify-center text-teal-600 mb-4 group-hover:scale-110 transition-transform">
-                <ClipboardList className="w-6 h-6" />
+            {can('assessment') && (
+              <div
+                onClick={() => setCurrentView('assessment')}
+                className="bg-white p-6 rounded-xl shadow-soft border border-gray-100 hover:shadow-lg transition-all cursor-pointer group"
+              >
+                <div className="w-12 h-12 bg-teal-100 rounded-lg flex items-center justify-center text-teal-600 mb-4 group-hover:scale-110 transition-transform">
+                  <ClipboardList className="w-6 h-6" />
+                </div>
+                <h3 className="text-lg font-bold text-gray-900 mb-1">Assessment System</h3>
+                <p className="text-sm text-gray-500">Manage responses & rules</p>
               </div>
-              <h3 className="text-lg font-bold text-gray-900 mb-1">Assessment System</h3>
-              <p className="text-sm text-gray-500">Manage responses & rules</p>
-            </div>
+            )}
 
             {/* Smart Guide System Card */}
-            <div
-              onClick={() => setCurrentView('guides')}
-              className="bg-white p-6 rounded-xl shadow-soft border border-gray-100 hover:shadow-lg transition-all cursor-pointer group"
-            >
-              <div className="w-12 h-12 bg-pink-100 rounded-lg flex items-center justify-center text-pink-600 mb-4 group-hover:scale-110 transition-transform">
-                <FileText className="w-6 h-6" />
+            {can('guides') && (
+              <div
+                onClick={() => setCurrentView('guides')}
+                className="bg-white p-6 rounded-xl shadow-soft border border-gray-100 hover:shadow-lg transition-all cursor-pointer group"
+              >
+                <div className="w-12 h-12 bg-pink-100 rounded-lg flex items-center justify-center text-pink-600 mb-4 group-hover:scale-110 transition-transform">
+                  <FileText className="w-6 h-6" />
+                </div>
+                <h3 className="text-lg font-bold text-gray-900 mb-1">Smart Guides</h3>
+                <p className="text-sm text-gray-500">Manage QR/files pages</p>
               </div>
-              <h3 className="text-lg font-bold text-gray-900 mb-1">Smart Guides</h3>
-              <p className="text-sm text-gray-500">Manage QR/files pages</p>
-            </div>
+            )}
 
           </div>
 
           {/* Admin Fee Settings */}
-          <h2 className="text-lg font-bold text-theme-text mb-4 flex items-center gap-2">
-            <span className="w-1.5 h-6 bg-blue-500 rounded-full"></span>
-            Fee Settings
-          </h2>
+          {can('fees') && (
+            <>
+              <h2 className="text-lg font-bold text-theme-text mb-4 flex items-center gap-2">
+                <span className="w-1.5 h-6 bg-blue-500 rounded-full"></span>
+                Fee Settings
+              </h2>
 
-          <div className="bg-white rounded-xl shadow-soft border border-gray-100 p-4 md:p-6 mb-8">
-            <div className="flex items-start gap-3 mb-4">
-              <div className="p-2 bg-blue-50 rounded-lg">
-                <DollarSign className="w-5 h-5 text-blue-600" />
-              </div>
-              <div>
-                <h3 className="text-sm font-bold text-gray-900">Admin Fee Per Order</h3>
-                <p className="text-xs text-gray-500 mt-0.5">
-                  This fee is added to every customer order at checkout. Set separate amounts for PHP and USD.
-                </p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-              <div className="bg-green-50/50 rounded-lg p-3 border border-green-200">
-                <label className="block text-xs font-semibold text-green-700 mb-1.5">
-                  🇵🇭 PHP Fee
-                </label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-green-600 font-bold text-sm">₱</span>
-                  <input
-                    type="number"
-                    step="1"
-                    min="0"
-                    value={adminFeePhp}
-                    onChange={(e) => setAdminFeePhp(e.target.value)}
-                    onFocus={() => { if (adminFeePhp === '') setAdminFeePhp((siteSettings?.admin_fee_php ?? 150).toString()); }}
-                    className="w-full pl-7 pr-3 py-2 border border-green-200 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white"
-                    placeholder={(siteSettings?.admin_fee_php ?? 150).toString()}
-                  />
+              <div className="bg-white rounded-xl shadow-soft border border-gray-100 p-4 md:p-6 mb-8">
+                <div className="flex items-start gap-3 mb-4">
+                  <div className="p-2 bg-blue-50 rounded-lg">
+                    <DollarSign className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-gray-900">Admin Fee Per Order</h3>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      This fee is added to every customer order at checkout. Set separate amounts for PHP and USD.
+                    </p>
+                  </div>
                 </div>
-                <p className="text-[10px] text-green-600 mt-1">Current: ₱{siteSettings?.admin_fee_php ?? 150}</p>
-              </div>
 
-              <div className="bg-blue-50/50 rounded-lg p-3 border border-blue-200">
-                <label className="block text-xs font-semibold text-blue-700 mb-1.5">
-                  🌎 USD Fee
-                </label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-600 font-bold text-sm">$</span>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={adminFeeUsd}
-                    onChange={(e) => setAdminFeeUsd(e.target.value)}
-                    onFocus={() => { if (adminFeeUsd === '') setAdminFeeUsd((siteSettings?.admin_fee_usd ?? 3).toString()); }}
-                    className="w-full pl-7 pr-3 py-2 border border-blue-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
-                    placeholder={(siteSettings?.admin_fee_usd ?? 3).toString()}
-                  />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                  <div className="bg-green-50/50 rounded-lg p-3 border border-green-200">
+                    <label className="block text-xs font-semibold text-green-700 mb-1.5">
+                      🇵🇭 PHP Fee
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-green-600 font-bold text-sm">₱</span>
+                      <input
+                        type="number"
+                        step="1"
+                        min="0"
+                        value={adminFeePhp}
+                        onChange={(e) => setAdminFeePhp(e.target.value)}
+                        onFocus={() => { if (adminFeePhp === '') setAdminFeePhp((siteSettings?.admin_fee_php ?? 150).toString()); }}
+                        className="w-full pl-7 pr-3 py-2 border border-green-200 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white"
+                        placeholder={(siteSettings?.admin_fee_php ?? 150).toString()}
+                      />
+                    </div>
+                    <p className="text-[10px] text-green-600 mt-1">Current: ₱{siteSettings?.admin_fee_php ?? 150}</p>
+                  </div>
+
+                  <div className="bg-blue-50/50 rounded-lg p-3 border border-blue-200">
+                    <label className="block text-xs font-semibold text-blue-700 mb-1.5">
+                      🌎 USD Fee
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-600 font-bold text-sm">$</span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={adminFeeUsd}
+                        onChange={(e) => setAdminFeeUsd(e.target.value)}
+                        onFocus={() => { if (adminFeeUsd === '') setAdminFeeUsd((siteSettings?.admin_fee_usd ?? 3).toString()); }}
+                        className="w-full pl-7 pr-3 py-2 border border-blue-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                        placeholder={(siteSettings?.admin_fee_usd ?? 3).toString()}
+                      />
+                    </div>
+                    <p className="text-[10px] text-blue-600 mt-1">Current: ${siteSettings?.admin_fee_usd ?? 3}</p>
+                  </div>
                 </div>
-                <p className="text-[10px] text-blue-600 mt-1">Current: ${siteSettings?.admin_fee_usd ?? 3}</p>
-              </div>
-            </div>
 
-            <button
-              onClick={handleSaveAdminFees}
-              disabled={isSavingFees}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg text-sm font-semibold transition-all disabled:opacity-50 flex items-center gap-2"
-            >
-              {isSavingFees ? (
-                <>
-                  <RefreshCw className="w-4 h-4 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                <>
-                  <Save className="w-4 h-4" />
-                  Save Admin Fees
-                </>
-              )}
-            </button>
-          </div>
+                <button
+                  onClick={handleSaveAdminFees}
+                  disabled={isSavingFees}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg text-sm font-semibold transition-all disabled:opacity-50 flex items-center gap-2"
+                >
+                  {isSavingFees ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4" />
+                      Save Admin Fees
+                    </>
+                  )}
+                </button>
+              </div>
+            </>
+          )}
 
         </div>
       </div>

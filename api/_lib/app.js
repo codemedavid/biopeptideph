@@ -17,6 +17,7 @@ import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import { cookieSession } from './cookieSession.js';
 import { imageAssets, mediaHandler } from './media.js';
+import { ADMIN_FEATURES, normalizePermissions } from './adminFeatures.js';
 
 /**
  * Constant-time string comparison. Both sides are SHA-256'd to a fixed 32-byte
@@ -43,6 +44,27 @@ const MAX_GRANT_NOTE = 300;
  */
 const DEFAULT_SETTINGS_TTL_MS = 60 * 1000;
 
+/**
+ * How long a staff account (active flag + permissions) is cached per instance.
+ * Every admin request from a staff session re-checks the account so a disabled
+ * or narrowed account loses access without waiting for its cookie to expire.
+ * Edits made on this instance apply immediately; other warm instances pick them
+ * up within this window.
+ */
+const DEFAULT_STAFF_TTL_MS = 30 * 1000;
+
+const MIN_STAFF_PASSWORD = 8;
+const MAX_STAFF_PASSWORD_BYTES = 72; // bcrypt ignores everything past 72 bytes
+
+/**
+ * Compared against when a staff login names an unknown email, so a miss costs
+ * the same bcrypt time as a hit and does not reveal which emails have accounts.
+ */
+const TIMING_DUMMY_HASH = '$2b$12$4Dovxt79ttUkin/V7yBkeuI4UkFLCZtO8FERTcq4qbXTzLuYEa09W';
+
+/** The owner logs in with ADMIN_PASSWORD (or ADMIN_API_KEY) and can open everything. */
+const OWNER = Object.freeze({ role: 'owner', email: null, permissions: ADMIN_FEATURES });
+
 function cachedSettingsReader(load, ttlMs) {
   let cached = null;
   let expiresAt = 0;
@@ -66,6 +88,32 @@ function cachedSettingsReader(load, ttlMs) {
   };
 }
 
+function cachedStaffReader(load, ttlMs) {
+  const entries = new Map();
+  let generation = 0; // bumped by clear() so an in-flight read can't re-cache a pre-edit account
+  return {
+    async get(id) {
+      const hit = entries.get(id);
+      if (hit && Date.now() < hit.expiresAt) return hit.staff;
+      const startedAt = generation;
+      const staff = await load(id);
+      if (startedAt === generation) entries.set(id, { staff, expiresAt: Date.now() + ttlMs });
+      return staff;
+    },
+    clear(id) {
+      generation += 1;
+      entries.delete(id);
+    },
+  };
+}
+
+/** Returns an error code for an unusable staff password, or null when it is fine. */
+function staffPasswordError(password) {
+  if (typeof password !== 'string' || password.length < MIN_STAFF_PASSWORD) return 'password_too_short';
+  if (Buffer.byteLength(password, 'utf8') > MAX_STAFF_PASSWORD_BYTES) return 'password_too_long';
+  return null;
+}
+
 /**
  * Normalise an email exactly as gb_norm_email does in SQL (trim + lowercase),
  * because the eligibility check compares grants by plain equality. Returns null
@@ -82,9 +130,11 @@ export function createApp({
   db,
   mediaAssets = imageAssets,
   settingsTtlMs = DEFAULT_SETTINGS_TTL_MS,
+  staffTtlMs = DEFAULT_STAFF_TTL_MS,
 } = {}) {
   if (!db) throw new Error('createApp requires a `db` data layer');
   const settingsCache = cachedSettingsReader(() => db.getSettings(), settingsTtlMs);
+  const staffCache = cachedStaffReader((id) => db.getStaff(id), staffTtlMs);
   // SESSION_SECRET signs the session cookie. Fail fast with a clear message if
   // it's missing instead of letting requests fail opaquely.
   if (!process.env.SESSION_SECRET) {
@@ -146,14 +196,48 @@ export function createApp({
     }
   }
 
-  function requireAdmin(req, res, next) {
-    if (req.session && req.session.isAdmin) return next();
+  /**
+   * The admin behind the session cookie: the owner, an active staff account, or
+   * null. A staff session whose account was disabled or deleted is cleared.
+   */
+  async function sessionAdmin(req) {
+    if (req.session && req.session.isAdmin) return OWNER;
+    const staffId = req.session?.staffId;
+    if (typeof staffId !== 'string') return null;
+    const staff = await staffCache.get(staffId);
+    if (!staff || !staff.active) {
+      req.clearSession();
+      return null;
+    }
+    return { role: 'staff', email: staff.email, permissions: staff.permissions || [] };
+  }
+
+  function apiKeyAdmin(req) {
     const expected = process.env.ADMIN_API_KEY;
     const header = req.get('authorization') || '';
     const token = header.startsWith('Bearer ') ? header.slice(7) : '';
-    if (expected && token && safeEqual(token, expected)) return next();
-    return res.status(403).json({ error: 'forbidden' });
+    return expected && token && safeEqual(token, expected) ? OWNER : null;
   }
+
+  /** Middleware factory: 403 unless the caller is an admin for whom isAllowed(admin) holds. */
+  function authorize(isAllowed) {
+    return async (req, res, next) => {
+      try {
+        const admin = (await sessionAdmin(req)) || apiKeyAdmin(req);
+        if (!admin || !isAllowed(admin)) return res.status(403).json({ error: 'forbidden' });
+        return next();
+      } catch (err) {
+        console.error('admin authorization error', err?.message || err);
+        return res.status(500).json({ error: 'server_error' });
+      }
+    };
+  }
+
+  const requireAdmin = authorize(() => true);
+  const requireOwner = authorize((admin) => admin.role === 'owner');
+  /** Passes when the admin holds ANY of the listed dashboard features. */
+  const requireFeature = (...features) =>
+    authorize((admin) => features.some((f) => admin.permissions.includes(f)));
 
   // --- Routes ---------------------------------------------------------------
 
@@ -185,8 +269,37 @@ export function createApp({
     res.json({ ok: true });
   });
 
-  app.post('/api/admin/login', adminLimiter, (req, res) => {
+  /** Staff sign-in: email + password checked against admin_staff. */
+  async function staffLogin(req, res, rawEmail, password) {
+    const email = normalizeGrantEmail(rawEmail);
+    const staff = email ? await db.findStaffByEmail(email) : null;
+    // Always run one bcrypt compare so an unknown email takes as long as a wrong password.
+    const matches = await bcrypt.compare(password, staff?.password_hash || TIMING_DUMMY_HASH);
+    if (!staff || !matches) return res.status(401).json({ error: 'invalid_credentials' });
+    if (!staff.active) return res.status(403).json({ error: 'account_disabled' });
+    try {
+      await db.recordStaffLogin(staff.id);
+    } catch (err) {
+      console.error('record staff login error', err?.message || err); // never blocks sign-in
+    }
+    staffCache.clear(staff.id);
+    req.session = { staffId: staff.id };
+    req.saveSession();
+    return res.json({ ok: true });
+  }
+
+  app.post('/api/admin/login', adminLimiter, async (req, res) => {
     const password = typeof req.body?.password === 'string' ? req.body.password : '';
+    const rawEmail = typeof req.body?.email === 'string' ? req.body.email.trim() : '';
+    if (rawEmail) {
+      if (!password) return res.status(401).json({ error: 'invalid_credentials' });
+      try {
+        return await staffLogin(req, res, rawEmail, password);
+      } catch (err) {
+        console.error('staff login error', err?.message || err);
+        return res.status(500).json({ error: 'server_error' });
+      }
+    }
     const expected = process.env.ADMIN_PASSWORD;
     if (!expected) {
       console.error('ADMIN_PASSWORD env var is not set');
@@ -200,10 +313,16 @@ export function createApp({
     return res.json({ ok: true });
   });
 
-  app.get('/api/admin/session', sessionLimiter, (req, res) => {
-    const admin = !!(req.session && req.session.isAdmin);
-    if (admin) req.saveSession(); // rolling refresh on dashboard activity
-    res.json({ admin });
+  app.get('/api/admin/session', sessionLimiter, async (req, res) => {
+    try {
+      const admin = await sessionAdmin(req);
+      if (!admin) return res.json({ admin: false });
+      req.saveSession(); // rolling refresh on dashboard activity
+      return res.json({ admin: true, role: admin.role, email: admin.email, permissions: admin.permissions });
+    } catch (err) {
+      console.error('admin session error', err?.message || err);
+      return res.status(500).json({ error: 'server_error' });
+    }
   });
 
   app.post('/api/admin/logout', adminLimiter, (req, res) => {
@@ -211,7 +330,7 @@ export function createApp({
     res.json({ ok: true });
   });
 
-  app.post('/api/admin/access-code', adminLimiter, requireAdmin, async (req, res) => {
+  app.post('/api/admin/access-code', adminLimiter, requireFeature('access-code'), async (req, res) => {
     try {
       const newCode = typeof req.body?.newCode === 'string' ? req.body.newCode : '';
       if (newCode.length < 6) return res.status(400).json({ error: 'code_too_short' });
@@ -226,7 +345,9 @@ export function createApp({
   });
 
   // --- Admin data proxy (keeps orders / assessment PII off the anon key) -----
-  app.get('/api/admin/orders', sessionLimiter, requireAdmin, async (req, res) => {
+  // Orders are read by the Orders, Inventory, Sales Analytics and Group Buys
+  // screens; only the Orders screen may change them.
+  app.get('/api/admin/orders', sessionLimiter, requireFeature('orders', 'inventory', 'analytics', 'group-buys'), async (req, res) => {
     try {
       const groupBuyId =
         typeof req.query.group_buy_id === 'string' ? req.query.group_buy_id : undefined;
@@ -238,7 +359,7 @@ export function createApp({
     }
   });
 
-  app.patch('/api/admin/orders/:id', adminLimiter, requireAdmin, async (req, res) => {
+  app.patch('/api/admin/orders/:id', adminLimiter, requireFeature('orders'), async (req, res) => {
     try {
       // group_buy_id is included so the admin can re-attribute an order to the
       // right round (the checkout fallback attributes to the newest round when
@@ -259,7 +380,7 @@ export function createApp({
     }
   });
 
-  app.delete('/api/admin/orders/:id', adminLimiter, requireAdmin, async (req, res) => {
+  app.delete('/api/admin/orders/:id', adminLimiter, requireFeature('orders'), async (req, res) => {
     try {
       await db.deleteOrder(req.params.id);
       return res.json({ ok: true });
@@ -269,7 +390,7 @@ export function createApp({
     }
   });
 
-  app.post('/api/admin/orders/bulk-delete', adminLimiter, requireAdmin, async (req, res) => {
+  app.post('/api/admin/orders/bulk-delete', adminLimiter, requireFeature('orders'), async (req, res) => {
     try {
       const ids = Array.isArray(req.body?.ids)
         ? req.body.ids.filter((x) => typeof x === 'string')
@@ -285,7 +406,7 @@ export function createApp({
 
   // Re-attribute many orders to one group buy at once. Used by the Orders tab to
   // fix rounds in bulk (e.g. orders taken in the gap between two rounds).
-  app.post('/api/admin/orders/bulk-assign-group-buy', adminLimiter, requireAdmin, async (req, res) => {
+  app.post('/api/admin/orders/bulk-assign-group-buy', adminLimiter, requireFeature('orders'), async (req, res) => {
     try {
       const ids = Array.isArray(req.body?.ids)
         ? req.body.ids.filter((x) => typeof x === 'string')
@@ -307,7 +428,7 @@ export function createApp({
   // when a returning customer typed their details differently. Grants decide who
   // may buy, so they are admin-only: the table has RLS on with no policies and is
   // reached only through these service-role routes.
-  app.get('/api/admin/group-buys/:id/bunuan-grants', sessionLimiter, requireAdmin, async (req, res) => {
+  app.get('/api/admin/group-buys/:id/bunuan-grants', sessionLimiter, requireFeature('group-buys'), async (req, res) => {
     try {
       if (!UUID_RE.test(req.params.id)) return res.status(400).json({ error: 'invalid_group_buy_id' });
       const grants = await db.listBunuanGrants(req.params.id);
@@ -318,7 +439,7 @@ export function createApp({
     }
   });
 
-  app.post('/api/admin/group-buys/:id/bunuan-grants', adminLimiter, requireAdmin, async (req, res) => {
+  app.post('/api/admin/group-buys/:id/bunuan-grants', adminLimiter, requireFeature('group-buys'), async (req, res) => {
     try {
       if (!UUID_RE.test(req.params.id)) return res.status(400).json({ error: 'invalid_group_buy_id' });
       const email = normalizeGrantEmail(req.body?.email);
@@ -338,7 +459,7 @@ export function createApp({
     }
   });
 
-  app.delete('/api/admin/group-buys/:id/bunuan-grants/:grantId', adminLimiter, requireAdmin, async (req, res) => {
+  app.delete('/api/admin/group-buys/:id/bunuan-grants/:grantId', adminLimiter, requireFeature('group-buys'), async (req, res) => {
     try {
       if (!UUID_RE.test(req.params.id) || !UUID_RE.test(req.params.grantId)) {
         return res.status(400).json({ error: 'invalid_id' });
@@ -353,12 +474,93 @@ export function createApp({
     }
   });
 
-  app.get('/api/admin/assessment-responses', sessionLimiter, requireAdmin, async (req, res) => {
+  app.get('/api/admin/assessment-responses', sessionLimiter, requireFeature('assessment'), async (req, res) => {
     try {
       const responses = await db.listAssessmentResponses();
       return res.json({ responses });
     } catch (err) {
       console.error('list assessment responses error', err?.message || err);
+      return res.status(500).json({ error: 'server_error' });
+    }
+  });
+
+  // --- Staff accounts (owner only) -------------------------------------------
+  // The owner creates staff logins and ticks which dashboard sections each one
+  // may open. Hashes never leave the server; responses carry the safe columns.
+  const staffLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 60,
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+
+  app.get('/api/admin/staff', sessionLimiter, requireOwner, async (req, res) => {
+    try {
+      const staff = await db.listStaff();
+      return res.json({ staff, features: ADMIN_FEATURES });
+    } catch (err) {
+      console.error('list staff error', err?.message || err);
+      return res.status(500).json({ error: 'server_error' });
+    }
+  });
+
+  app.post('/api/admin/staff', staffLimiter, requireOwner, async (req, res) => {
+    try {
+      const email = normalizeGrantEmail(req.body?.email);
+      if (!email) return res.status(400).json({ error: 'invalid_email' });
+      const passwordError = staffPasswordError(req.body?.password);
+      if (passwordError) return res.status(400).json({ error: passwordError });
+      const permissions = normalizePermissions(req.body?.permissions ?? []);
+      if (!permissions) return res.status(400).json({ error: 'invalid_permissions' });
+      const passwordHash = await bcrypt.hash(req.body.password, 12);
+      const staff = await db.createStaff({ email, passwordHash, permissions });
+      if (!staff) return res.status(409).json({ error: 'email_taken' });
+      return res.status(201).json({ ok: true, staff });
+    } catch (err) {
+      console.error('create staff error', err?.message || err);
+      return res.status(500).json({ error: 'server_error' });
+    }
+  });
+
+  app.patch('/api/admin/staff/:id', staffLimiter, requireOwner, async (req, res) => {
+    try {
+      if (!UUID_RE.test(req.params.id)) return res.status(400).json({ error: 'invalid_id' });
+      const body = req.body || {};
+      const patch = {};
+      if (body.permissions !== undefined) {
+        const permissions = normalizePermissions(body.permissions);
+        if (!permissions) return res.status(400).json({ error: 'invalid_permissions' });
+        patch.permissions = permissions;
+      }
+      if (body.active !== undefined) {
+        if (typeof body.active !== 'boolean') return res.status(400).json({ error: 'invalid_active' });
+        patch.active = body.active;
+      }
+      if (body.password !== undefined) {
+        const passwordError = staffPasswordError(body.password);
+        if (passwordError) return res.status(400).json({ error: passwordError });
+        patch.passwordHash = await bcrypt.hash(body.password, 12);
+      }
+      if (Object.keys(patch).length === 0) return res.status(400).json({ error: 'no_fields' });
+      const staff = await db.updateStaff(req.params.id, patch);
+      staffCache.clear(req.params.id);
+      if (!staff) return res.status(404).json({ error: 'not_found' });
+      return res.json({ ok: true, staff });
+    } catch (err) {
+      console.error('update staff error', err?.message || err);
+      return res.status(500).json({ error: 'server_error' });
+    }
+  });
+
+  app.delete('/api/admin/staff/:id', staffLimiter, requireOwner, async (req, res) => {
+    try {
+      if (!UUID_RE.test(req.params.id)) return res.status(400).json({ error: 'invalid_id' });
+      const removed = await db.deleteStaff(req.params.id);
+      staffCache.clear(req.params.id);
+      if (removed === 0) return res.status(404).json({ error: 'not_found' });
+      return res.json({ ok: true });
+    } catch (err) {
+      console.error('delete staff error', err?.message || err);
       return res.status(500).json({ error: 'server_error' });
     }
   });

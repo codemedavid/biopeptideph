@@ -164,6 +164,80 @@ async function deleteBunuanGrant(groupBuyId, grantId) {
   return data ? data.length : 0;
 }
 
+// --- Admin staff accounts (owner-managed; RLS denies the anon key entirely) ---
+
+const STAFF_COLUMNS = 'id, email, permissions, active, created_at, updated_at, last_login_at';
+const UNIQUE_VIOLATION = '23505';
+
+/** Includes password_hash — only the login route may call this. */
+async function findStaffByEmail(email) {
+  const { data, error } = await supabase
+    .from('admin_staff')
+    .select(`${STAFF_COLUMNS}, password_hash`)
+    .eq('email', email)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+async function getStaff(id) {
+  const { data, error } = await supabase.from('admin_staff').select(STAFF_COLUMNS).eq('id', id).maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+async function listStaff() {
+  const { data, error } = await supabase
+    .from('admin_staff')
+    .select(STAFF_COLUMNS)
+    .order('created_at', { ascending: true });
+  if (error) throw error;
+  return data || [];
+}
+
+/** Returns the new row, or null when the email is already taken. */
+async function createStaff({ email, passwordHash, permissions }) {
+  const { data, error } = await supabase
+    .from('admin_staff')
+    .insert({ email, password_hash: passwordHash, permissions })
+    .select(STAFF_COLUMNS)
+    .single();
+  if (error?.code === UNIQUE_VIOLATION) return null;
+  if (error) throw error;
+  return data;
+}
+
+/** patch keys: permissions, active, passwordHash. Returns the row, or null if missing. */
+async function updateStaff(id, patch) {
+  const next = { updated_at: new Date().toISOString() };
+  if (patch.permissions !== undefined) next.permissions = patch.permissions;
+  if (patch.active !== undefined) next.active = patch.active;
+  if (patch.passwordHash !== undefined) next.password_hash = patch.passwordHash;
+  const { data, error } = await supabase
+    .from('admin_staff')
+    .update(next)
+    .eq('id', id)
+    .select(STAFF_COLUMNS)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+/** Returns the number of rows removed. */
+async function deleteStaff(id) {
+  const { data, error } = await supabase.from('admin_staff').delete().eq('id', id).select('id');
+  if (error) throw error;
+  return data ? data.length : 0;
+}
+
+async function recordStaffLogin(id) {
+  const { error } = await supabase
+    .from('admin_staff')
+    .update({ last_login_at: new Date().toISOString() })
+    .eq('id', id);
+  if (error) throw error;
+}
+
 /** Liveness probe for GET /api/health — a trivial REST read. */
 async function ping() {
   const { error } = await supabase.from('app_settings').select('id').limit(1);
@@ -183,5 +257,12 @@ export const supabaseDb = {
   listBunuanGrants,
   upsertBunuanGrant,
   deleteBunuanGrant,
+  findStaffByEmail,
+  getStaff,
+  listStaff,
+  createStaff,
+  updateStaff,
+  deleteStaff,
+  recordStaffLogin,
   ping,
 };

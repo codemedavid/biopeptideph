@@ -37,6 +37,7 @@ export function mediaHandler({ assets = imageAssets, requireValidSession, requir
     if (asset.access === 'admin') return requireAdmin(req, res, deliver);
     if (asset.access !== 'catalog') return res.status(403).json({ error: 'forbidden' });
     if (req.session?.isAdmin) return deliver();
+    if (req.session?.staffId) return requireAdmin(req, res, deliver);
     return requireValidSession(req, res, deliver, next);
   };
 }
